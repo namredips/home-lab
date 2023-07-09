@@ -1,0 +1,45 @@
+---
+- name: Remove .kube folder for the user
+  become_user: '{{ user }}'
+  file:
+    path: ~/.kube
+    owner: '{{ user }}'
+    group: '{{ user }}'
+    mode: 0750
+    state: absent
+  with_items: '{{ users }}'
+  loop_control:
+    loop_var: user
+    label: '{{ user }}'
+
+- name: Remove user from group
+  command: "deluser {{ user }} microk8s"
+  ignore_errors: true
+  changed_when: true
+  with_items: '{{ users }}'
+  loop_control:
+    loop_var: user
+    label: '{{ user }}'
+
+- name: Remove kubectl alias
+  command: "snap unalias kubectl"
+  ignore_errors: true
+
+- name: Remove helm3 alias
+  command: "snap unalias helm"
+  ignore_errors: true
+
+- name: Remove all cluster HA hosts from hosts file
+  blockinfile:
+    dest: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED: microk8s HA Cluster Hosts"
+    state: absent
+    content: |
+      {% for host in groups[microk8s_cluster] %}
+      {{ hostvars[host].ansible_default_ipv4.address }} {{ hostvars[host].ansible_hostname }}
+      {% endfor %}
+
+- name: Remove microk8 via snap
+  snap:
+    name: microk8s
+    state: absent

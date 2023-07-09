@@ -1,0 +1,36 @@
+- name: Get current addons state
+  command:
+    cmd: microk8s.status --format yaml
+  changed_when: no
+  register: microk8s_status
+  check_mode: no
+
+- name: Set current state fact
+  set_fact:
+    microk8s_status: "{{ microk8s_status.stdout | from_yaml }}"
+
+- name: enable addons
+  loop: "{{ microk8s_status.addons }}"
+  loop_control:
+    label: "{{ item.name }}"
+  command:
+    cmd: microk8s.enable {{ item.name }}{% if microk8s_addons[item.name] != True %}:{{ microk8s_addons[item.name] }}{% endif %}
+  register: microk8s_addon_enable
+  failed_when: "microk8s_addon_enable.rc not in [0, 1, 2]"
+  when:
+    - item.status == 'disabled'
+    - item.name in microk8s_addons
+    - microk8s_addons[item.name]
+
+- name: disable addons
+  loop: "{{ microk8s_status.addons }}"
+  loop_control:
+    label: "{{ item.name }}"
+  command:
+    cmd: microk8s.disable {{ item.name }}
+  register: microk8s_addon_disable
+  failed_when: "microk8s_addon_disable.rc not in [0, 1, 2]"
+  when:
+    - item.status == 'enabled'
+    - item.name in microk8s_addons
+    - not microk8s_addons[item.name]

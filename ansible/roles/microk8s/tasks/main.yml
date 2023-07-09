@@ -1,0 +1,17 @@
+---
+- name: install microk8s
+  import_tasks: install.yml
+  when: not reset | bool
+
+- name: configure users
+  include_tasks: configure-groups.yml
+  when: '"users is defined" and not reset | bool'
+
+- name: Configure High Availability Microk8s
+  include_tasks: configure-nodes.yml
+  when: not reset | bool
+
+- name: Remove microk8s
+  include_tasks: reset.yml
+  when: reset | bool
+

@@ -1,0 +1,12 @@
+---
+#- name: Set timezone to indianpolis indiana
+#  community.general.timezone:
+#    name: America/Indiana/Indianapolis
+
+- name: Install base dependencies
+  import_tasks: install.yml
+  when: not reset | bool
+
+- name: Remove base dependencies
+  import_tasks: reset.yml
+  when: reset | bool

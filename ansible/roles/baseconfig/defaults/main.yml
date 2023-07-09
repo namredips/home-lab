@@ -1,0 +1,7 @@
+---
+reset: False
+base_dependencies:
+  - snapd
+  - python3-pip
+  - jq
+  - net-tools

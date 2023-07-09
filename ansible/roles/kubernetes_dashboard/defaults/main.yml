@@ -1,0 +1,48 @@
+---
+
+microk8s_addons:
+  cert-manager: false                     # automatic cert management
+  community: true                         # Enables the community addons repository
+  dns: "{{ microk8s_dns_resolvers }}"     # CoreDNS
+  dashboard: true                         # The Kubernetes dashboard
+  gpu: false                              # Automatic enablement of Nvidia CUDA
+  ha-cluster: true                        # Allows for high availability on clusters with at least three nodes.
+  helm: true                              # Helm 2 - the package manager for Kubernetes
+  helm3: true                             # Helm 3 - Kubernetes package manager
+  hostpath-storage: false                 # Storage class; allocates storage from host directory
+  host-access: true                       # Allow Pods connecting to Host services smoothly
+  ingress: true                           # Ingress controller for external access
+  mayastor: false                         # Multi-node zero-ops storage option powered by Mayastor 
+  minio: false                            # Cloud-agnostic S3-compatible object storage.
+  metallb: "{{ microk8s_lb_pool }}"       # Loadbalancer for your Kubernetes cluster
+  metrics-server: true                    # K8s Metrics Server for API access to service metrics
+  prometheus: false                       # Prometheus operator for monitoring and logging
+  rbac: true                              # Role-Based Access Control for authorisation
+  registry: false                         # "size={{ registry_size }}"    # Private image registry exposed on localhost:32000
+  argocd: false                           # Deploys Argo CD, the declarative, GitOps continuous delivery tool for Kubernetes.
+  cilium: false                           # Deploys Cilium to support Kubernetes network policies using eBPF.
+  easyhaporxy: false                      # Adds EasyHAProxy for automatic ingress
+  fluentd: false                          # Elasticsearch-Fluentd-Kibana logging and monitoring
+  gopaddle-lite: false                    # Simple “no-code” platform for Kubernetes developer
+  inaccel: false                          # Simplify FPGA management and application lifecycle with InAccel.
+  kata: false                             # Adds Kata containers support - A secure container runtime with lightweight virtual machines.
+  keda: false                             # Deploys KEDA - Kubernetes Event-driven Autoscaling operator.
+  kwasm: false                            # Add WebAssembly support to your Kubernetes nodes
+  linkerd: false                          # Deploys the linkerd service mesh
+  multus: false                           # Add multus for multiple network capability.
+  nfs: false                              # Adds NFS-based storage.
+  ondat: false                            # A Kubernetes-native persistent storage platform.
+  openebs: false                          # Add OpenEBS storage capability.
+  openfaas: false                         # OpenFaaS, the popular serverless framework.
+  osm-edge: false                         # Open Service Mesh Edge (OSM-Edge) fork from Open Service Mesh is a lightweight, extensible, Cloud Native service mesh built for Edge computing.
+  parking: false                          # Parking for static sites
+  portainer: false                        # Container management dashboard (see portainer.io)
+  shifu: false                            # Kubernetes native IoT development framework
+  sosivio: false                          # Predictive troubleshooting for Kubernetes
+  traefik: false                          # Adds the Traefik Kubernetes Ingress controller.
+  trivy: false                            # Open source security scanner for Kubernetes
+  
+
+
+
+
