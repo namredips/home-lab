@@ -1,6 +1,10 @@
 ---
+
 # hostgroup whose members will form high-availability microk8s cluster
 microk8s_cluster: "cluster"
+
+# admin username for kubernetes cluster
+kube_admin_user: jefcox
 
 ansible_become_pass: !vault |
           $ANSIBLE_VAULT;1.1;AES256
@@ -9,6 +13,7 @@ ansible_become_pass: !vault |
           66313164653238333133396538633561336263383664343934613638636465363537636131393661
           6262346666666333340a303266376331386532656132663037373130656138656132313566656431
           3766
+
 docker_hub_token: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           34653436326233613964376532663035383632663537613261626562623539356435643638366530

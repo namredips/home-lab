@@ -1,1 +1,4 @@
 ansible
+pyaml
+jsonpatch
+kubernetes

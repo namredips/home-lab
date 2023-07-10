@@ -6,7 +6,7 @@
     marker: "# {mark} ANSIBLE MANAGED: microk8s HA Cluster Hosts"
     content: |
       {% for host in groups[microk8s_cluster] %}
-      {{ hostvars[host].ansible_default_ipv4.address }} {{ hostvars[host].ansible_hostname }}
+      {{ hostvars[host].ip }} {{ hostvars[host].inventory_hostname }} {{ hostvars[host].inventory_hostname_short}}
       {% endfor %}
 
 - name: Find the designated host
@@ -54,21 +54,3 @@
   include_tasks: addons.yml
   when: inventory_hostname == designated_host
 
-- name: Add nodeport to dashboard
-  k8s:
-    definition:
-      apiVersion: v1
-      kind: service
-      metadata:
-        name: kubernetes-dashboard
-        namespace: kube-system
-      spec:
-        ports:
-        - nodePort: 30536
-          port: 443
-          protocol: TCP
-          targetPort: 8443
-      selector:
-        k8s-app: kubernetes-dashboard
-
-  when: inventory_hostname == designated_host

@@ -1,0 +1,32 @@
+---
+
+- name: Find the designated host
+  set_fact:
+    designated_host: '{{ (groups[microk8s_cluster]|sort)[0] }}'
+
+- name: Found designated host
+  debug:
+    msg: Designated host ==> {{ designated_host }}
+
+- name: Waiting for microk8s to be ready on microk8s host master
+  command: "microk8s status --wait-ready"
+  delegate_to: "{{ designated_host }}"
+  delegate_facts: true
+  changed_when: false
+
+- name: Add nodeport to kubernetes
+  k8s:
+    verify_ssl: no
+    definition:
+      apiVersion: v1
+      kind: service
+      metadata:
+        name: kubernetes
+        namespace: default
+      spec:
+        type: NodePort
+        ports:
+        - nodePort: 30443
+          port: 443
+          protocol: TCP
+          targetPort: 16443

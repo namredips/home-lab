@@ -11,6 +11,13 @@
     state: present
   become_user: "{{ ansible_env.SUDO_USER }}"  # Install as non root user!
 
+- name: Set route metric
+  command:
+    cmd: "netplan set ethernets.{{ hostvars[inventory_hostname].interface}}.dhcp4-overrides.route-metric=50"
+  notify:
+    - Apply netplan
+
 - name: Start iscsi
   command:
     cmd: systemctl enable --now iscsid
+

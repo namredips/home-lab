@@ -1,0 +1,20 @@
+---
+
+- name: Refresh certs 
+  loop:
+    - microk8s.refresh-certs --cert server.crt
+    - microk8s.refresh-certs --cert front-proxy-client.crt 
+    - microk8s.refresh-certs --cert ca.crt
+  loop_control:
+    label: "{{ item }}"
+  command:
+    cmd: "{{ item }}"
+
+- name: Restart microk8s
+  loop:
+    - microk8s.stop
+    - microk8s.start
+  loop_control:
+    label: "{{ item }}"
+  command:
+    cmd: "{{ item }}"

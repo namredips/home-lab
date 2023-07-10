@@ -36,8 +36,8 @@
   changed_when: false
 
 - name: Add nodeport to dashboard
-  host: master
   k8s:
+    verify_ssl: no
     definition:
       apiVersion: v1
       kind: service
@@ -45,10 +45,11 @@
         name: kubernetes-dashboard
         namespace: kube-system
       spec:
+        type: NodePort
         ports:
         - nodePort: 30536
           port: 443
           protocol: TCP
           targetPort: 8443
-      selector:
-        k8s-app: kubernetes-dashboard
+        selector:
+          k8s-app: kubernetes-dashboard
