@@ -5,3 +5,4 @@
   roles:
     - { role: kubernetes, tags: [ 'api' ]}
     - { role: kubernetes_dashboard, tags: [ 'dashboard' ]}
+    - { role: mayastor, tags: [ 'mayastor' ]}

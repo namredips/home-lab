@@ -14,19 +14,10 @@
   delegate_facts: true
   changed_when: false
 
-- name: Add nodeport to kubernetes
-  k8s:
-    verify_ssl: no
-    definition:
-      apiVersion: v1
-      kind: service
-      metadata:
-        name: kubernetes
-        namespace: default
-      spec:
-        type: NodePort
-        ports:
-        - nodePort: 30443
-          port: 443
-          protocol: TCP
-          targetPort: 16443
+- name: Setup kubernetes API
+  import_tasks: setup.yml
+  when: not reset | bool
+
+- name: Reset kubernetes API
+  include_tasks: reset.yml
+  when: reset | bool

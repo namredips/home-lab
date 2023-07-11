@@ -46,6 +46,15 @@
   changed_when: false
   register: aliashelmout
 
+- name: Update Certificate Template 
+  ansible.builtin.ini_file:
+    path: /var/snap/microk8s/current/certs/csr.conf.template
+    section: " alt_names "
+    option: DNS.5
+    value: r420.infiquetra.com
+    state: present
+  when: microk8s_csr_template is not defined
+
 - name: Create custom certificates
   ansible.builtin.template:
     src: "{{ microk8s_csr_template }}"

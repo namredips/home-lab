@@ -1,0 +1,57 @@
+---
+
+- name: Find the designated host
+  set_fact:
+    designated_host: "{{ groups['master'][0] }}"
+
+- name: Found designated host
+  debug:
+    msg: Designated host ==> {{ designated_host }}
+
+- name: Get current addons state
+  command:
+    cmd: microk8s.status --format yaml
+  changed_when: no
+  register: microk8s_status
+  check_mode: no
+
+- name: Set current state fact
+  set_fact:
+    microk8s_status: "{{ microk8s_status.stdout | from_yaml }}"
+
+- name: Waiting for microk8s to be ready on microk8s host master
+  command: "microk8s status --wait-ready"
+  delegate_to: "{{ designated_host }}"
+  delegate_facts: true
+  changed_when: false
+
+
+
+- name: Remove disk pools
+  k8s:
+    verify_ssl: no
+    state: absent
+    definition:
+      apiVersion: "openebs.io/v1alpha1"
+      kind: DiskPool
+      metadata:
+        name: "microk8s-{{ item.0.host }}-diskpool-{{ item.1.split('/') | last }}"
+        namespace: mayastor
+      spec:
+        node: "{{ item.0.host }}"
+        disks: ["{{ item.1 }}"]
+  loop: "{{ disk_pools | subelements('disks', 'skip_missing=True') }}"
+  loop_control:
+    label: "{{ item.0.host }} ==> {{ item.1 }}"
+
+
+
+- name: Ensure maystor is disabled
+  loop: "{{ microk8s_status.addons }}"
+  loop_control:
+    label: "{{ item.name }}"
+  command:
+    cmd: microk8s.disable {{ item.name }}
+  when:
+    - item.name == 'mayastor'
+    - item.status == 'enabled'

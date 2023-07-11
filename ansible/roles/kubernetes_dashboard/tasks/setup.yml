@@ -1,0 +1,74 @@
+---
+
+- name: Find the designated host
+  set_fact:
+    designated_host: '{{ (groups[microk8s_cluster]|sort)[0] }}'
+
+- name: Get current addons state
+  command:
+    cmd: microk8s.status --format yaml
+  changed_when: no
+  register: microk8s_status
+  check_mode: no
+
+- name: Set current state fact
+  set_fact:
+    microk8s_status: "{{ microk8s_status.stdout | from_yaml }}"
+
+- name: Found designated host
+  debug:
+    msg: Designated host ==> {{ designated_host }}
+
+- name: Ensure dashboard is enabled
+  loop: "{{ microk8s_status.addons }}"
+  loop_control:
+    label: "{{ item.name }}"
+  command:
+    cmd: microk8s.enable {{ item.name }}
+  when:
+    - item.name == 'dashboard'
+    - item.status == 'disabled'
+
+- name: Waiting for microk8s to be ready on microk8s host master
+  command: "microk8s status --wait-ready"
+  delegate_to: "{{ designated_host }}"
+  delegate_facts: true
+  changed_when: false
+
+- name: turn off login and timeout of dashboard
+  k8s:
+    verify_ssl: no
+    definition:
+      apiVersion: apps/v1
+      kind: deployment
+      metadata:
+        name: kubernetes-dashboard
+        namespace: kube-system
+      template:
+        spec:
+          containers:
+          - args:
+            - --auto-generate-certificates
+            - --namespace=kube-system
+            - --token-ttl=0
+            - --enable-skip-login
+
+- name: Add nodeport to dashboard
+  k8s:
+    verify_ssl: no
+    definition:
+      apiVersion: v1
+      kind: service
+      metadata:
+        name: kubernetes-dashboard
+        namespace: kube-system
+      spec:
+        type: NodePort
+        ports:
+        - nodePort: 30536
+          port: 443
+          protocol: TCP
+          targetPort: 8443
+        selector:
+          k8s-app: kubernetes-dashboard
+

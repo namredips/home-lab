@@ -1,9 +1,9 @@
 ---
 
-- name: Setup kubernetes dashboard
+- name: Setup mayastor
   import_tasks: setup.yml
   when: not reset | bool
 
-- name: Reset kubernets dashboard
+- name: Reset mayastor
   include_tasks: reset.yml
   when: reset | bool

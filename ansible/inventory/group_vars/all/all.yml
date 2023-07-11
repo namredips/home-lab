@@ -1,5 +1,5 @@
 ---
-
+reset: False
 # hostgroup whose members will form high-availability microk8s cluster
 microk8s_cluster: "cluster"
 

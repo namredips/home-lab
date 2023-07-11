@@ -1,0 +1,18 @@
+---
+
+- name: Remove nodeport from kubernetes
+  k8s:
+    verify_ssl: no
+    definition:
+      apiVersion: v1
+      kind: service
+      metadata:
+        name: kubernetes
+        namespace: default
+      spec:
+        type: ClusterIP
+        ports:
+        - name: https
+          port: 443
+          protocol: TCP
+          targetPort: 16443

@@ -5,3 +5,4 @@ base_dependencies:
   - python3-pip
   - jq
   - net-tools
+  - linux-modules-extra-5.15.0-76-generic
