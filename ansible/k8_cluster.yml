@@ -9,3 +9,4 @@
     - { role: microk8s_addons, tags: [ 'microk8s_addons' ] }
     - { role: k8_api, tags: [ 'k8_api' ] }
     - { role: k8_dashboard, tags: [ 'k8_dashboard' ] }
+    - { role: k8_accounts, tags: [ 'k8_accounts' ] }

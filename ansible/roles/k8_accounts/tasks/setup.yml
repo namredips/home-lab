@@ -1,0 +1,26 @@
+---
+
+- name: Create admin-user service accounts
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl create serviceaccount {{ item.name }}
+  with_items: "{{ admin_service_accounts }}"
+
+- name: Create cluster-admin role binding for service accounts
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl create clusterrolebinding {{ item.name }}-cadmin --clusterrole=cluster-admin --serviceaccount=default:{{ item.name }}
+  with_items: "{{ admin_service_accounts }}"
+
+- name: Create admin role binding for service accounts
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl create clusterrolebinding {{ item.name }}-admin --clusterrole=admin --serviceaccount=default:{{ item.name }}
+  with_items: "{{ admin_service_accounts }}"
+
+- name: Create cluster-admin role binding for users
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl create clusterrolebinding {{ item.name }}-cadmin --clusterrole=cluster-admin --user={{ item.name }}
+  with_items: "{{ admin_users }}"
+
+- name: Create admin role binding for users
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl create clusterrolebinding {{ item.name }}-admin --clusterrole=admin --user={{ item.name }}
+  with_items: "{{ admin_users }}"

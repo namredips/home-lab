@@ -1,0 +1,28 @@
+---
+
+- name: Remove admin role binding for service accounts
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl delete clusterrolebinding {{ item.name }}-admin
+  with_items: "{{ admin_service_accounts }}"
+
+- name: Remove admin role binding for users
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl delete clusterrolebinding {{ item.name }}-admin
+  with_items: "{{ admin_users }}"
+
+- name: Remove cluster-admin role binding for service accounts
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl delete clusterrolebinding {{ item.name }}-cadmin 
+  with_items: "{{ admin_service_accounts }}"
+
+- name: Remove cluster-admin role binding for users
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl delete clusterrolebinding {{ item.name }}-cadmin 
+  with_items: "{{ admin_users }}"
+
+- name: Remove admin-user service accounts
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl delete serviceaccount {{ item.name }}
+  with_items: "{{ admin_service_accounts }}"
+
+

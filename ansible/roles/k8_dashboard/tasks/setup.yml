@@ -73,3 +73,14 @@
         selector:
           k8s-app: kubernetes-dashboard
 
+- name: Create admin-user service account
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl create serviceaccount jefcox -n kube-system
+
+- name: Create cluster-admin role binding for jefcox
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl create clusterrolebinding jefcox-cadmin --clusterrole=cluster-admin --serviceaccount=default:jefcox
+
+- name: Create admin role binding for jefcox
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl create clusterrolebinding jefcox-admin --clusterrole=admin --serviceaccount=default:jefcox
