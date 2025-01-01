@@ -15,7 +15,7 @@
     state: directory
     owner: '{{ user }}'
     group: '{{ user }}'
-    mode: 0750
+    mode: 0755
   with_items: '{{ users }}'
   loop_control:
     loop_var: user
@@ -38,7 +38,7 @@
     owner: '{{ user }}'
     group: '{{ user }}'
     recurse: yes
-    mode: 0750
+    mode: 0755
   with_items: '{{ users }}'
   loop_control:
     loop_var: user

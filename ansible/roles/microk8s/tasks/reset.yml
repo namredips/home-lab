@@ -5,9 +5,10 @@
     path: ~/.kube
     owner: '{{ user }}'
     group: '{{ user }}'
-    mode: 0750
+    mode: 0755
     state: absent
   with_items: '{{ users }}'
+  ignore_errors: true
   loop_control:
     loop_var: user
     label: '{{ user }}'
@@ -39,7 +40,32 @@
       {{ hostvars[host].ansible_default_ipv4.address }} {{ hostvars[host].ansible_hostname }}
       {% endfor %}
 
-- name: Remove microk8 via snap
+- name: Find the designated host
+  set_fact:
+    designated_host: '{{ (groups[microk8s_cluster]|sort)[0] }}'
+
+
+
+- name: Remove worker nodes microk8 via snap
   snap:
     name: microk8s
     state: absent
+  ignore_errors: true
+  when:
+    - inventory_hostname != designated_host
+
+
+- name: Reset microk8s master nodes
+  ansible.builtin.command: microk8s reset
+  ignore_errors: true
+  when:
+    - inventory_hostname == designated_host
+
+- name: Remove master nodes microk8 via snap
+  snap:
+    name: microk8s
+    state: absent
+  ignore_errors: true
+  when:
+    - inventory_hostname == designated_host
+

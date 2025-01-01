@@ -1,0 +1,21 @@
+---
+
+- name: Reset dashboard to ClusterIP
+  become_user: "{{ kube_admin_user }}"
+  k8s:
+    verify_ssl: no
+    definition:
+      apiVersion: v1
+      kind: service
+      metadata:
+        name: kubernetes-dashboard
+        namespace: kube-system
+      spec:
+        type: ClusterIP
+        ports:
+        - name: https
+          port: 443
+          protocol: TCP
+          targetPort: 8443
+        selector:
+          k8s-app: kubernetes-dashboard

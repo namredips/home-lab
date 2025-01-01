@@ -1,0 +1,7 @@
+---
+zfs_pools:
+  - name: "local_zfs_pv"
+    mode: ""
+    devices:
+      - sdf
+    options: ""

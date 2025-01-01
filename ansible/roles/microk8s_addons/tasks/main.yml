@@ -1,0 +1,10 @@
+---
+
+- name: Find the designated host
+  set_fact:
+    designated_host: '{{ (groups[microk8s_cluster]|sort)[0] }}'
+
+- name: configure microk8s addons
+  include_tasks: addons.yml
+  when: inventory_hostname == designated_host
+

@@ -3,32 +3,32 @@
   ansible.builtin.apt:
     name: '{{ base_dependencies }}'
     state: present
+    autoremove: true
     update_cache: yes
 
-- name: Install kubernetes python library
+- name: Ensure apt version of python kubernetes is not installed
+  ansible.builtin.apt:
+    name: python3-kubernetes
+    state: absent
+    update_cache: yes
+
+
+- name: Install python kubernetes
   ansible.builtin.pip:
+    break_system_packages: true
     name: kubernetes
+
+- name: Install linux headers
+  ansible.builtin.apt:
+    name: linux-headers-{{ ansible_kernel }}
     state: present
-  become_user: "{{ ansible_env.SUDO_USER }}"  # Install as non root user!
+    autoremove: true
+    update_cache: yes
+
 
 - name: Set route metric
   command:
     cmd: "netplan set ethernets.{{ hostvars[inventory_hostname].interface}}.dhcp4-overrides.route-metric=50"
   notify:
     - Apply netplan
-
-- name: Start iscsi
-  command:
-    cmd: systemctl enable --now iscsid
-
-- name: Prepare for mayastor
-  loop:
-    - sysctl vm.nr_hugepages=1024
-    - echo 'vm.nr_hugepages=1024' | tee -a /etc/sysctl.conf
-    - modprobe nvme_tcp
-    - echo 'nvme-tcp' | tee -a /etc/modules-load.d/microk8s-mayastor.conf  
-  loop_control:
-    label: "{{ item }}"
-  command:
-    cmd: "{{ item }}"
 

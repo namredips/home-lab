@@ -1,0 +1,9 @@
+---
+zfs_pools:
+  - name: "local_zfs_pv"
+    mode: "raidz1"
+    devices:
+      - sdb
+      - sdc
+      - sde
+    options: ""

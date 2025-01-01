@@ -1,9 +1,10 @@
 ---
-- name: Remove kubernetes python library
-  ansible.builtin.pip:
-    name: kubernetes
+
+- name: Remove linux headers
+  ansible.builtin.apt:
+    name: linux-headers-{{ ansible_kernel }}
     state: absent
-  become_user: "{{ ansible_env.SUDO_USER }}"  # Install as non root user!
+    update_cache: yes
 
 - name: Remove base dependencies
   ansible.builtin.apt:

@@ -15,10 +15,6 @@
   set_fact:
     microk8s_status: "{{ microk8s_status.stdout | from_yaml }}"
 
-- name: Found designated host
-  debug:
-    msg: Designated host ==> {{ designated_host }}
-
 - name: Ensure dashboard is enabled
   loop: "{{ microk8s_status.addons }}"
   loop_control:
@@ -36,6 +32,7 @@
   changed_when: false
 
 - name: turn off login and timeout of dashboard
+  become_user: "{{ kube_admin_user }}"
   k8s:
     verify_ssl: no
     definition:
@@ -44,16 +41,20 @@
       metadata:
         name: kubernetes-dashboard
         namespace: kube-system
-      template:
-        spec:
-          containers:
-          - args:
-            - --auto-generate-certificates
-            - --namespace=kube-system
-            - --token-ttl=0
-            - --enable-skip-login
+      spec:
+        template:
+          spec:
+            containers:
+            - args:
+                - --auto-generate-certificates
+                - --namespace=kube-system
+                - --token-ttl=0
+                - --enable-skip-login
+              image: kubernetesui/dashboard:v2.7.0
+              name: kubernetes-dashboard
 
 - name: Add nodeport to dashboard
+  become_user: "{{ kube_admin_user }}"
   k8s:
     verify_ssl: no
     definition:

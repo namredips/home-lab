@@ -1,6 +1,7 @@
 ---
 
-- name: Remove nodeport from kubernetes
+- name: Add nodeport to kubernetes
+  become_user: "{{ kube_admin_user }}"
   k8s:
     verify_ssl: no
     definition:
@@ -10,9 +11,10 @@
         name: kubernetes
         namespace: default
       spec:
-        type: ClusterIP
+        type: NodePort
         ports:
-        - name: https
+        - nodePort: 30443
           port: 443
           protocol: TCP
           targetPort: 16443
+

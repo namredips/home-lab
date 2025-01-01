@@ -9,11 +9,25 @@
   changed_when: true
   register: micrko8s_flush_cache
 
+
+- name: Start iscsi
+  command:
+    cmd: systemctl enable --now iscsid
+
+- name: Prepare for OpenEBS Replicated PV
+  loop:
+    - sysctl vm.nr_hugepages=1024
+    - echo 'vm.nr_hugepages=1024' | tee -a /etc/sysctl.conf
+    - modprobe nvme_tcp
+  loop_control:
+    label: "{{ item }}"
+  command:
+    cmd: "{{ item }}"
+
 - name: Install microk8s
-  command: snap install microk8s --classic
+  command: snap install microk8s --classic --channel={{ microk8s_channel }}
   changed_when: true
   register: micrko8s_install
-
 
 - name: add docker registry authentication
   blockinfile: 

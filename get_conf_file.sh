@@ -14,5 +14,4 @@ else
 fi
 
 kubectl config --kubeconfig=$CONFIG_FILE set-cluster microk8s-cluster --server https://r420.infiquetra.com:30443
-kubectl config --kubeconfig=$CONFIG_FILE rename-context microk8s lab
 

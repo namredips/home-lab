@@ -1,0 +1,9 @@
+---
+
+- name: Setup zfs disk pools
+  import_tasks: setup.yml
+  when: not reset | bool
+
+- name: Remove zfs disk pools
+  include_tasks: reset.yml
+  when: reset | bool

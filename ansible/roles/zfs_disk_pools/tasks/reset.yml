@@ -1,0 +1,26 @@
+---
+- name: Check if ZFS pool exists
+  ansible.builtin.command: zpool list {{ item.name }}
+  register: zpool_check
+  ignore_errors: yes
+  no_log: true
+  with_items: "{{ zfs_pools }}"
+
+- name: Destroy ZFS pool if it exists
+  ansible.builtin.command: zpool destroy {{ item.name }}
+  when: zpool_check.results[item_index].rc == 0
+  with_items: "{{ zfs_pools | default([]) }}"
+  loop_control:
+    index_var: item_index
+
+- name: Remove the partitions created by zpool
+  ansible.builtin.command: sgdisk --zap-all /dev/{{ item.1 }}
+  with_subelements:
+    - "{{ zfs_pools | default([]) }}"
+    - devices
+
+- name: Ensure zfsutils-linux is uninstalled
+  ansible.builtin.apt:
+    name: zfsutils-linux
+    state: absent
+    update_cache: yes

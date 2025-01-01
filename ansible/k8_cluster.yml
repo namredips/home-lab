@@ -1,0 +1,11 @@
+---
+- hosts: cluster
+  gather_facts: yes
+  become: yes
+  roles:
+    - { role: baseconfig, tags: [ 'baseconfig' ]}
+    - { role: zfs_disk_pools, tags: [ 'zfs_disk_pools' ]}
+    - { role: microk8s, tags: [ 'microk8s' ] }
+    - { role: microk8s_addons, tags: [ 'microk8s_addons' ] }
+    - { role: k8_api, tags: [ 'k8_api' ] }
+    - { role: k8_dashboard, tags: [ 'k8_dashboard' ] }
