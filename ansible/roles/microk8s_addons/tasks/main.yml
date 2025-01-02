@@ -7,4 +7,3 @@
 - name: configure microk8s addons
   include_tasks: addons.yml
   when: inventory_hostname == designated_host
-
