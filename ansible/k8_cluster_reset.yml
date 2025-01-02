@@ -3,6 +3,7 @@
   gather_facts: yes
   become: yes
   roles:
+    - { role: OpenEBS, reset: True, tags: [ 'OpenEBS' ] }
     - { role: microk8s, reset: True, tags: [ 'microk8s' ] }
     - { role: zfs_disk_pools, reset: True, tags: [ 'zfs_disk_pools' ] }
     - { role: baseconfig, reset: True, tags: [ 'baseconfig' ] }
