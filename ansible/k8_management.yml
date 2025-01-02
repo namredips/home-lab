@@ -1,8 +1,0 @@
----
-- hosts: master
-  gather_facts: yes
-  become_user: "{{ kube_admin_user }}"
-  roles:
-    - { role: kubernetes, tags: [ 'api' ]}
-    - { role: kubernetes_dashboard, tags: [ 'dashboard' ]}
-    - { role: mayastor, tags: [ 'mayastor' ]}

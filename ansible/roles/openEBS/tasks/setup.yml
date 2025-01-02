@@ -1,0 +1,87 @@
+---
+
+- name: Lablel IO node candidates
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl label node {{ item.node }} openebs.io/engine=mayastor
+  with_items: "{{ replicated_storage_nodes }}"
+
+- name: Setup openEBS helm repo
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm_repository:
+    name: openebs
+    repo_url: https://openebs.github.io/openebs
+    state: present
+
+- name: Setup openEBS helm 
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm:
+    name: openebs
+    chart_ref: openebs/openebs
+    release_namespace: openebs
+    create_namespace: true
+    update_repo_cache: true
+    set_values:
+      - value: lvm-localpv.lvmNode.kubeletDir=/var/snap/microk8s/common/var/lib/kubelet/
+      - value: lvm-localpv.zfsNode.kubeletDir=var/snap/microk8s/common/var/lib/kubelet/
+      - value: mayastor.csi.node.kubeletDir=/var/snap/microk8s/common/var/lib/kubelet/
+
+- name: Create openebs-zfspv storage class
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: openebs-zfspv
+      allowVolumeExpansion: true
+      parameters:
+        recordsize: "128k"
+        compression: "off"
+        dedup: "off"
+        fstype: "zfs"
+        poolname: "local_zfs_pv"
+      provisioner: zfs.csi.openebs.io
+      volumeBindingMode: WaitForFirstConsumer
+      allowedTopologies:
+        - matchLabelExpressions:
+          - key: kubernetes.io/hostname
+            values:
+              - r420
+              - r710
+              - r720xd
+              - r820
+
+- name: Create openebs replicated storage disk pools
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: "openebs.io/v1beta2"
+      kind: DiskPool
+      metadata:
+        name: "microk8s-{{ item.0.host }}-diskpool-{{ item.1.split('/') | last }}"
+        namespace: openebs
+      spec:
+        node: "{{ item.0.host }}"
+        disks: ["{{ item.1 }}"]
+  loop: "{{ disk_pools | subelements('disks', 'skip_missing=True') }}"
+  loop_control:
+    label: "{{ item.0.host }} ==> {{ item.1 }}"
+
+- name: Create openebs triple replica storage class
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: openebs-triple-replica
+      provisioner: openebs.io.csi-mayastor
+      parameters:
+        protocol: nvmf
+        repl: '3'
+      reclaimPolicy: Delete
+      allowVolumeExpansion: true
+      volumeBindingMode: WaitForFirstConsumer

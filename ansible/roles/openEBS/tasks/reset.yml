@@ -1,0 +1,55 @@
+---
+- name: Remove openebs replicated storage disk pools
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    api_version: "storage.k8s.io/v1"
+    kind: StorageClass
+    name: openebs-triple-replica
+
+- name: Remove openebs replicated storage disk pools
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    api_version: "openebs.io/v1beta2"
+    kind: DiskPool
+    namespace: openebs
+    name: "microk8s-{{ item.0.host }}-diskpool-{{ item.1.split('/') | last }}"
+  loop: "{{ disk_pools | subelements('disks', 'skip_missing=True') }}"
+  loop_control:
+    label: "{{ item.0.host }} ==> {{ item.1 }}"
+
+- name: Remove openebs-zfspv storage class
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    api_version: storage.k8s.io/v1
+    kind: StorageClass
+    name: openebs-zfspv
+
+- name: Remove openEBS helm 
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm:
+    name: openebs
+    release_namespace: openebs
+    state: absent
+    update_repo_cache: true
+
+- name: Remove openEBS helm repo
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm_repository:
+    name: openebs
+    state: absent
+
+- name: Remove IO node candidates label
+  become_user: "{{ kube_admin_user }}"
+  command: kubectl label node {{ item.node }} "openebs.io/engine"-
+  with_items: "{{ replicated_storage_nodes }}"
+
+- name: Remove openEBS namespace
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Namespace
+    name: openebs 

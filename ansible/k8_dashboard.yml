@@ -1,6 +1,0 @@
----
-- hosts: cluster
-  gather_facts: yes
-  become: yes
-  roles:
-    - { role: k8_dashboard, tags: [ 'k8_dashboard' ]}

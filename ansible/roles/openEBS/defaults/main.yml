@@ -1,0 +1,43 @@
+---
+reset: False
+
+replicated_storage_nodes:
+  - node: r420
+  - node: r710
+  - node: r720xd
+  - node: r820
+  - node: r8202
+
+disk_pools:
+  - host: r720xd
+    disks:
+      - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a0523d1057a799d
+      - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a0524650e506249
+      - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a0524720f1d8a39
+      - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a0524230a6199e4
+      - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a0524300b3004c7
+      - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a05243e0c0209cb
+      - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a05244a0cbbfb4e
+      - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a0524560d70d3cf
+      - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a05240308770edc
+  - host: r710
+    disks:
+      - aio:///dev/disk/by-id/scsi-36782bcb069477d002a05217d068f16b0
+      - aio:///dev/disk/by-id/scsi-36782bcb069477d002a05219507fff45e
+      - aio:///dev/disk/by-id/scsi-36782bcb069477d002a0521a70919bff4
+      - aio:///dev/disk/by-id/scsi-36782bcb069477d002a0521b509ee5fc3
+      - aio:///dev/disk/by-id/scsi-36782bcb069477d002a0521c30ac35187
+  - host: r820
+    disks:
+      - aio:///dev/disk/by-id/scsi-36b8ca3a0ec08dc002a04afaf0ced9e32
+      - aio:///dev/disk/by-id/scsi-36b8ca3a0ec08dc002a04afc90e80455a
+      - aio:///dev/disk/by-id/scsi-36b8ca3a0ec08dc002a04afdc0f99c67c
+      - aio:///dev/disk/by-id/scsi-36b8ca3a0ec08dc002a04aff110dc0734
+      - aio:///dev/disk/by-id/scsi-36b8ca3a0ec08dc002a04b006121b7f51
+  - host: r8202
+    disks:
+      - aio:///dev/disk/by-id/scsi-36b82a720d8a7f9002a04b3ae08df1246
+  - host: r420
+    disks:
+      - aio:///dev/disk/by-id/scsi-36b82a720d8ed08002a04ad7511f222a3
+      - aio:///dev/disk/by-id/scsi-36b82a720d8ed08002a04ad9b14352856
