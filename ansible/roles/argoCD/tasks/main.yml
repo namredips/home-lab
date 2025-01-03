@@ -1,0 +1,16 @@
+---
+- name: Find the designated host
+  set_fact:
+    designated_host: '{{ (groups[microk8s_cluster]|sort)[0] }}'
+
+- name: Setup ArgoCD via the designated host
+  import_tasks: setup.yml
+  when:
+    - not reset | bool
+    - inventory_hostname == designated_host
+
+- name: Reset AgoCD via the designated host
+  include_tasks: reset.yml
+  when:
+    - reset | bool
+    - inventory_hostname == designated_host

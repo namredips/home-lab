@@ -1,0 +1,32 @@
+---
+
+- name: Remove external-dns helm 
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm:
+    name: external-dns
+    release_namespace: external-dns
+    state: absent
+    update_repo_cache: true
+
+- name: Remove extrnal-dns helm repo
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm_repository:
+    name: external-dns
+    state: absent
+
+- name: Remove external-dns-unifi-secret kubernetes secret
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Secret
+    name: external-dns-unifi-secret
+    namespace: external-dns
+    state: absent
+
+- name: Remove external-dns namespace
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Namespace
+    name: external-dns

@@ -1,0 +1,51 @@
+---
+
+- name: Remove ArgoCD helm 
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm:
+    name: argocd
+    release_namespace: argocd
+    state: absent
+    update_repo_cache: true
+
+- name: Remove ArgoCD helm repo
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm_repository:
+    name: argo
+    state: absent
+
+- name: Remove Certificate for ArgoCD server
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: argocd-server-cert
+    namespace: argocd
+    state: absent
+
+- name: Remove Certificate for ArgoCD repo server
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: argocd-repo-server-cert
+    namespace: argocd
+    state: absent
+
+- name: Remove Certificate for Dex server
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: argo-dex-server-cert
+    namespace: argocd
+    state: absent
+
+
+- name: Remove ArgoCD namespace
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Namespace
+    name: argocd 
