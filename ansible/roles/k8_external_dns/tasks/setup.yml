@@ -1,0 +1,86 @@
+---
+- name: Create a external-dns kubernetes namespace
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: external-dns
+    state: present
+
+- name: Setup external-dns helm repo
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm_repository:
+    name: external-dns
+    repo_url: https://kubernetes-sigs.github.io/external-dns/
+    state: present
+
+- name: Create external-dns-unifi-secret kubernetes secret
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Secret
+    name: external-dns-unifi-secret
+    namespace: external-dns
+    state: present
+    definition:
+      metadata:
+        name: external-dns-unifi-secret
+        namespace: external-dns
+      type: Opaque
+      data:
+        username: "{{ unifi_username | b64encode }}"
+        password: "{{ unifi_password | b64encode }}"
+
+- name: Install External-dns-unifi Helm chart
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm:
+    name: external-dns-unifi
+    chart_ref: external-dns/external-dns
+    release_namespace: external-dns
+    update_repo_cache: true
+    values:
+      fullnameOverride: external-dns-unifi
+      logLevel: &logLevel debug
+      provider:
+        name: webhook
+        webhook:
+          image:
+            repository: ghcr.io/kashalls/external-dns-unifi-webhook
+            tag: v0.3.4
+          env:
+            - name: UNIFI_HOST
+              value: https://10.220.1.1
+            - name: UNIFI_EXTERNAL_CONTROLLER
+              value: "false"
+            - name: UNIFI_USER
+              valueFrom:
+                secretKeyRef:
+                  name: external-dns-unifi-secret
+                  key: username
+            - name: UNIFI_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: external-dns-unifi-secret
+                  key: password
+            - name: LOG_LEVEL
+              value: *logLevel
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http-webhook
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http-webhook
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+      extraArgs:
+        - --ignore-ingress-tls-spec
+      policy: sync
+      sources: ["ingress", "service"]
+      txtOwnerId: default
+      txtPrefix: k8s.
+      domainFilters: ["infiquetra.com"]
+
