@@ -3,18 +3,13 @@
   set_fact:
     designated_host: '{{ (groups[microk8s_cluster]|sort)[0] }}'
 
-- name: Pre-configure for OpenEBS
-  import_tasks: pre_config.yml
-  when:
-    - not reset | bool
-
-- name: Setup OpenEBS via the designated host
+- name: Setup Redis via the designated host
   import_tasks: setup.yml
   when:
     - not reset | bool
     - inventory_hostname == designated_host
 
-- name: Reset OpenEBS via the designated host
+- name: Reset Redis via the designated host
   include_tasks: reset.yml
   when:
     - reset | bool

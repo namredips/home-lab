@@ -1,5 +1,7 @@
 ---
 reset: False
+base_dependencies:
+  - nvme-cli
 
 replicated_storage_nodes:
   - node: r420
@@ -13,7 +15,6 @@ disk_pools:
     disks:
       - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a0523d1057a799d
       - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a0524650e506249
-      - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a0524720f1d8a39
       - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a0524230a6199e4
       - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a0524300b3004c7
       - aio:///dev/disk/by-id/scsi-36c81f660f5240f002a05243e0c0209cb

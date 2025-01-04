@@ -1,6 +1,6 @@
 ---
 - name: install microk8s
-  import_tasks: install.yml
+  import_tasks: setup.yml
   when: not reset | bool
 
 - name: configure users

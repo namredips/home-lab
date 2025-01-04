@@ -1,0 +1,13 @@
+---
+
+- name: Waiting for microk8s to be ready
+  command: "microk8s status --wait-ready"
+  register: microk8s_status
+  retries: 10
+  delay: 30
+  until: microk8s_status.rc == 0
+
+- name: Print microk8s status on failure
+  ansible.builtin.debug:
+    msg: "{{ microk8s_status.stdout }}"
+  when: microk8s_status.rc != 0

@@ -13,3 +13,4 @@
     - { role: k8_external_dns, tags: [ 'k8_external_dns' ] }
     - { role: OpenEBS, tags: [ 'OpenEBS' ] }
     - { role: ArgoCD, tags: [ 'ArgoCD' ] }
+    - { role: redis, tags: [ 'redis' ] }

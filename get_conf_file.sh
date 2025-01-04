@@ -1,4 +1,4 @@
-CONFIG_FILE=/users/jefcox/.kube/kube_config_lab
+CONFIG_FILE=/users/jefcox/.kube/config
 scp r420:.kube/config $CONFIG_FILE
 
 if [[ ":$KUBECONFIG:" == *":$CONFIG_FILE:"* ]]; then

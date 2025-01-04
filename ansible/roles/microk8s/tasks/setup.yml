@@ -10,19 +10,6 @@
   register: micrko8s_flush_cache
 
 
-- name: Start iscsi
-  command:
-    cmd: systemctl enable --now iscsid
-
-- name: Prepare for OpenEBS Replicated PV
-  loop:
-    - sysctl vm.nr_hugepages=1024
-    - echo 'vm.nr_hugepages=1024' | tee -a /etc/sysctl.conf
-    - modprobe nvme_tcp
-  loop_control:
-    label: "{{ item }}"
-  command:
-    cmd: "{{ item }}"
 
 - name: Install microk8s
   command: snap install microk8s --classic --channel={{ microk8s_channel }}
@@ -42,13 +29,8 @@
   notify:
     - Restart microk8s
 
-- name: Wait for microk8s to be ready
-  command: microk8s.status --wait-ready
-  changed_when: false
-  register: mk8sstatusout
-  failed_when:
-      - "'This MicroK8s deployment is acting as a node in a cluster.' not in mk8sstatusout.stdout_lines"
-      - mk8sstatusout.rc > 0
+- name: Waiting for microk8s to be ready
+  include_tasks: wait_for_microk8s.yml
 
 - name: Create kubectl alias
   command: "snap alias microk8s.kubectl kubectl"
@@ -69,14 +51,14 @@
     state: present
   when: microk8s_csr_template is not defined
 
-- name: Create custom certificates
-  ansible.builtin.template:
-    src: "{{ microk8s_csr_template }}"
-    dest: /var/snap/microk8s/current/certs/csr.conf.template
-    mode: 0644
-  when: microk8s_csr_template is defined
-  notify:
-  - Refresh certs
+#- name: Create custom certificates
+#  ansible.builtin.template:
+#    src: "{{ microk8s_csr_template }}"
+#    dest: /var/snap/microk8s/current/certs/csr.conf.template
+#    mode: 0644
+#  when: microk8s_csr_template is defined
+#  notify:
+#  - Refresh certs
 
 - name: Create folder for microk8s certificates
   file:

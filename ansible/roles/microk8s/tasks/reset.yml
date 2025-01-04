@@ -1,12 +1,9 @@
 ---
 - name: Remove .kube folder for the user
-  become_user: '{{ user }}'
   file:
     path: ~/.kube
-    owner: '{{ user }}'
-    group: '{{ user }}'
-    mode: 0755
     state: absent
+    force: yes
   with_items: '{{ users }}'
   ignore_errors: true
   loop_control:
@@ -44,8 +41,6 @@
   set_fact:
     designated_host: '{{ (groups[microk8s_cluster]|sort)[0] }}'
 
-
-
 - name: Remove worker nodes microk8 via snap
   snap:
     name: microk8s
@@ -53,13 +48,6 @@
   ignore_errors: true
   when:
     - inventory_hostname != designated_host
-
-
-- name: Reset microk8s master nodes
-  ansible.builtin.command: microk8s reset
-  ignore_errors: true
-  when:
-    - inventory_hostname == designated_host
 
 - name: Remove master nodes microk8 via snap
   snap:

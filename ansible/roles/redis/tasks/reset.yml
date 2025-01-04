@@ -1,0 +1,35 @@
+---
+
+- name: Remove Redis helm repo
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm_repository:
+    name: bitnami
+    state: absent
+
+- name: Remove Redis Commander helm repo
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm_repository:
+    name: kfirfer
+    state: absent
+
+- name: Remove Redis
+  kubernetes.core.helm:
+    name: redis
+    release_namespace: redis
+    state: absent
+    update_repo_cache: true
+
+- name: Remove Redis
+  kubernetes.core.helm:
+    name: redis-commander
+    release_namespace: redis
+    state: absent
+    update_repo_cache: true
+
+- name: Remove redis namespace
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Namespace
+    name: redis

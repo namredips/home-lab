@@ -18,7 +18,15 @@
     command: "microk8s status --wait-ready"
     delegate_to: "{{ designated_host }}"
     delegate_facts: true
-    changed_when: false
+    register: microk8s_status
+    retries: 10
+    delay: 30
+    until: microk8s_status.rc == 0
+
+  - name: Print microk8s status on failure
+    ansible.builtin.debug:
+      msg: "{{ microk8s_status.stdout }}"
+    when: microk8s_status.rc != 0
 
   - name: Get the microk8s join command from the microk8s master
     shell: "microk8s add-node | grep -E -m1 'microk8s join {{ microk8s_ip_regex_HA }}'"
@@ -34,9 +42,8 @@
     changed_when: false
     register: microk8s_cluster_node
 
-  - name: Waiting for microk8s to be ready on microk8s host node
-    command: "microk8s status --wait-ready"
-    changed_when: false
+  - name: Waiting for microk8s to be ready on microk8s on worker node
+    include_tasks: wait_for_microk8s.yml
 
   - name: Set the microk8s join command on the microk8s node
     command: "{{ microk8s_join_command.stdout }}"
@@ -46,8 +53,9 @@
       - "'already known to dqlite' not in join_command_output.stdout"
       - join_command_output.rc > 0
 
+  - name: Waiting for microk8s to be ready on microk8s on worker node
+    include_tasks: wait_for_microk8s.yml
+
   when:
     - inventory_hostname != designated_host
     - inventory_hostname in groups[microk8s_cluster]
-
-

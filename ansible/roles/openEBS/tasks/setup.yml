@@ -86,4 +86,4 @@
         repl: '3'
       reclaimPolicy: Delete
       allowVolumeExpansion: true
-      volumeBindingMode: WaitForFirstConsumer
+      volumeBindingMode: Immediate

@@ -1,0 +1,35 @@
+---
+- name: Install software dependencies
+  ansible.builtin.apt:
+    name: '{{ base_dependencies }}'
+    state: present
+    autoremove: true
+    update_cache: yes
+
+- name: Start iscsi
+  command:
+    cmd: systemctl enable --now iscsid
+
+- name: Prepare hugepages for OpenEBS Replicated PV
+  become: true
+  loop:
+    - sysctl vm.nr_hugepages=1024
+    - modprobe nvme_tcp
+  loop_control:
+    label: "{{ item }}"
+  command:
+    cmd: "{{ item }}"
+
+- name: Ensure hugepages configuration is present in /etc/sysctl.conf
+  ansible.builtin.lineinfile:
+    path: /etc/sysctl.conf
+    regexp: '^vm.nr_hugepages'
+    line: 'vm.nr_hugepages = 1024'
+    state: present
+
+- name: Restart MicroK8s Kubelite service
+  become: true
+  ansible.builtin.systemd:
+    name: snap.microk8s.daemon-kubelite.service
+    state: restarted
+    enabled: true
