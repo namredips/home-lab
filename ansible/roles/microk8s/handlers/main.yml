@@ -11,14 +11,3 @@
     cmd: "{{ item }}"
 
 
-- name: Restart microk8s
-  loop:
-    - microk8s.stop
-    - sleep 30
-    - microk8s.start
-  loop_control:
-    label: "{{ item }}"
-  command:
-    cmd: "{{ item }}"
-
-

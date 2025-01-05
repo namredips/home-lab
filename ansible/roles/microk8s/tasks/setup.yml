@@ -9,8 +9,6 @@
   changed_when: true
   register: micrko8s_flush_cache
 
-
-
 - name: Install microk8s
   command: snap install microk8s --classic --channel={{ microk8s_channel }}
   changed_when: true
@@ -26,11 +24,12 @@
       [plugins."io.containerd.grpc.v1.cri".registry.configs."registry-1.docker.io".auth]
       username = "namredips"
       password = "{{ docker_hub_token }}"
-  notify:
-    - Restart microk8s
 
-- name: Waiting for microk8s to be ready
-  include_tasks: wait_for_microk8s.yml
+- name: Restart microk8s and wait for it  to be ready
+  include_role:
+    name: microk8s_ready
+  vars:
+    restart: True
 
 - name: Create kubectl alias
   command: "snap alias microk8s.kubectl kubectl"
@@ -51,14 +50,14 @@
     state: present
   when: microk8s_csr_template is not defined
 
-#- name: Create custom certificates
-#  ansible.builtin.template:
-#    src: "{{ microk8s_csr_template }}"
-#    dest: /var/snap/microk8s/current/certs/csr.conf.template
-#    mode: 0644
-#  when: microk8s_csr_template is defined
-#  notify:
-#  - Refresh certs
+- name: Create custom certificates
+  ansible.builtin.template:
+    src: "{{ microk8s_csr_template }}"
+    dest: /var/snap/microk8s/current/certs/csr.conf.template
+    mode: 0644
+  when: microk8s_csr_template is defined
+  notify:
+  - Refresh certs
 
 - name: Create folder for microk8s certificates
   file:

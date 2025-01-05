@@ -4,20 +4,20 @@
   set_fact:
     designated_host: '{{ (groups[microk8s_cluster]|sort)[0] }}'
 
-- name: Found designated host
-  debug:
-    msg: Designated host ==> {{ designated_host }}
-
 - name: Waiting for microk8s to be ready on microk8s host master
-  command: "microk8s status --wait-ready"
-  delegate_to: "{{ designated_host }}"
-  delegate_facts: true
-  changed_when: false
+  import_role:
+    name: microk8s_ready
+  when:
+    - inventory_hostname == designated_host
 
 - name: Setup kubernetes API
   import_tasks: setup.yml
-  when: not reset | bool
+  when:
+    - not reset | bool
+    - inventory_hostname == designated_host
 
 - name: Reset kubernetes API
   include_tasks: reset.yml
-  when: reset | bool
+  when:
+    - reset | bool
+    - inventory_hostname == designated_host

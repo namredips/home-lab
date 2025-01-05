@@ -26,10 +26,10 @@
     - item.status == 'disabled'
 
 - name: Waiting for microk8s to be ready on microk8s host master
-  command: "microk8s status --wait-ready"
-  delegate_to: "{{ designated_host }}"
-  delegate_facts: true
-  changed_when: false
+  import_role:
+    name: microk8s_ready
+  when:
+    - inventory_hostname == designated_host
 
 - name: turn off login and timeout of dashboard
   become_user: "{{ kube_admin_user }}"

@@ -14,3 +14,4 @@
   when:
     - reset | bool
     - inventory_hostname == designated_host
+

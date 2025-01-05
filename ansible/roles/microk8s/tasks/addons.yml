@@ -1,3 +1,4 @@
+---
 - name: Get current addons state
   command:
     cmd: microk8s.status --format yaml
@@ -35,23 +36,3 @@
     - item.name in microk8s_addons
     - not microk8s_addons[item.name]
 
-- name: Apply Kubernetes ClusterIssuer template
-  become_user: "{{ kube_admin_user }}"
-  kubernetes.core.k8s:
-    state: present
-    definition: 
-      apiVersion: cert-manager.io/v1
-      kind: ClusterIssuer
-      metadata:
-        name: letsencrypt-microk8s
-      spec:
-        acme:
-          server: https://acme-v02.api.letsencrypt.org/directory
-          email: "{{ letsencrypt_email }}"
-          privateKeySecretRef:
-            name: letsencrypt-microk8s
-          solvers:
-            - http01:
-                ingress:
-                  class: public
-      

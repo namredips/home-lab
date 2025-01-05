@@ -1,0 +1,9 @@
+---
+
+- name: Remove letsencruypt-microk8s ClusterIssuer
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    name: letsencrypt-microk8s
+    api_version: cert-manager.io/v1
+    kind: ClusterIssuer

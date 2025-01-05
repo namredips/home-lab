@@ -1,4 +1,8 @@
 ---
+- name: Find the designated host
+  set_fact:
+    designated_host: '{{ (groups[microk8s_cluster]|sort)[0] }}'
+
 - name: install microk8s
   import_tasks: setup.yml
   when: not reset | bool
@@ -10,6 +14,12 @@
 - name: Configure High Availability Microk8s
   include_tasks: configure-nodes.yml
   when: not reset | bool
+
+- name: install addons
+  import_tasks: addons.yml
+  when: 
+    - not reset | bool
+    - inventory_hostname == designated_host
 
 - name: Remove microk8s
   include_tasks: reset.yml

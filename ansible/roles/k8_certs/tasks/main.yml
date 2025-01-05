@@ -1,15 +1,22 @@
 ---
+
 - name: Find the designated host
   set_fact:
     designated_host: '{{ (groups[microk8s_cluster]|sort)[0] }}'
 
-- name: Setup kubernetes dashboard
+- name: Waiting for microk8s to be ready on microk8s host master
+  import_role:
+    name: microk8s_ready
+  when:
+    - inventory_hostname == designated_host
+
+- name: Add cert-manager certs
   import_tasks: setup.yml
   when:
     - not reset | bool
     - inventory_hostname == designated_host
 
-- name: Reset kubernets dashboard
+- name: Remove cert-manager certs
   include_tasks: reset.yml
   when:
     - reset | bool
