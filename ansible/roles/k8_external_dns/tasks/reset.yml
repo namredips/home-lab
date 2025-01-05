@@ -3,9 +3,10 @@
 - name: Remove external-dns helm 
   become_user: "{{ kube_admin_user }}"
   kubernetes.core.helm:
-    name: external-dns
-    release_namespace: external-dns
+    name: external-dns-unifi
+    release_namespace: external-dns-unifi
     state: absent
+    wait: true
     update_repo_cache: true
 
 - name: Remove extrnal-dns helm repo
@@ -22,6 +23,22 @@
     name: external-dns-unifi-secret
     namespace: external-dns
     state: absent
+
+- name: Remove external-dns cluster role
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: ClusterRole
+    name: external-dns-unifi
+
+- name: Remove external-dns cluster role binding
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: ClusterRoleBinding
+    name: external-dns-unifi-viewer
 
 - name: Remove external-dns namespace
   become_user: "{{ kube_admin_user }}"

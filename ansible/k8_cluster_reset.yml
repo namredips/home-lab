@@ -4,6 +4,8 @@
   become: yes
   roles:
 #    - { role: ArgoCD, reset: True, tags: [ 'ArgoCD' ] }
+    - { role: redis, reset: True, tags: [ 'redis' ] }
+    - { role: k8_external_dns, reset: True, tags: [ 'k8_external_dns' ] }
     - { role: OpenEBS, reset: True, tags: [ 'OpenEBS' ] }
     - { role: microk8s, reset: True, tags: [ 'microk8s' ] }
     - { role: zfs_disk_pools, reset: True, tags: [ 'zfs_disk_pools' ] }

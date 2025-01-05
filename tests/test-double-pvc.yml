@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-double-replica-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: openebs-double-replica
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-double-replica-pod
+  namespace: default
+spec:
+  containers:
+    - name: test-container
+      image: busybox
+      command: ["sh", "-c", "sleep 3600"]
+      volumeMounts:
+        - mountPath: /mnt/data
+          name: local-storage
+  volumes:
+    - name: local-storage
+      persistentVolumeClaim:
+        claimName: test-double-replica-pvc

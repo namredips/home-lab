@@ -1,6 +1,22 @@
 ---
 reset: False
 
+external_dns_log_level: "debug"
+external_dns_namespace: external-dns-unifi
+external_dns_chart_version: v0.3.4
+external_dns_txt_owner_id: external-dns-unifi
+external_dns_txt_prefix: microk8s-home-lab.
+
+external_dns_sources:
+  - ingress
+  - service
+
+external_dns_domain_filters:
+  - infiquetra.com
+
+unifi_host: https://10.220.1.1
+unifi_external_controller: "false"
+unifi_secret_key: external-dns-unifi-secret
 unifi_username: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           65636634303638613239666635613331343032353465613832663138333231383132376264393239
@@ -8,6 +24,7 @@ unifi_username: !vault |
           32633134356263633530373937383564313963616164393637333833633439376536653664313831
           3464613739306537350a376564346466623839653366346563323033616233356661333165326332
           6262
+
 unifi_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           64613966316465323432316463633437373061323730356437353932356430323731313038373738
