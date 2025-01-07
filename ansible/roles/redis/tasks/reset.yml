@@ -12,14 +12,14 @@
     name: kfirfer
     state: absent
 
-- name: Remove Redis
+- name: Remove Redis cluster
   kubernetes.core.helm:
-    name: redis
+    name: redis-cluster
     release_namespace: redis
     state: absent
     update_repo_cache: true
 
-- name: Remove Redis
+- name: Remove Redis Commander
   kubernetes.core.helm:
     name: redis-commander
     release_namespace: redis

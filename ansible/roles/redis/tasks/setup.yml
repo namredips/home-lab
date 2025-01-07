@@ -14,68 +14,66 @@
     repo_url: https://kfirfer.github.io/charts/
     state: present
 
-- name: Install Redis Helm chart
+- name: Add the redisinsights Helm repo (for Redis Commander)
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm_repository:
+    name: redisinsight-gui
+    repo_url: https://mrnim94.github.io/redisinsight/
+    state: present
+
+- name: Deploy Redis Cluster
   become_user: "{{ kube_admin_user }}"
   kubernetes.core.helm:
-    chart_ref: bitnami/redis
+    chart_ref: bitnami/redis-cluster
     release_name: redis
     namespace: redis
     create_namespace: true
     update_repo_cache: true
     values: 
-      architecture: standalone
       global:
         redis:
           password: "{{ redis_password }}"
-      master:
-#        containerSecurityContext:
-#          enabled: false
-#          runAsUser: 0
-#          runAsGroup: 0
-#          runAsNonRoot: false
-#        podSecurityContext:
-#          enabled: false
-        persistence:
-          enabled: true
-#          storageClass: openebs-zfspv
-#          storageClass: openebs-single-replica
-          storageClass: openebs-triple-replica
-          accessMode: ReadWriteOnce
-          size: 10Gi
-#      useExternalDNS:
-#        enabled: true
-#        suffix: infiquetra.com
+      persistence:
+        enabled: true
+        storageClass: openebs-single-replica
+        accessMode: ReadWriteOnce
+        size: 10Gi
+      cluster:
+        nodes: 12 
+        replicas: 3
       service:
         type: LoadBalancer
-        annotations:
-          metallb.universe.tf/address-pool: default-addresspool
 
-- name: Install Redis Commander
+- name: Deploy RedisInsight
   become_user: "{{ kube_admin_user }}"
-  kubernetes.core.helm:
-    chart_ref: kfirfer/redis-commander
-    release_name: redis-commander
-    namespace: redis
-    create_namespace: true
-    values: 
-      redis:
-        host: redis
-        port: 6379
-        password: "{{ redis_password }}"
-      service:
-        type: LoadBalancer
-        annotations:
-          metallb.universe.tf/address-pool: default # Specify your MetalLB address pool here
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'redisinsight-deployment.yaml.j2') }}"
 
-- name: Wait for Redis Commander LoadBalancer IP
+- name: Verify RedisInsight Service
   become_user: "{{ kube_admin_user }}"
   kubernetes.core.k8s_info:
-    api_version: v1
     kind: Service
     namespace: redis
-    name: redis-commander
-  register: redis_commander_service
+    name: redisinsight
+  retries: 10
+  delay: 30
+  until: redisinsight_service.resources[0].status.loadBalancer.ingress is defined
+  register: redisinsight_service
 
-- name: Display Redis Commander URL
-  debug:
-    msg: "Redis Commander is accessible at http://{{ redis_commander_service.resources[0].status.loadBalancer.ingress[0].ip }}"
+- name: Deploy Redis Commander
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'redis-commander-deployment.yaml.j2') }}"
+
+- name: Verify Redis Commander Service
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s_info:
+    kind: Service
+    namespace: "{{ redis_namespace }}"
+    name: redis-commander
+  retries: 10
+  delay: 30
+  until: redis_commander_service.resources[0].status.loadBalancer.ingress is defined
+  register: redis_commander_service

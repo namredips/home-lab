@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-commander
+  namespace: {{ redis_namespace }}
+  labels:
+    app: redis-commander
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-commander
+  template:
+    metadata:
+      labels:
+        app: redis-commander
+    spec:
+      containers:
+      - name: redis-commander
+        image: rediscommander/redis-commander:latest
+        ports:
+        - containerPort: 8081
+        env:
+        - name: REDIS_HOST
+          value: {{ redis_cluster_service }}
+        - name: REDIS_PASSWORD
+          value: {{ redis_password }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-commander
+  namespace: {{ redis_namespace }}
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: {{ redis_commander_hostname }}
+spec:
+  type: LoadBalancer
+  selector:
+    app: redis-commander
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8081

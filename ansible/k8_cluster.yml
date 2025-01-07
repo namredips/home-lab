@@ -6,10 +6,10 @@
     - { role: baseconfig, tags: [ 'baseconfig' ]}
     - { role: zfs_disk_pools, tags: [ 'zfs_disk_pools' ]}
     - { role: microk8s, tags: [ 'microk8s' ] }
-    - { role: k8_api, tags: [ 'k8_api' ] }
-#    - { role: k8_dashboard, tags: [ 'k8_dashboard' ] }
     - { role: k8_accounts, tags: [ 'k8_accounts' ] }
     - { role: OpenEBS, tags: [ 'OpenEBS' ] }
     - { role: k8_external_dns, tags: [ 'k8_external_dns' ] }
+    - { role: k8_config, tags: [ 'k8_config' ] }
+    - { role: k8_certs, tags: [ 'k8_certs' ] }
     - { role: redis, tags: [ 'redis' ] }
 #    - { role: ArgoCD, tags: [ 'ArgoCD' ] }

@@ -1,0 +1,21 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ issuer_name }}
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: {{ email }}
+    privateKeySecretRef:
+      name: {{ issuer_name }}-secret
+    solvers:
+      - dns01:
+          route53:
+            region: us-east-1  # Update to your AWS region
+            hostedZoneID: {{ route53_zone_id }}
+            accessKeyIDSecretRef:
+              name: route53-credentials-secret
+              key: aws-access-key-id
+            secretAccessKeySecretRef:
+              name: route53-credentials-secret
+              key: aws-secret-access-key

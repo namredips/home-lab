@@ -1,21 +1,48 @@
 ---
-- name: Apply Kubernetes ClusterIssuer template
+
+- name: Ensure the cert-manager namespace exists
   become_user: "{{ kube_admin_user }}"
   kubernetes.core.k8s:
     state: present
-    definition: 
-      apiVersion: cert-manager.io/v1
-      kind: ClusterIssuer
+    kind: Namespace
+    definition:
       metadata:
-        name: letsencrypt-microk8s
-      spec:
-        acme:
-          server: https://acme-v02.api.letsencrypt.org/directory
-          email: "{{ letsencrypt_email }}"
-          privateKeySecretRef:
-            name: letsencrypt-microk8s
-          solvers:
-            - http01:
-                ingress:
-                  class: public
+        name: "{{ namespace }}"
+  ignore_errors: yes
 
+- name: Create AWS Route53 credentials secret
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ cert_manager_namespace }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: route53-credentials-secret
+      stringData:
+        aws-access-key-id: "{{ route53_access_key }}"
+        aws-secret-access-key: "{{ route53_secret_key }}"
+
+- name: Wait for Cert-Manager to be ready
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    namespace: "{{ cert_manager_namespace }}"
+    name: cert-manager
+  register: cert_manager_deployment
+  until: cert_manager_deployment.resources | length > 0 and cert_manager_deployment.resources[0].status.availableReplicas >= 1
+  retries: 10
+  delay: 10
+
+- name: Apply the Let's Encrypt ClusterIssuer
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'letsencrypt-lab-cluster-issuer.yaml.j2') }}"
+
+- name: Apply the Let's Encrypt Staging ClusterIssuer
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'letsencrypt-lab-staging-cluster-issuer.yaml.j2') }}"

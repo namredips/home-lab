@@ -1,0 +1,47 @@
+---
+
+- name: Add nodeport to kubernetes
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    verify_ssl: no
+    definition:
+      apiVersion: v1
+      kind: service
+      metadata:
+        name: kubernetes
+        namespace: default
+      spec:
+        type: NodePort
+        ports:
+        - nodePort: 30443
+          port: 443
+          protocol: TCP
+          targetPort: 16443
+
+- name: Add nginx-ingress-controller loadbalancer
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    namespace: ingress
+    definition:
+      apiVersion: v1
+      kind: service
+      metadata:
+        name: nginx-ingress-service
+        namespace: ingress
+        annotations:
+          external-dns.alpha.kubernetes.io/hostname: microk8s-lab.infiquetra.com
+      spec:
+        selector:
+          name: nginx-ingress-microk8s
+        ports:
+          - name: http
+            protocol: TCP
+            port: 80
+            targetPort: 80
+          - name: https
+            protocol: TCP
+            port: 443 
+            targetPort: 443
+        type: LoadBalancer
+
