@@ -37,7 +37,7 @@
         dnsNames:
           - argocd.infiquetra.com 
         issuerRef:
-          name: letsencrypt-microk8s
+          name: letsencrypt-lab-staging
           kind: ClusterIssuer
 
 - name: Create Certificate for ArgoCD repo server
@@ -57,7 +57,7 @@
         dnsNames:
           - argocd-repo.infiquetra.com 
         issuerRef:
-          name: letsencrypt-microk8s
+          name: letsencrypt-lab-staging
           kind: ClusterIssuer
 
 - name: Create Certificate for Dex server
@@ -77,7 +77,7 @@
         dnsNames:
           - dex.infiquetra.com
         issuerRef:
-          name: letsencrypt-microk8s
+          name: letsencrypt-lab-staging
           kind: ClusterIssuer
 
 

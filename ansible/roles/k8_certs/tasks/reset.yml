@@ -1,9 +1,33 @@
 ---
 
-- name: Remove letsencruypt-microk8s ClusterIssuer
+- name: Remove letsencrypt-lab ClusterIssuer
   become_user: "{{ kube_admin_user }}"
   kubernetes.core.k8s:
     state: absent
-    name: letsencrypt-microk8s
+    name: letsencrypt-lab
     api_version: cert-manager.io/v1
     kind: ClusterIssuer
+
+- name: Remove letsencrypt-lab-staging ClusterIssuer
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    name: letsencrypt-lab-staging
+    api_version: cert-manager.io/v1
+    kind: ClusterIssuer
+
+- name: Remove letsencrypt-lab certificate
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    name: letsencrypt-lab
+    api_version: cert-manager.io/v1
+    kind: Certificate
+
+- name: Remove letsencrypt-lab-staging certificate
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    name: letsencrypt-lab-staging
+    api_version: cert-manager.io/v1
+    kind: Certificate

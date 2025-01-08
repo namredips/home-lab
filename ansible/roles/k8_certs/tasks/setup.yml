@@ -46,3 +46,19 @@
   kubernetes.core.k8s:
     state: present
     definition: "{{ lookup('template', 'letsencrypt-lab-staging-cluster-issuer.yaml.j2') }}"
+
+- name: Create cluster production infiquetra.com Certificate
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'certificate.yaml.j2') }}"
+  when:
+    - not staging | bool
+
+- name: Create cluster staging infiquetra.com Certificate
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'certificate-staging.yaml.j2') }}"
+  when:
+    - staging | bool

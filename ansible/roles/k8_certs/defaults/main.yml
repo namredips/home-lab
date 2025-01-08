@@ -1,7 +1,13 @@
 ---
+reset: false
+staging: false
+
 email: "jeff@infiquetra.com"
 domain: "infiquetra.com"
 issuer_name: "letsencrypt-lab"
+staging_issuer_name: "letsencrypt-lab-staging"
+secret_name: "infiquetra-tls"
+staging_secret_name: "infiquetra-tls"
 cert_manager_namespace: "cert-manager"  # Cert-Manager namespace
 route53_zone_id: "Z1O01CFQNOUU7X"  # Replace with your Route53 Zone ID
 
