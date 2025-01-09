@@ -3,7 +3,7 @@
   gather_facts: yes
   become: yes
   roles:
-#    - { role: ArgoCD, reset: True, tags: [ 'ArgoCD' ] }
+    - { role: ArgoCD, reset: True, tags: [ 'ArgoCD' ] }
     - { role: redis, reset: True, tags: [ 'redis' ] }
     - { role: k8_external_dns, reset: True, tags: [ 'k8_external_dns' ] }
     - { role: OpenEBS, reset: True, tags: [ 'OpenEBS' ] }

@@ -8,6 +8,16 @@
     state: present
 
 
+
+- name: Get existing secret data
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s_info:
+    kind: Secret
+    namespace: cert-manager
+    name: infiquetra-tls
+  register: infiquetra_secret
+
+
 - name: Install ArgoCD Helm chart
   become_user: "{{ kube_admin_user }}"
   kubernetes.core.helm:
@@ -16,112 +26,69 @@
     namespace: argocd
     create_namespace: true
     values: 
+      redis-ha:
+        enabled: true
+      controller:
+        replicas: 1
+      resource:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 1024Mi
       server:
+        autoscaling:
+          enabled: true
+          minReplicas: 2
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1024Mi
         service:
           type: LoadBalancer
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+            service.beta.kubernetes.io/aws-load-balancer-ssl-cert: infiquetra-tls
+            service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+            external-dns.alpha.kubernetes.io/hostname: argocd.infiquetra.com
+          servicePortHttpsName: https
+          servicePortHttps: 443
+          srvicePortHttpsAppProtocol: TCP
+      repoServer:
+        autoscaling:
+          enabled: true
+          minReplicas: 2
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1024Mi
+      dex:
+        enabled: false
 
-- name: Create Certificate for ArgoCD server
+- name: Create new secret from existing secret
   become_user: "{{ kube_admin_user }}"
   kubernetes.core.k8s:
-    api_version: cert-manager.io/v1
-    kind: Certificate
-    name: argocd-server-cert
-    namespace: argocd
     state: present
     definition:
+      apiVersion: v1
+      kind: Secret
       metadata:
-        name: argocd-server-cert
+        name: "{{ item.name }}"
         namespace: argocd
-      spec:
-        secretName: argocd-server-tls
-        dnsNames:
-          - argocd.infiquetra.com 
-        issuerRef:
-          name: letsencrypt-lab-staging
-          kind: ClusterIssuer
-
-- name: Create Certificate for ArgoCD repo server
-  become_user: "{{ kube_admin_user }}"
-  kubernetes.core.k8s:
-    api_version: cert-manager.io/v1
-    kind: Certificate
-    name: argocd-repo-server-cert
-    namespace: argocd
-    state: present
-    definition:
-      metadata:
-        name: argocd-repo-server-cert
-        namespace: argocd
-      spec:
-        secretName: argocd-repo-server-tls
-        dnsNames:
-          - argocd-repo.infiquetra.com 
-        issuerRef:
-          name: letsencrypt-lab-staging
-          kind: ClusterIssuer
-
-- name: Create Certificate for Dex server
-  become_user: "{{ kube_admin_user }}"
-  kubernetes.core.k8s:
-    api_version: cert-manager.io/v1
-    kind: Certificate
-    name: argo-dex-server-cert
-    namespace: argocd
-    state: present
-    definition:
-      metadata:
-        name: argo-dex-server-cert
-        namespace: argocd
-      spec:
-        secretName: argo-dex-server-tls
-        dnsNames:
-          - dex.infiquetra.com
-        issuerRef:
-          name: letsencrypt-lab-staging
-          kind: ClusterIssuer
+      type: kubernetes.io/tls
+      data:
+        tls.crt: "{{ infiquetra_secret.resources[0].data['tls.crt'] }}"
+        tls.key: "{{ infiquetra_secret.resources[0].data['tls.key'] }}"
+  with_items: "{{ argocd_secrets }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 
-- name: Wait for ArgoCD Pods to be ready
-  become_user: "{{ kube_admin_user }}"
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Pod
-    namespace: argocd
-    label_selectors:
-      - app.kubernetes.io/instance=argocd
-  register: argocd_pods
 
-- name: Ensure all ArgoCD Pods are ready
-  become_user: "{{ kube_admin_user }}"
-  ansible.builtin.wait_for:
-    path: "{{ item.status.podIP }}"
-    state: started
-    delay: 10
-    timeout: 300
-  loop: "{{ argocd_pods.resources }}"
-  when: item.status.phase == 'Running'
-
-
-- name: Update ArgoCD server service to use LoadBalancer with cert-manager TLS
-  kubernetes.core.k8s:
-    api_version: v1
-    kind: Service
-    namespace: argocd
-    name: argocd-server
-    definition:
-      metadata:
-        name: argocd-server
-        namespace: argocd
-        annotations:
-          service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
-          service.beta.kubernetes.io/aws-load-balancer-ssl-cert: argocd-server-tls
-          service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
-      spec:
-        type: LoadBalancer
-        ports:
-          - name: https
-            port: 443
-            targetPort: 8080
-            protocol: TCP
-        selector:
-          app.kubernetes.io/name: argocd-server

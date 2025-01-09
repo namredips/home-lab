@@ -1,3 +1,6 @@
 ---
 reset: False
 
+argocd_secrets:
+  - name: argocd-repo-server-tls
+  - name: argocd-server-tls
