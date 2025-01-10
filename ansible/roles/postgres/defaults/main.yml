@@ -1,0 +1,5 @@
+postgres_host: "your_postgres_host"
+postgres_port: 5432
+postgres_user: "your_postgres_user"
+postgres_password: "your_postgres_password"
+postgres_db: "your_postgres_db"

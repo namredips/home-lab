@@ -1,3 +1,9 @@
 kong_namespace: kong
 kong_hostname: kong.infiquetra.com
 kong_tls_secret: infiquetra-tls
+kong_database: "postgres"
+kong_pg_host: "{{ postgres_host }}"
+kong_pg_port: "{{ postgres_port }}"
+kong_pg_user: "{{ postgres_user }}"
+kong_pg_password: "{{ postgres_password }}"
+kong_pg_database: "{{ postgres_db }}"

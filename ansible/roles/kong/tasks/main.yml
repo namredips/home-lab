@@ -7,3 +7,9 @@
   include_tasks: reset.yml
   when: reset | default(false)
 
+- name: Configure Kong to use PostgreSQL
+  template:
+    src: kong.conf.j2
+    dest: /etc/kong/kong.conf
+  notify:
+    - Restart Kong
