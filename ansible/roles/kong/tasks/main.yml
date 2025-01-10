@@ -1,0 +1,9 @@
+---
+- name: Setup Kong Gateway 
+  include_tasks: setup.yml
+  when: not reset | default(false)
+
+- name: Reset Kong Gateway 
+  include_tasks: reset.yml
+  when: reset | default(false)
+

@@ -1,0 +1,3 @@
+kong_namespace: kong
+kong_hostname: kong.infiquetra.com
+kong_tls_secret: infiquetra-tls
