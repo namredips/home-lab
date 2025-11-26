@@ -1,0 +1,89 @@
+---
+- name: Create postgresql namespace
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ postgresql_namespace }}"
+
+- name: Generate database credentials as Kubernetes secret
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: postgresql-credentials
+        namespace: "{{ postgresql_namespace }}"
+      type: Opaque
+      stringData:
+        POSTGRES_USER: "{{ lookup('password', '/dev/null length=12 chars=ascii_letters') }}"
+        POSTGRES_PASSWORD: "{{ lookup('password', '/dev/null length=16 chars=ascii_letters') }}"
+
+- name: Add the Bitnami Helm repo
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm_repository:
+    name: bitnami
+    repo_url: https://charts.bitnami.com/bitnami
+    state: present
+
+- name: Fetch database credentials
+  kubernetes.core.k8s_info:
+    kind: Secret
+    namespace: "{{ postgresql_namespace }}"
+    name: postgresql-credentials
+  register: postgresql_secret
+  become: true
+  become_user: "{{ kube_admin_user }}"
+
+- name: Extract PostgreSQL username and password
+  set_fact:
+    postgres_user: "{{ postgresql_secret.resources[0].data.POSTGRES_USER | b64decode }}"
+    postgres_password: "{{ postgresql_secret.resources[0].data.POSTGRES_PASSWORD | b64decode }}"
+
+- name: Deploy PostgreSQL cluster
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm:
+    name: postgresql
+    chart_ref: bitnami/postgresql
+    release_namespace: "{{ postgresql_namespace }}"
+    update_repo_cache: true
+    state: present
+    values:
+      architecture: replication
+      primary:
+        persistence:
+          enabled: true
+          storageClass: "{{ postgresql_storage_class }}"
+          size: 250Gi
+        service:
+          type: LoadBalancer
+          annotations:
+            external-dns.alpha.kubernetes.io/hostname: "{{ postgresql_hostname }}"
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+      readReplicas:
+        replicaCount: 2
+        persistence:
+          enabled: true
+          storageClass: "{{ postgresql_storage_class }}"
+          size: 250Gi
+        service:
+          type: LoadBalancer
+          annotations:
+            external-dns.alpha.kubernetes.io/hostname: "read-{{ postgresql_hostname }}"
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+      global:
+        postgresql:
+          username: "{{ postgres_user }}"
+          password: "{{ postgres_password }}"
+

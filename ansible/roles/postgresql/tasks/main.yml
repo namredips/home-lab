@@ -1,0 +1,17 @@
+---
+- name: Find the designated host
+  set_fact:
+    designated_host: '{{ (groups[microk8s_cluster]|sort)[0] }}'
+
+- name: Setup PostgreSQL
+  include_tasks: setup.yml
+  when:
+    - not reset | default(false)
+    - inventory_hostname == designated_host
+
+- name: Reset PostgreSQL
+  include_tasks: reset.yml
+  when:
+    - reset | default(false)
+    - inventory_hostname == designated_host
+

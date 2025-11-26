@@ -1,0 +1,3 @@
+postgresql_namespace: postgresql
+postgresql_hostname: psql.infiquetra.com
+postgresql_storage_class: openebs-triple-replica

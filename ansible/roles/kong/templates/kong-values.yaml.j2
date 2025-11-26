@@ -1,0 +1,27 @@
+ingressController:
+  enabled: true
+  installCRDs: true
+
+proxy:
+  type: LoadBalancer
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: "{{ kong_hostname }}"
+  loadBalancerIP: "{{ kong_loadbalancer_ip | default('') }}"
+  tls:
+    enabled: true
+    certSecret: "{{ kong_tls_secret }}"
+
+admin:
+  enabled: true
+
+cluster:
+  enabled: false
+
+
+
+database = {{ kong_database }}
+pg_host = {{ kong_pg_host }}
+pg_port = {{ kong_pg_port }}
+pg_user = {{ kong_pg_user }}
+pg_password = {{ kong_pg_password }}
+pg_database = {{ kong_pg_database }}

@@ -79,6 +79,7 @@
             timeoutSeconds: 5
       extraArgs:
         - --ignore-ingress-tls-spec
+        - --fqdn-template="{%raw%}{{ .name }}.infiquetra.com{%endraw%}"
       policy: sync
       sources: "{{ external_dns_sources }}"
       txtOwnerId: "{{ external_dns_txt_owner_id }}"

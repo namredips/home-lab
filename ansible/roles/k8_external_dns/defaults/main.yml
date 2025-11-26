@@ -6,7 +6,6 @@ external_dns_namespace: external-dns-unifi
 external_dns_chart_version: v0.3.4
 external_dns_txt_owner_id: external-dns-unifi
 external_dns_txt_prefix: microk8s-home-lab.
-
 external_dns_sources:
   - ingress
   - service

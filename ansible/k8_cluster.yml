@@ -12,4 +12,5 @@
     - { role: k8_config, tags: [ 'k8_config' ] }
     - { role: k8_certs, tags: [ 'k8_certs' ] }
     - { role: redis, tags: [ 'redis' ] }
+    - { role: postgresql, tags: [ 'postgresql' ] }
     - { role: ArgoCD, tags: [ 'ArgoCD' ] }

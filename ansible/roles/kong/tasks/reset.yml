@@ -1,0 +1,17 @@
+---
+- name: Delete Kong Helm release
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm:
+    name: kong
+    release_namespace: "{{ kong_namespace }}"
+    state: absent
+
+- name: Delete kong namespace
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ kong_namespace }}"

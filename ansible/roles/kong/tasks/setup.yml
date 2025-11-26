@@ -1,0 +1,30 @@
+---
+- name: Create kong namespace
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ kong_namespace }}"
+
+- name: Deploy Kong Gateway
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm:
+    name: kong
+    chart_ref: kong/kong
+    release_namespace: "{{ kong_namespace }}"
+    values: "{{ lookup('templates', 'kong-values.yaml.j2') }}"
+    state: present
+
+- name: Wait for Kong Gateway to be ready
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    namespace: "{{ kong_namespace }}"
+    name: kong
+  register: kong_deployment
+  retries: 10
+  delay: 30
+  until: kong_deployment.resources[0].status.conditions | selectattr('type', 'equalto', 'Available') | map(attribute='status') | list | first == "True"

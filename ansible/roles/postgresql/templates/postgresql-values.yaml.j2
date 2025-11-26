@@ -1,0 +1,29 @@
+primary:
+  persistence:
+    enabled: true
+    storageClass: "{{ postgresql_storage_class }}"
+    size: 250Gi
+  service:
+    type: LoadBalancer
+    annotations:
+      external-dns.alpha.kubernetes.io/hostname: "{{ postgresql_hostname }}"
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+
+replica:
+  replicaCount: 2
+  persistence:
+    enabled: true
+    storageClass: "{{ postgresql_storage_class }}"
+    size: 250
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+
+global:
+  postgresql:
+    username: "{{ lookup('kubernetes.core.k8s', 'v1', postgresql_namespace, 'postgresql-credentials').resources[0].data.POSTGRES_USER | b64decode }}"
+    password: "{{ lookup('kubernetes.core.k8s', 'v1', postgresql_namespace, 'postgresql-credentials').resources[0].data.POSTGRES_PASSWORD | b64decode }}"

@@ -1,0 +1,17 @@
+---
+- name: Delete PostgreSQL Helm release
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.helm:
+    name: postgresql
+    release_namespace: "{{ postgresql_namespace }}"
+    state: absent
+
+- name: Delete postgresql namespace
+  become_user: "{{ kube_admin_user }}"
+  kubernetes.core.k8s:
+    state: absent
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ postgresql_namespace }}"
