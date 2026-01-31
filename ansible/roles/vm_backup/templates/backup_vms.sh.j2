@@ -1,0 +1,103 @@
+#!/bin/bash
+# VM Backup Script for {{ inventory_hostname }}
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+set -euo pipefail
+
+BACKUP_DIR="{{ backup_base_dir }}/$(date +%Y-%m-%d)"
+RETENTION_DAYS={{ backup_retention_days }}
+LOG_FILE="/var/log/vm-backup.log"
+
+# Logging function
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+# Create backup directory
+mkdir -p "$BACKUP_DIR"
+
+log "Starting VM backup on {{ inventory_hostname }}"
+
+# Get list of running VMs
+VMS=$(virsh list --name)
+
+if [ -z "$VMS" ]; then
+    log "No running VMs found"
+    exit 0
+fi
+
+# Backup each VM
+for VM in $VMS; do
+    log "Backing up VM: $VM"
+
+    SNAPSHOT_NAME="backup-$(date +%Y%m%d-%H%M%S)"
+
+    # Create external snapshot (requires qemu-guest-agent)
+    if virsh snapshot-create-as --domain "$VM" --name "$SNAPSHOT_NAME" \
+        --disk-only --atomic --quiesce 2>/dev/null; then
+        log "  Created snapshot: $SNAPSHOT_NAME"
+    else
+        log "  WARNING: Quiesce failed, creating snapshot without quiesce"
+        virsh snapshot-create-as --domain "$VM" --name "$SNAPSHOT_NAME" \
+            --disk-only --atomic
+    fi
+
+    # Export VM configuration
+    virsh dumpxml "$VM" > "$BACKUP_DIR/${VM}.xml"
+    log "  Exported configuration: ${VM}.xml"
+
+    # Copy disk images
+    for DISK in $(virsh domblklist "$VM" | awk 'NR>2 {print $2}' | grep -v '^$'); do
+        if [ -f "$DISK" ]; then
+            DISK_NAME=$(basename "$DISK")
+            log "  Copying disk: $DISK_NAME"
+            cp -a "$DISK" "$BACKUP_DIR/${VM}_${DISK_NAME}"
+        fi
+    done
+
+    # Merge snapshot back (blockcommit)
+    log "  Merging snapshot back to base image"
+    virsh blockcommit "$VM" --active --pivot \
+        $(virsh domblklist "$VM" | awk 'NR>2 {print $1}' | head -1) || \
+        log "  WARNING: Blockcommit failed for $VM"
+
+    # Delete snapshot metadata
+    virsh snapshot-delete "$VM" "$SNAPSHOT_NAME" --metadata 2>/dev/null || true
+
+{% if openclaw_memory_export %}
+    # Export OpenClaw workspace if this is an agent VM
+    if virsh domifaddr "$VM" | grep -q "10.220.1.5"; then
+        VM_IP=$(virsh domifaddr "$VM" | grep "10.220.1.5" | awk '{print $4}' | cut -d/ -f1)
+        log "  Exporting OpenClaw workspace from $VM_IP"
+
+        ssh -o StrictHostKeyChecking=no agent@"$VM_IP" \
+            "tar -czf /tmp/openclaw-workspace.tar.gz -C {{ openclaw_workspace_path }} ." \
+            2>/dev/null || log "  WARNING: OpenClaw export failed for $VM"
+
+        scp -o StrictHostKeyChecking=no \
+            agent@"$VM_IP":/tmp/openclaw-workspace.tar.gz \
+            "$BACKUP_DIR/${VM}_openclaw.tar.gz" 2>/dev/null || true
+
+        ssh -o StrictHostKeyChecking=no agent@"$VM_IP" \
+            "rm -f /tmp/openclaw-workspace.tar.gz" 2>/dev/null || true
+    fi
+{% endif %}
+
+    log "  Completed backup for $VM"
+done
+
+# Clean up old backups
+log "Cleaning up backups older than $RETENTION_DAYS days"
+find "{{ backup_base_dir }}" -maxdepth 1 -type d -mtime +$RETENTION_DAYS -exec rm -rf {} \; 2>/dev/null || true
+
+log "Backup completed successfully"
+
+{% if backup_remote_enabled %}
+# Sync to remote backup location
+log "Syncing to remote backup: {{ backup_remote_host }}:{{ backup_remote_path }}"
+rsync -avz --delete-after "{{ backup_base_dir }}/" \
+    {{ backup_remote_user }}@{{ backup_remote_host }}:{{ backup_remote_path }}/{{ inventory_hostname }}/ \
+    >> "$LOG_FILE" 2>&1 || log "WARNING: Remote sync failed"
+{% endif %}
+
+log "All backup operations completed"

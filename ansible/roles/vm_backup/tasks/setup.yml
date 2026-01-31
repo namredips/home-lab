@@ -1,0 +1,62 @@
+---
+- name: Create backup directories
+  file:
+    path: "{{ backup_base_dir }}"
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Create log directory
+  file:
+    path: /var/log
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Deploy backup script
+  template:
+    src: backup_vms.sh.j2
+    dest: /usr/local/bin/backup_vms.sh
+    mode: '0755'
+  become: yes
+
+- name: Get stagger time for this host
+  set_fact:
+    stagger_minutes: "{{ backup_stagger[inventory_hostname] | default(0) }}"
+
+- name: Configure cron job for VM backups
+  cron:
+    name: "VM backup"
+    minute: "{{ stagger_minutes }}"
+    hour: "{{ backup_time_hour }}"
+    job: "/usr/local/bin/backup_vms.sh"
+    user: root
+  become: yes
+
+- name: Create remote backup directory on r720xd
+  file:
+    path: "{{ backup_remote_path }}/{{ inventory_hostname }}"
+    state: directory
+    mode: '0755'
+  delegate_to: "{{ backup_remote_host }}"
+  become: yes
+  when: backup_remote_enabled and inventory_hostname != backup_remote_host
+
+- name: Set up SSH key for remote backup
+  authorized_key:
+    user: root
+    state: present
+    key: "{{ lookup('file', '/root/.ssh/id_rsa.pub') }}"
+  delegate_to: "{{ backup_remote_host }}"
+  become: yes
+  when: backup_remote_enabled and inventory_hostname != backup_remote_host
+  ignore_errors: yes
+
+- name: Display backup schedule
+  debug:
+    msg:
+      - "VM backup configured for {{ inventory_hostname }}"
+      - "Schedule: {{ backup_time_hour }}:{{ '%02d' | format(stagger_minutes | int) }} daily"
+      - "Retention: {{ backup_retention_days }} days"
+      - "Backup directory: {{ backup_base_dir }}"
+      - "Remote backup: {% if backup_remote_enabled %}{{ backup_remote_host }}:{{ backup_remote_path }}/{{ inventory_hostname }}{% else %}Disabled{% endif %}"

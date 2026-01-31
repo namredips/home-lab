@@ -1,0 +1,26 @@
+---
+# vm_backup role defaults
+
+# Backup configuration
+backup_enabled: true
+backup_time_hour: 2  # 2 AM
+backup_retention_days: 7
+backup_base_dir: /var/lib/libvirt/backups
+
+# Off-hypervisor backup target
+backup_remote_enabled: true
+backup_remote_host: r720xd.infiquetra.com
+backup_remote_path: /mnt/backups/vm-snapshots
+backup_remote_user: root
+
+# OpenClaw memory export
+openclaw_memory_export: true
+openclaw_workspace_path: /home/agent/.openclaw/workspace
+
+# Stagger backup start times per hypervisor (minutes after hour)
+backup_stagger:
+  r420.infiquetra.com: 0
+  r710.infiquetra.com: 10
+  r8202.infiquetra.com: 20
+  r720xd.infiquetra.com: 30
+  r820.infiquetra.com: 40
