@@ -13,6 +13,7 @@ libvirt_packages:
   - libvirt-daemon
   - libguestfs-tools
   - python3-libvirt
+  - cloud-utils
 
 # User to add to libvirt groups
 libvirt_user: "{{ ansible_user | default('jefcox') }}"

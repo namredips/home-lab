@@ -5,8 +5,6 @@
     dest: "{{ vm_base_image_path }}"
     mode: '0644'
   become: yes
-  run_once: true
-  delegate_to: "{{ groups['hypervisors'][0] }}"
 
 - name: Create agent VMs on designated hosts
   include_tasks: create_vm.yml
