@@ -1,0 +1,99 @@
+---
+# agent_vm role defaults
+reset: False
+
+# Base VM configuration
+vm_os: ubuntu
+vm_os_version: "22.04"
+vm_base_image_url: "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"
+vm_base_image_path: "/var/lib/libvirt/images/ubuntu-22.04-base.qcow2"
+
+# Network configuration
+vm_network: default
+vm_network_model: virtio
+
+# SSH configuration
+vm_ssh_user: agent
+vm_ssh_authorized_keys: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa.pub') }}"
+
+# Agent definitions with VM specifications
+agents:
+  zeus:
+    host: r420.infiquetra.com
+    vcpus: 4
+    memory_mb: 8192
+    disk_gb: 250
+    ip: 10.220.1.50
+    email: zeus@infiquetra.com
+    role: "PM, orchestration"
+    trait: "Leadership & authority"
+
+  athena:
+    host: r710.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.51
+    email: athena@infiquetra.com
+    role: "Senior Developer (Architecture)"
+    trait: "Wisdom & strategy"
+
+  apollo:
+    host: r710.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.52
+    email: apollo@infiquetra.com
+    role: "Development"
+    trait: "Light, truth, reason"
+
+  artemis:
+    host: r8202.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.53
+    email: artemis@infiquetra.com
+    role: "Development"
+    trait: "Precision, focus"
+
+  hermes:
+    host: r8202.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.54
+    email: hermes@infiquetra.com
+    role: "Development"
+    trait: "Speed, communication"
+
+  perseus:
+    host: r720xd.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.55
+    email: perseus@infiquetra.com
+    role: "Development"
+    trait: "Heroic problem-solver"
+
+  prometheus:
+    host: r820.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.56
+    email: prometheus@infiquetra.com
+    role: "Development"
+    trait: "Innovation, foresight"
+
+  ares:
+    host: r820.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.57
+    email: ares@infiquetra.com
+    role: "Development"
+    trait: "Strength, determination"
