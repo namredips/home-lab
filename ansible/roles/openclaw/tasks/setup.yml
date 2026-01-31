@@ -1,0 +1,88 @@
+---
+- name: Ensure Node.js is installed
+  shell: node --version
+  register: node_check
+  changed_when: false
+  failed_when: node_check.rc != 0
+
+- name: Install OpenClaw globally via npm
+  npm:
+    name: openclaw
+    global: yes
+    version: "{{ openclaw_version }}"
+    state: present
+  become: yes
+
+- name: Create OpenClaw config directory
+  file:
+    path: "{{ openclaw_install_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create OpenClaw configuration file
+  template:
+    src: openclaw-config.yml.j2
+    dest: "{{ openclaw_install_dir }}/config.yml"
+    mode: '0600'
+
+- name: Create OpenClaw environment file
+  template:
+    src: openclaw.env.j2
+    dest: "{{ openclaw_install_dir }}/.env"
+    mode: '0600'
+
+- name: Create OpenClaw workspace directory
+  file:
+    path: "{{ openclaw_install_dir }}/workspace"
+    state: directory
+    mode: '0755'
+
+- name: Deploy agent personality files
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ openclaw_install_dir }}/workspace/{{ item }}"
+    mode: '0644'
+  loop:
+    - SOUL.md
+    - IDENTITY.md
+    - AGENTS.md
+    - BOOTSTRAP.md
+    - USER.md
+
+- name: Create systemd service for OpenClaw
+  template:
+    src: openclaw.service.j2
+    dest: /etc/systemd/system/openclaw-{{ agent_name }}.service
+    mode: '0644'
+  become: yes
+  when: openclaw_enable_service
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+  become: yes
+  when: openclaw_enable_service
+
+- name: Enable OpenClaw service
+  systemd:
+    name: openclaw-{{ agent_name }}
+    enabled: yes
+  become: yes
+  when: openclaw_enable_service
+
+- name: Display OpenClaw setup information
+  debug:
+    msg:
+      - "OpenClaw installed for agent: {{ agent_name }}"
+      - "Email: {{ agent_email }}"
+      - "Config: {{ openclaw_install_dir }}/config.yml"
+      - ""
+      - "IMPORTANT: Manual steps required:"
+      - "  1. Authenticate with Anthropic (Claude Code): claude-code auth"
+      - "  2. Authenticate with OpenAI: Set OPENAI_API_KEY in {{ openclaw_install_dir }}/.env"
+      - "  3. Authenticate with Google: Set GOOGLE_API_KEY in {{ openclaw_install_dir }}/.env"
+      - "  4. Create Mattermost account for {{ agent_name }}"
+      - "  5. Generate Mattermost bot token and update vault_mattermost_bot_token"
+      - "  6. Start service: sudo systemctl start openclaw-{{ agent_name }}"
+      - ""
+      - "Web dashboard: http://{{ ansible_host }}:{{ openclaw_dashboard_port }}"
