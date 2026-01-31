@@ -1,0 +1,8 @@
+---
+- name: Setup OpenClaw agent
+  import_tasks: setup.yml
+  when: not reset | bool
+
+- name: Remove OpenClaw agent
+  import_tasks: reset.yml
+  when: reset | bool

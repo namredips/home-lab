@@ -1,0 +1,68 @@
+---
+- name: Install Docker and Docker Compose
+  apt:
+    name:
+      - docker.io
+      - docker-compose
+      - python3-docker
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  become: yes
+
+- name: Enable and start Docker service
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Create Mattermost directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  become: yes
+  loop:
+    - "{{ mattermost_data_dir }}"
+    - "{{ mattermost_config_dir }}"
+    - "{{ mattermost_logs_dir }}"
+    - "{{ mattermost_plugins_dir }}"
+    - /opt/mattermost/postgres
+
+- name: Create docker-compose.yml for Mattermost
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/mattermost/docker-compose.yml
+    mode: '0644'
+  become: yes
+  notify: restart mattermost
+
+- name: Start Mattermost services
+  community.docker.docker_compose_v2:
+    project_src: /opt/mattermost
+    state: present
+  become: yes
+
+- name: Wait for Mattermost to be ready
+  uri:
+    url: "http://localhost:{{ mattermost_port }}/api/v4/system/ping"
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 30
+  delay: 10
+
+- name: Display Mattermost access information
+  debug:
+    msg:
+      - "Mattermost is running!"
+      - "Access URL: http://{{ ansible_host }}:{{ mattermost_port }}"
+      - "First user created will be the system administrator"
+      - "Create accounts for each agent: athena, apollo, artemis, hermes, perseus, prometheus, ares, poseidon"

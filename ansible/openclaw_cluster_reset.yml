@@ -1,0 +1,90 @@
+---
+# OpenClaw Virtual Employee Infrastructure Teardown
+# This playbook removes the entire "Mount Olympus" agent cluster
+
+- name: Confirm reset operation
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Display warning
+      debug:
+        msg:
+          - "=========================================="
+          - "WARNING: DESTRUCTIVE OPERATION"
+          - "=========================================="
+          - ""
+          - "This will remove:"
+          - "  - All 8 agent VMs"
+          - "  - OpenClaw services and configs"
+          - "  - Mattermost containers (data preserved)"
+          - "  - Libvirt VMs and networks"
+          - ""
+          - "This will NOT remove:"
+          - "  - Host OS updates and packages"
+          - "  - Disk mounts and storage"
+          - "  - VM disk images (unless manually deleted)"
+          - ""
+          - "Press Ctrl+C to abort, or continue to proceed"
+          - "=========================================="
+
+    - name: Wait for confirmation
+      pause:
+        seconds: 10
+
+- name: Stop OpenClaw agents
+  hosts: agent_vms
+  gather_facts: no
+  roles:
+    - { role: openclaw, reset: True, tags: ['openclaw'] }
+  ignore_errors: yes
+
+- name: Remove agent environments
+  hosts: agent_vms
+  gather_facts: no
+  roles:
+    - { role: agent_provision, reset: True, tags: ['agent_provision'] }
+  ignore_errors: yes
+
+- name: Remove agent VMs
+  hosts: hypervisors
+  gather_facts: yes
+  roles:
+    - { role: agent_vm, reset: True, tags: ['agent_vm'] }
+
+- name: Stop Mattermost
+  hosts: mattermost_server
+  gather_facts: no
+  roles:
+    - { role: mattermost, reset: True, tags: ['mattermost'] }
+
+- name: Remove libvirt (optional)
+  hosts: hypervisors
+  gather_facts: no
+  roles:
+    - { role: libvirt, reset: True, tags: ['libvirt'] }
+  when: remove_libvirt | default(false) | bool
+
+- name: Display reset summary
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Show reset completion
+      debug:
+        msg:
+          - "=========================================="
+          - "OpenClaw Infrastructure Reset Complete"
+          - "=========================================="
+          - ""
+          - "Removed:"
+          - "  - All agent VMs and their services"
+          - "  - OpenClaw configurations"
+          - "  - Mattermost containers"
+          - ""
+          - "Preserved:"
+          - "  - VM disk images in /var/lib/libvirt/images"
+          - "  - Mattermost data in /opt/mattermost"
+          - "  - Host configurations and packages"
+          - ""
+          - "To completely remove libvirt, run with:"
+          - "  ansible-playbook openclaw_cluster_reset.yml -e remove_libvirt=true"
+          - "=========================================="

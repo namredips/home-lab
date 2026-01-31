@@ -1,0 +1,69 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: yes
+
+- name: Upgrade all packages
+  apt:
+    upgrade: dist
+    autoremove: yes
+    autoclean: yes
+  become: yes
+  register: upgrade_result
+
+- name: Install common packages
+  apt:
+    name: "{{ common_packages }}"
+    state: present
+  become: yes
+
+- name: Check for unprovisioned disk space
+  shell: |
+    lsblk -o NAME,SIZE,TYPE,MOUNTPOINT -J | jq -r '.blockdevices[] | select(.type=="disk") | select(.mountpoint==null) | .name'
+  register: unprovisioned_disks
+  changed_when: false
+
+- name: Display unprovisioned disks
+  debug:
+    msg: "Unprovisioned disks found: {{ unprovisioned_disks.stdout_lines }}"
+  when: unprovisioned_disks.stdout_lines | length > 0
+
+- name: Check if VM storage path exists
+  stat:
+    path: "{{ vm_storage_path }}"
+  register: vm_storage_stat
+
+- name: Create VM storage directory
+  file:
+    path: "{{ vm_storage_path }}"
+    state: directory
+    mode: '0755'
+  become: yes
+  when: not vm_storage_stat.stat.exists
+
+- name: Get VM storage mount info
+  shell: |
+    df -h {{ vm_storage_path }} | tail -1 | awk '{print $1, $2, $3, $5}'
+  register: vm_storage_info
+  changed_when: false
+
+- name: Display VM storage information
+  debug:
+    msg: "VM storage at {{ vm_storage_path }}: {{ vm_storage_info.stdout }}"
+
+- name: Notify if reboot required
+  debug:
+    msg: "System may require reboot after package upgrades. Check /var/run/reboot-required"
+  when: upgrade_result.changed
+
+- name: Check if reboot is required
+  stat:
+    path: /var/run/reboot-required
+  register: reboot_required
+
+- name: Display reboot requirement
+  debug:
+    msg: "REBOOT REQUIRED - System updates require a reboot"
+  when: reboot_required.stat.exists

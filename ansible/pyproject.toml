@@ -1,0 +1,8 @@
+[project]
+name = "openclaw-infrastructure"
+version = "0.1.0"
+description = "OpenClaw Virtual Employee Infrastructure - Ansible automation"
+requires-python = ">=3.12"
+dependencies = [
+    "ansible>=13.3.0",
+]

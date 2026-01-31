@@ -1,0 +1,60 @@
+---
+# Create a single agent VM
+- name: Set agent facts
+  set_fact:
+    agent_name: "{{ agent_item.key }}"
+    agent_config: "{{ agent_item.value }}"
+
+- name: Create disk image for {{ agent_name }}
+  shell: |
+    qemu-img create -f qcow2 -F qcow2 -b {{ vm_base_image_path }} \
+      /var/lib/libvirt/images/{{ agent_name }}.qcow2 {{ agent_config.disk_gb }}G
+  become: yes
+  args:
+    creates: /var/lib/libvirt/images/{{ agent_name }}.qcow2
+
+- name: Resize disk for {{ agent_name }}
+  shell: |
+    qemu-img resize /var/lib/libvirt/images/{{ agent_name }}.qcow2 {{ agent_config.disk_gb }}G
+  become: yes
+
+- name: Create cloud-init config for {{ agent_name }}
+  template:
+    src: vm-cloudinit.yml.j2
+    dest: /tmp/{{ agent_name }}-cloudinit.yml
+    mode: '0644'
+
+- name: Create cloud-init ISO for {{ agent_name }}
+  shell: |
+    cloud-localds /var/lib/libvirt/images/{{ agent_name }}-seed.img /tmp/{{ agent_name }}-cloudinit.yml
+  become: yes
+  args:
+    creates: /var/lib/libvirt/images/{{ agent_name }}-seed.img
+
+- name: Define VM for {{ agent_name }}
+  shell: |
+    virt-install \
+      --name {{ agent_name }} \
+      --memory {{ agent_config.memory_mb }} \
+      --vcpus {{ agent_config.vcpus }} \
+      --disk /var/lib/libvirt/images/{{ agent_name }}.qcow2,device=disk,bus=virtio \
+      --disk /var/lib/libvirt/images/{{ agent_name }}-seed.img,device=cdrom \
+      --os-variant ubuntu22.04 \
+      --network network={{ vm_network }},model={{ vm_network_model }} \
+      --graphics none \
+      --console pty,target_type=serial \
+      --import \
+      --noautoconsole
+  become: yes
+  register: vm_create
+  failed_when: false
+
+- name: Start VM {{ agent_name }} if not running
+  shell: virsh start {{ agent_name }}
+  become: yes
+  when: vm_create.rc != 0
+  failed_when: false
+
+- name: Set VM {{ agent_name }} to autostart
+  shell: virsh autostart {{ agent_name }}
+  become: yes

@@ -1,0 +1,30 @@
+---
+# openclaw role defaults
+reset: False
+
+# OpenClaw configuration
+openclaw_version: latest
+openclaw_install_dir: ~/.openclaw
+
+# API keys (stored in vault)
+openclaw_anthropic_api_key: "{{ vault_openclaw_anthropic_api_key | default('') }}"
+openclaw_openai_api_key: "{{ vault_openclaw_openai_api_key | default('') }}"
+openclaw_google_api_key: "{{ vault_openclaw_google_api_key | default('') }}"
+
+# Mattermost configuration
+mattermost_url: "http://10.220.1.10:8065"
+mattermost_bot_token: "{{ vault_mattermost_bot_token | default('') }}"
+
+# Agent-specific configuration
+agent_name: "{{ inventory_hostname_short }}"
+agent_email: "{{ inventory_hostname_short }}@infiquetra.com"
+
+# OpenClaw settings
+openclaw_enable_memory: true
+openclaw_enable_web_dashboard: true
+openclaw_dashboard_port: 18789
+openclaw_log_level: info
+
+# Systemd service
+openclaw_enable_service: true
+openclaw_service_user: "{{ ansible_user }}"

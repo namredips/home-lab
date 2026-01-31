@@ -1,0 +1,87 @@
+---
+- name: Install libvirt and KVM packages
+  apt:
+    name: "{{ libvirt_packages }}"
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Enable and start libvirtd service
+  systemd:
+    name: libvirtd
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Add user to libvirt groups
+  user:
+    name: "{{ libvirt_user }}"
+    groups:
+      - libvirt
+      - kvm
+    append: yes
+  become: yes
+
+- name: Check if default network is defined
+  shell: virsh net-list --all | grep -q "{{ libvirt_default_network }}"
+  register: network_exists
+  changed_when: false
+  failed_when: false
+
+- name: Start default network
+  shell: virsh net-start {{ libvirt_default_network }}
+  when: network_exists.rc == 0
+  become: yes
+  register: network_start
+  failed_when: false
+  changed_when: network_start.rc == 0
+
+- name: Autostart default network
+  shell: virsh net-autostart {{ libvirt_default_network }}
+  when: network_exists.rc == 0 and libvirt_network_autostart
+  become: yes
+  changed_when: false
+
+- name: Verify libvirt installation
+  shell: virsh version
+  register: virsh_version
+  changed_when: false
+
+- name: Display libvirt version
+  debug:
+    msg: "Libvirt installed: {{ virsh_version.stdout_lines }}"
+
+- name: Check CPU virtualization support
+  shell: |
+    if grep -E '(vmx|svm)' /proc/cpuinfo > /dev/null; then
+      echo "Virtualization: Enabled ($(grep -E -o '(vmx|svm)' /proc/cpuinfo | head -1))"
+    else
+      echo "Virtualization: Not detected"
+    fi
+  register: cpu_virt
+  changed_when: false
+
+- name: Display virtualization support
+  debug:
+    msg: "{{ cpu_virt.stdout }}"
+
+- name: Get libvirt storage pool info
+  shell: virsh pool-list --all
+  register: storage_pools
+  changed_when: false
+  become: yes
+
+- name: Display storage pools
+  debug:
+    msg: "{{ storage_pools.stdout_lines }}"
+
+- name: Create default storage pool if needed
+  shell: |
+    virsh pool-define-as default dir - - - - /var/lib/libvirt/images
+    virsh pool-build default
+    virsh pool-start default
+    virsh pool-autostart default
+  become: yes
+  when: "'default' not in storage_pools.stdout"
+  register: pool_created
+  failed_when: false

@@ -1,0 +1,8 @@
+---
+- name: Setup Mattermost server
+  import_tasks: setup.yml
+  when: not reset | bool
+
+- name: Remove Mattermost server
+  import_tasks: reset.yml
+  when: reset | bool

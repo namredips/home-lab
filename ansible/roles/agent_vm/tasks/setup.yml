@@ -1,0 +1,33 @@
+---
+- name: Download Ubuntu cloud image
+  get_url:
+    url: "{{ vm_base_image_url }}"
+    dest: "{{ vm_base_image_path }}"
+    mode: '0644'
+  become: yes
+  run_once: true
+  delegate_to: "{{ groups['hypervisors'][0] }}"
+
+- name: Create agent VMs on designated hosts
+  include_tasks: create_vm.yml
+  loop: "{{ agents | dict2items }}"
+  loop_control:
+    loop_var: agent_item
+  when: agent_item.value.host == inventory_hostname
+
+- name: Wait for VMs to be accessible via SSH
+  wait_for:
+    host: "{{ item.value.ip }}"
+    port: 22
+    delay: 10
+    timeout: 300
+  loop: "{{ agents | dict2items }}"
+  when: item.value.host == inventory_hostname
+
+- name: Display agent VM information
+  debug:
+    msg:
+      - "Agent VMs created successfully!"
+      - "SSH access: ssh {{ vm_ssh_user }}@<agent-ip>"
+      - "Agent IPs:"
+      - "{{ agents | dict2items | map(attribute='value.ip') | list }}"

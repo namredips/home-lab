@@ -1,0 +1,43 @@
+---
+# Reset tasks for libvirt role
+- name: Get list of running VMs
+  shell: virsh list --name
+  register: running_vms
+  changed_when: false
+  become: yes
+
+- name: Display warning if VMs are running
+  debug:
+    msg: "WARNING: Running VMs detected - these must be stopped before removing libvirt: {{ running_vms.stdout_lines }}"
+  when: running_vms.stdout_lines | length > 0
+
+- name: Stop libvirtd service
+  systemd:
+    name: libvirtd
+    state: stopped
+    enabled: no
+  become: yes
+  when: running_vms.stdout_lines | length == 0
+
+- name: Remove user from libvirt groups
+  user:
+    name: "{{ libvirt_user }}"
+    groups:
+      - libvirt
+      - kvm
+    append: no
+  become: yes
+  when: running_vms.stdout_lines | length == 0
+
+- name: Remove libvirt packages
+  apt:
+    name: "{{ libvirt_packages }}"
+    state: absent
+    autoremove: yes
+  become: yes
+  when: running_vms.stdout_lines | length == 0
+
+- name: Display completion message
+  debug:
+    msg: "Libvirt removal complete. Storage pools and VM images remain in /var/lib/libvirt/ - remove manually if needed"
+  when: running_vms.stdout_lines | length == 0

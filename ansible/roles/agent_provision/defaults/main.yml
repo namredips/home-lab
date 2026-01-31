@@ -1,0 +1,57 @@
+---
+# agent_provision role defaults
+reset: False
+
+# Development tools and packages
+base_packages:
+  - build-essential
+  - curl
+  - wget
+  - git
+  - vim
+  - neovim
+  - tmux
+  - htop
+  - jq
+  - ripgrep
+  - fd-find
+  - fzf
+  - unzip
+  - software-properties-common
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+# Language runtimes
+install_python: true
+python_version: "3.12"
+
+install_nodejs: true
+nodejs_version: "22"
+
+install_dart_flutter: true
+flutter_channel: stable
+
+install_rust: true
+
+install_golang: true
+golang_version: "1.22"
+
+install_cpp: true
+
+# AI coding tools
+install_claude_code: true
+install_codex_cli: true
+install_gemini_cli: true
+
+# AWS tools
+install_aws_cli: true
+install_aws_cdk: true
+
+# Docker
+install_docker: true
+
+# Shell configuration
+install_oh_my_bash: false
+install_starship: true

@@ -1,0 +1,42 @@
+{
+  // general preferences
+  // "coc.preferences.useQuickfixForLocations": true,
+  "coc.preferences.extensionUpdateCheck": "never",
+  "coc.preferences.formatOnSaveFiletypes": ["dart"],
+
+  // autocompletion
+  //  "suggest.disableMenu": true,
+  //  "suggest.snippetIndicator": "",
+  //  "suggest.floatEnable": true,
+
+  // diagnostics -- syntax errors
+  "diagnostic.autoRefresh": false,
+  "diagnostic.refreshOnInsertMode": false,
+  "diagnostic.enableHighlightLineNumber": false,
+  "diagnostic.messageTarget": "echo",
+  "diagnostic.enableMessage": "never",
+  "diagnostic.displayByAle": true,
+  "diagnostic.errorSign": "\uF704\uF704",
+  "diagnostic.infoSign": "\ufb4d",
+  "diagnostic.hintSign": "\uf0eb",
+  "diagnostic.warningSign": "\uF071",
+
+  // python configs with pyright
+  "pyright.disableDiagnostics": true,
+  "python.venvPath": ".env",
+  "python.linting.enabled": false,
+  "python.linting.flake8Enabled": false,
+  "python.linting.lintOnSave": false,
+  "pyright.inlayHints.variableTypes": false,
+  "pyright.inlayHints.functionReturnTypes": false,
+
+  // coc-flutter-tools
+  "flutter.enabled": true,
+
+  // coc-git configs
+  "git.changedSign.text": "~",
+  "git.changedDecorator": "*",
+  "git.addedSign.text": "+",
+  "git.removedSign.text": "_",
+  "git.changeRemovedSign.text": "≃"
+}

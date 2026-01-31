@@ -1,0 +1,37 @@
+---
+# Reset tasks for agent_vm role
+- name: Get agent VMs for this host
+  set_fact:
+    host_agents: "{{ agents | dict2items | selectattr('value.host', 'equalto', inventory_hostname) | list }}"
+
+- name: Stop and undefine agent VMs
+  shell: |
+    virsh destroy {{ item.key }} 2>/dev/null || true
+    virsh undefine {{ item.key }} 2>/dev/null || true
+  become: yes
+  loop: "{{ host_agents }}"
+  ignore_errors: yes
+
+- name: Remove VM disk images
+  file:
+    path: "/var/lib/libvirt/images/{{ item.key }}.qcow2"
+    state: absent
+  become: yes
+  loop: "{{ host_agents }}"
+
+- name: Remove cloud-init seed images
+  file:
+    path: "/var/lib/libvirt/images/{{ item.key }}-seed.img"
+    state: absent
+  become: yes
+  loop: "{{ host_agents }}"
+
+- name: Remove cloud-init configs
+  file:
+    path: "/tmp/{{ item.key }}-cloudinit.yml"
+    state: absent
+  loop: "{{ host_agents }}"
+
+- name: Display completion message
+  debug:
+    msg: "Agent VMs removed from {{ inventory_hostname }}"

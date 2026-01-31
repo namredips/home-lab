@@ -1,0 +1,8 @@
+---
+- name: Setup agent VMs
+  import_tasks: setup.yml
+  when: not reset | bool
+
+- name: Remove agent VMs
+  import_tasks: reset.yml
+  when: reset | bool

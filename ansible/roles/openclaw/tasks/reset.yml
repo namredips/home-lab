@@ -1,0 +1,35 @@
+---
+# Reset tasks for openclaw role
+- name: Stop OpenClaw service
+  systemd:
+    name: openclaw-{{ agent_name }}
+    state: stopped
+    enabled: no
+  become: yes
+  when: openclaw_enable_service
+  ignore_errors: yes
+
+- name: Remove OpenClaw systemd service
+  file:
+    path: /etc/systemd/system/openclaw-{{ agent_name }}.service
+    state: absent
+  become: yes
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Remove OpenClaw global package
+  npm:
+    name: openclaw
+    global: yes
+    state: absent
+  become: yes
+
+- name: Display data preservation message
+  debug:
+    msg:
+      - "OpenClaw service stopped and removed"
+      - "Configuration and data preserved in: {{ openclaw_install_dir }}"
+      - "To completely remove: rm -rf {{ openclaw_install_dir }}"

@@ -1,0 +1,24 @@
+---
+# mattermost role defaults
+reset: False
+
+# Mattermost configuration
+mattermost_version: "9.5"
+mattermost_port: 8065
+mattermost_domain: "mattermost.infiquetra.com"
+mattermost_site_name: "Mount Olympus Agent Team"
+
+# PostgreSQL configuration
+postgres_version: "13"
+postgres_user: mmuser
+postgres_password: "{{ vault_mattermost_postgres_password | default('changeme_postgres') }}"
+postgres_db: mattermost
+
+# Docker configuration
+mattermost_data_dir: /opt/mattermost/data
+mattermost_config_dir: /opt/mattermost/config
+mattermost_logs_dir: /opt/mattermost/logs
+mattermost_plugins_dir: /opt/mattermost/plugins
+
+# Network
+mattermost_network_name: mattermost_net

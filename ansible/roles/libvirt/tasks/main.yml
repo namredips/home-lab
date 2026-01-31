@@ -1,0 +1,8 @@
+---
+- name: Setup libvirt hypervisor
+  import_tasks: setup.yml
+  when: not reset | bool
+
+- name: Remove libvirt hypervisor
+  import_tasks: reset.yml
+  when: reset | bool

@@ -1,0 +1,33 @@
+---
+# Reset tasks for agent_provision role
+# Note: This is intentionally conservative - we don't remove language runtimes
+# or dev tools as they may be in use
+
+- name: Display reset message
+  debug:
+    msg:
+      - "agent_provision reset does not remove language runtimes or dev tools"
+      - "These are intentionally persistent for safety"
+      - "To completely clean an agent, recreate the VM instead"
+
+- name: Remove neovim configuration
+  file:
+    path: ~/.config/nvim
+    state: absent
+
+- name: Remove Starship prompt from bashrc
+  lineinfile:
+    path: ~/.bashrc
+    line: 'eval "$(starship init bash)"'
+    state: absent
+  when: install_starship
+
+- name: Display manual cleanup steps
+  debug:
+    msg:
+      - "For complete cleanup:"
+      - "  - Language runtimes remain installed"
+      - "  - Docker containers: docker system prune -a"
+      - "  - AWS credentials: rm -rf ~/.aws"
+      - "  - GitHub auth: gh auth logout"
+      - "  - Claude Code: Remove ~/.claude-code"
