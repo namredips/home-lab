@@ -1,0 +1,87 @@
+---
+# OpenClaw Virtual Employee Infrastructure Deployment
+# This playbook deploys the complete "Mount Olympus" agent cluster
+
+- name: Prepare hypervisor hosts
+  hosts: hypervisors
+  gather_facts: yes
+  roles:
+    - { role: host_prepare, tags: ['host_prepare'] }
+
+- name: Setup libvirt hypervisors
+  hosts: hypervisors
+  gather_facts: yes
+  roles:
+    - { role: libvirt, tags: ['libvirt'] }
+
+- name: Deploy Mattermost communication platform
+  hosts: mattermost_server
+  gather_facts: yes
+  roles:
+    - { role: mattermost, tags: ['mattermost'] }
+
+- name: Provision agent VMs
+  hosts: hypervisors
+  gather_facts: yes
+  roles:
+    - { role: agent_vm, tags: ['agent_vm'] }
+
+- name: Provision agent environments
+  hosts: agent_vms
+  gather_facts: yes
+  roles:
+    - { role: agent_provision, tags: ['agent_provision'] }
+
+- name: Setup OpenClaw agents
+  hosts: agent_vms
+  gather_facts: yes
+  roles:
+    - { role: openclaw, tags: ['openclaw'] }
+
+- name: Configure VM backups
+  hosts: hypervisors
+  gather_facts: yes
+  roles:
+    - { role: vm_backup, tags: ['vm_backup'] }
+
+- name: Display deployment summary
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Show deployment completion
+      debug:
+        msg:
+          - "=========================================="
+          - "OpenClaw Virtual Employee Infrastructure"
+          - "Mount Olympus Agent Cluster"
+          - "=========================================="
+          - ""
+          - "DEPLOYMENT COMPLETE"
+          - ""
+          - "Infrastructure deployed:"
+          - "  - 5 hypervisor hosts (libvirt/KVM)"
+          - "  - 8 agent VMs (Ubuntu 22.04)"
+          - "  - Mattermost server (http://10.220.1.10:8065)"
+          - ""
+          - "Agents deployed:"
+          - "  - Zeus (10.220.1.50) - PM, orchestration"
+          - "  - Athena (10.220.1.51) - Senior Developer (Architecture)"
+          - "  - Apollo (10.220.1.52) - Development"
+          - "  - Artemis (10.220.1.53) - Development"
+          - "  - Hermes (10.220.1.54) - Development"
+          - "  - Perseus (10.220.1.55) - Development"
+          - "  - Prometheus (10.220.1.56) - Development"
+          - "  - Ares (10.220.1.57) - Development"
+          - ""
+          - "MANUAL STEPS REQUIRED:"
+          - "  1. Configure Google Workspace catch-all email"
+          - "  2. Create Mattermost accounts for each agent"
+          - "  3. Authenticate AI tools on each VM:"
+          - "     - Claude Code: claude-code auth"
+          - "     - OpenAI: Set OPENAI_API_KEY"
+          - "     - Google: Set GOOGLE_API_KEY"
+          - "  4. Configure GitHub accounts for agents"
+          - "  5. Start OpenClaw services: systemctl start openclaw-<agent>"
+          - ""
+          - "See docs/DEPLOYMENT_RUNBOOK.md for detailed instructions"
+          - "=========================================="
