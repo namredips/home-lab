@@ -15,7 +15,7 @@ libvirt_packages:
   - python3-libvirt
 
 # User to add to libvirt groups
-libvirt_user: "{{ ansible_user }}"
+libvirt_user: "{{ ansible_user | default('jefcox') }}"
 
 # Default network configuration
 libvirt_default_network: default
