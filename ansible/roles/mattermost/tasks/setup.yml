@@ -41,13 +41,21 @@
     path: "{{ item }}"
     state: directory
     mode: '0755'
+    owner: '2000'
+    group: '2000'
   become: yes
   loop:
     - "{{ mattermost_data_dir }}"
     - "{{ mattermost_config_dir }}"
     - "{{ mattermost_logs_dir }}"
     - "{{ mattermost_plugins_dir }}"
-    - /opt/mattermost/postgres
+
+- name: Create Postgres directory
+  file:
+    path: /opt/mattermost/postgres
+    state: directory
+    mode: '0755'
+  become: yes
 
 - name: Create docker-compose.yml for Mattermost
   template:
