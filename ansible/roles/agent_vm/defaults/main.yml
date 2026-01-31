@@ -9,7 +9,7 @@ vm_base_image_url: "https://cloud-images.ubuntu.com/releases/22.04/release/ubunt
 vm_base_image_path: "/var/lib/libvirt/images/ubuntu-22.04-base.qcow2"
 
 # Network configuration
-vm_network: default
+vm_network: host-bridge
 vm_network_model: virtio
 
 # SSH configuration

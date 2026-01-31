@@ -50,11 +50,13 @@
   failed_when: false
 
 - name: Start VM {{ agent_name }} if not running
-  shell: virsh start {{ agent_name }}
+  shell: virsh start {{ agent_name }} 2>&1 || true
   become: yes
-  when: vm_create.rc != 0
+  register: vm_start
+  changed_when: "'Domain is already active' not in vm_start.stdout and vm_start.rc == 0"
   failed_when: false
 
 - name: Set VM {{ agent_name }} to autostart
-  shell: virsh autostart {{ agent_name }}
+  shell: virsh autostart {{ agent_name }} 2>&1 || true
   become: yes
+  failed_when: false

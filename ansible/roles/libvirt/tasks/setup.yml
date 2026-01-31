@@ -85,3 +85,34 @@
   when: "'default' not in storage_pools.stdout"
   register: pool_created
   failed_when: false
+
+- name: Create macvtap bridge network configuration
+  copy:
+    content: |
+      <network>
+        <name>host-bridge</name>
+        <forward mode="bridge">
+          <interface dev="{{ ansible_default_ipv4.interface }}"/>
+        </forward>
+      </network>
+    dest: /tmp/host-bridge.xml
+  become: yes
+
+- name: Define macvtap bridge network
+  shell: virsh net-define /tmp/host-bridge.xml
+  become: yes
+  register: bridge_define
+  failed_when: false
+  changed_when: bridge_define.rc == 0
+
+- name: Start host-bridge network
+  shell: virsh net-start host-bridge
+  become: yes
+  register: bridge_start
+  failed_when: false
+  changed_when: bridge_start.rc == 0
+
+- name: Autostart host-bridge network
+  shell: virsh net-autostart host-bridge
+  become: yes
+  failed_when: false
