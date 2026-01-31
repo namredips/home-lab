@@ -1,0 +1,23 @@
+[Unit]
+Description=OpenClaw AI Agent - {{ agent_name }}
+After=network.target
+
+[Service]
+Type=simple
+User={{ openclaw_service_user }}
+WorkingDirectory={{ openclaw_install_dir }}
+Environment="NODE_ENV=production"
+EnvironmentFile={{ openclaw_install_dir }}/.env
+ExecStart=/usr/bin/openclaw start --config {{ openclaw_install_dir }}/config.yml
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths={{ openclaw_install_dir }}
+
+[Install]
+WantedBy=multi-user.target

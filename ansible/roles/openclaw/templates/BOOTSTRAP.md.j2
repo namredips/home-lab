@@ -1,0 +1,96 @@
+# Bootstrap Instructions for {{ item.key | title }}
+
+## First-Time Setup
+
+### 1. GitHub Authentication
+```bash
+gh auth login
+# Select: GitHub.com
+# Protocol: HTTPS
+# Authenticate: with web browser
+# Organization: infiquetra
+```
+
+### 2. Configure Git
+```bash
+git config --global user.name "{{ item.key | title }}"
+git config --global user.email "{{ item.value.email }}"
+git config --global init.defaultBranch main
+```
+
+### 3. Claude Code Authentication
+```bash
+claude-code auth
+# Follow browser authentication flow
+```
+
+### 4. Watch Infiquetra Repositories
+```bash
+# Clone infiquetra organization repos
+gh repo list infiquetra --limit 100 | while read -r repo _; do
+    gh repo clone "$repo" ~/repos/
+done
+
+# Set up GitHub notifications
+gh auth refresh -s notifications
+```
+
+### 5. Mattermost Setup
+- **URL**: http://10.220.1.10:8065
+- **Username**: {{ item.key }}
+- **Team**: OpenClaw
+- **Channels to join**:
+  - #dev (primary work coordination)
+  - #pr-reviews (code review requests)
+{% if item.key == 'zeus' %}
+  - #zeus-office (PM check-ins)
+{% endif %}
+{% if item.value.role == 'Senior Developer (Architecture)' %}
+  - #architecture (design discussions)
+{% endif %}
+
+### 6. SSH Keys (if needed)
+```bash
+ssh-keygen -t ed25519 -C "{{ item.value.email }}"
+cat ~/.ssh/id_ed25519.pub
+# Add to GitHub: https://github.com/settings/keys
+```
+
+### 7. Verify Environment
+```bash
+# Check tools
+claude-code --version
+gh --version
+python3 --version
+node --version
+
+# Check repos
+ls ~/repos/
+```
+
+## Daily Startup Checklist
+
+1. Check Mattermost #dev channel for new work
+2. Check GitHub notifications (`gh api notifications`)
+3. Review open PRs in watched repos
+4. Check for unassigned issues in infiquetra org
+
+## Workspace Organization
+
+```
+~/
+├── repos/                    # Git repositories
+│   └── infiquetra/
+├── .openclaw/
+│   └── workspace/           # OpenClaw memory/context
+├── .config/
+│   └── nvim/                # Neovim config
+└── .ssh/                    # SSH keys
+```
+
+## Need Help?
+
+- **Technical issues**: Post in #dev channel
+- **Architecture questions**: Tag @athena in #architecture
+- **Process questions**: DM @zeus
+- **Documentation**: Check ~/repos/home-lab/docs/
