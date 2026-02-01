@@ -26,6 +26,13 @@
   roles:
     - { role: agent_vm, tags: ['agent_vm'] }
 
+- name: Install desktop environment on agents (Phase 2)
+  hosts: agent_vms
+  gather_facts: yes
+  serial: 2  # Install 2 VMs at a time to avoid memory pressure
+  roles:
+    - { role: agent_desktop, tags: ['agent_desktop'] }
+
 - name: Provision agent environments
   hosts: agent_vms
   gather_facts: yes
@@ -60,7 +67,7 @@
           - ""
           - "Infrastructure deployed:"
           - "  - 5 hypervisor hosts (libvirt/KVM)"
-          - "  - 8 agent VMs (Ubuntu 22.04)"
+          - "  - 8 agent VMs (Ubuntu Desktop 24.04 LTS)"
           - "  - Mattermost server (http://10.220.1.10:8065)"
           - ""
           - "Agents deployed:"
@@ -72,6 +79,12 @@
           - "  - Perseus (10.220.1.55) - Development"
           - "  - Prometheus (10.220.1.56) - Development"
           - "  - Ares (10.220.1.57) - Development"
+          - ""
+          - "REMOTE ACCESS:"
+          - "  - Console login: agent / openclaw"
+          - "  - SSH: ssh agent@10.220.1.50-57 (password: openclaw)"
+          - "  - RustDesk: Relay 10.220.1.11 (use VM's RustDesk ID)"
+          - "  - XRDP: rdp://10.220.1.50-57:3389 (agent / openclaw)"
           - ""
           - "MANUAL STEPS REQUIRED:"
           - "  1. Configure Google Workspace catch-all email"
