@@ -8,6 +8,9 @@ users:
     groups: sudo
     sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
+    # Password: 'openclaw' (hashed)
+    passwd: {{ vm_user_password_hash }}
+    lock_passwd: false
     ssh_authorized_keys:
       - {{ vm_ssh_authorized_keys }}
 
@@ -16,31 +19,37 @@ network:
   version: 2
   ethernets:
     ens3:
-      dhcp4: false
       addresses:
         - {{ agent_config.ip }}/24
-      gateway4: 10.220.1.1
+      routes:
+        - to: default
+          via: 10.220.1.1
       nameservers:
         addresses:
+          - 10.220.1.1
           - 8.8.8.8
-          - 8.8.4.4
+    enp1s0:
+      addresses:
+        - {{ agent_config.ip }}/24
+      routes:
+        - to: default
+          via: 10.220.1.1
+      nameservers:
+        addresses:
+          - 10.220.1.1
+          - 8.8.8.8
 
-# Package updates and installations
-package_update: true
-package_upgrade: true
+# Package updates and installations (disabled for faster boot)
+package_update: false
+package_upgrade: false
 
 packages:
   - qemu-guest-agent
   - openssh-server
-  - curl
-  - wget
-  - git
-  - vim
-  - cloud-init
-  - cloud-guest-utils
+  - spice-vdagent
 
-# Enable SSH
-ssh_pwauth: false
+# Enable SSH with password authentication
+ssh_pwauth: true
 
 # Grow root filesystem
 growpart:
