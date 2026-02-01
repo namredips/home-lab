@@ -39,9 +39,12 @@
       --vcpus {{ agent_config.vcpus }} \
       --disk /var/lib/libvirt/images/{{ agent_name }}.qcow2,device=disk,bus=virtio \
       --disk /var/lib/libvirt/images/{{ agent_name }}-seed.img,device=cdrom \
-      --os-variant ubuntu22.04 \
+      --os-variant ubuntu24.04 \
       --network network={{ vm_network }},model={{ vm_network_model }} \
-      --graphics none \
+      --graphics spice,listen=0.0.0.0 \
+      --video qxl \
+      --channel spicevmc,target_type=virtio,name=com.redhat.spice.0 \
+      --channel unix,target_type=virtio,name=org.qemu.guest_agent.0 \
       --console pty,target_type=serial \
       --import \
       --noautoconsole
