@@ -21,7 +21,7 @@
       - vim
     state: present
   become: yes
-  async: 1800  # 30 minute timeout
+  async: 2400  # 40 minute timeout
   poll: 30     # Check every 30 seconds
   register: desktop_install
 
