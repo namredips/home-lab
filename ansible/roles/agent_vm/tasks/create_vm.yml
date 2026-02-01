@@ -24,9 +24,16 @@
     dest: /tmp/{{ agent_name }}-cloudinit.yml
     mode: '0644'
 
+- name: Create network config for {{ agent_name }}
+  template:
+    src: vm-network-config.yml.j2
+    dest: /tmp/{{ agent_name }}-network-config.yml
+    mode: '0644'
+
 - name: Create cloud-init ISO for {{ agent_name }}
   shell: |
-    cloud-localds /var/lib/libvirt/images/{{ agent_name }}-seed.img /tmp/{{ agent_name }}-cloudinit.yml
+    cloud-localds --network-config=/tmp/{{ agent_name }}-network-config.yml \
+      /var/lib/libvirt/images/{{ agent_name }}-seed.img /tmp/{{ agent_name }}-cloudinit.yml
   become: yes
   args:
     creates: /var/lib/libvirt/images/{{ agent_name }}-seed.img

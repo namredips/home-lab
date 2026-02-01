@@ -19,13 +19,13 @@
   become: yes
   when: running_vms.stdout_lines | length == 0
 
-- name: Remove user from libvirt groups
-  user:
-    name: "{{ libvirt_user }}"
-    groups:
-      - libvirt
-      - kvm
-    append: no
+- name: Remove user from libvirt group
+  shell: gpasswd -d {{ libvirt_user }} libvirt 2>/dev/null || true
+  become: yes
+  when: running_vms.stdout_lines | length == 0
+
+- name: Remove user from kvm group
+  shell: gpasswd -d {{ libvirt_user }} kvm 2>/dev/null || true
   become: yes
   when: running_vms.stdout_lines | length == 0
 

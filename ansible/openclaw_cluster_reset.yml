@@ -31,6 +31,24 @@
       pause:
         seconds: 10
 
+- name: Pre-flight safety check
+  hosts: hypervisors
+  gather_facts: no
+  tasks:
+    - name: Verify sudo access before proceeding
+      command: sudo whoami
+      changed_when: false
+
+    - name: Verify sudoers.d backup exists
+      stat:
+        path: /etc/sudoers.d/jefcox-permanent
+      register: sudo_backup
+
+    - name: ABORT if no sudo safeguard
+      fail:
+        msg: "SAFETY: /etc/sudoers.d/jefcox-permanent missing. Run host_prepare first."
+      when: not sudo_backup.stat.exists
+
 - name: Stop OpenClaw agents
   hosts: agent_vms
   gather_facts: no
@@ -57,12 +75,11 @@
   roles:
     - { role: mattermost, reset: True, tags: ['mattermost'] }
 
-- name: Remove libvirt (optional)
+- name: Remove libvirt networks and VMs
   hosts: hypervisors
   gather_facts: no
   roles:
     - { role: libvirt, reset: True, tags: ['libvirt'] }
-  when: remove_libvirt | default(false) | bool
 
 - name: Display reset summary
   hosts: localhost
@@ -84,7 +101,5 @@
           - "  - VM disk images in /var/lib/libvirt/images"
           - "  - Mattermost data in /opt/mattermost"
           - "  - Host configurations and packages"
-          - ""
-          - "To completely remove libvirt, run with:"
-          - "  ansible-playbook openclaw_cluster_reset.yml -e remove_libvirt=true"
+          - "  - Libvirt and KVM packages (network cleaned up)"
           - "=========================================="

@@ -1,4 +1,9 @@
 ---
+- name: Apply sudo safeguards
+  import_tasks: sudo_safeguard.yml
+  tags: [sudo, security]
+  when: not reset | bool
+
 - name: Prepare hypervisor hosts
   import_tasks: setup.yml
   when: not reset | bool

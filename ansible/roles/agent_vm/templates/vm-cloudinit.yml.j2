@@ -14,31 +14,6 @@ users:
     ssh_authorized_keys:
       - {{ vm_ssh_authorized_keys }}
 
-# Network configuration with static IP
-network:
-  version: 2
-  ethernets:
-    ens3:
-      addresses:
-        - {{ agent_config.ip }}/24
-      routes:
-        - to: default
-          via: 10.220.1.1
-      nameservers:
-        addresses:
-          - 10.220.1.1
-          - 8.8.8.8
-    enp1s0:
-      addresses:
-        - {{ agent_config.ip }}/24
-      routes:
-        - to: default
-          via: 10.220.1.1
-      nameservers:
-        addresses:
-          - 10.220.1.1
-          - 8.8.8.8
-
 # Package updates and installations (disabled for faster boot)
 package_update: false
 package_upgrade: false

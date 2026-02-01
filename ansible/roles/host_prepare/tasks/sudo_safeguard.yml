@@ -1,0 +1,24 @@
+---
+# Sudo safeguard tasks - ensure jefcox always has sudo access
+# This protects against accidental removal from sudo group
+
+- name: Create permanent sudo access for jefcox
+  copy:
+    content: "jefcox ALL=(ALL) NOPASSWD:ALL"
+    dest: /etc/sudoers.d/jefcox-permanent
+    mode: '0440'
+    validate: 'visudo -cf %s'
+  become: yes
+
+- name: Ensure jefcox is in sudo group
+  user:
+    name: jefcox
+    groups: sudo
+    append: yes  # CRITICAL: append, never replace
+  become: yes
+
+- name: Install polkit for emergency recovery
+  apt:
+    name: policykit-1
+    state: present
+  become: yes
