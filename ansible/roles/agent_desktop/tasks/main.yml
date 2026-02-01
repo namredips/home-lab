@@ -1,0 +1,113 @@
+---
+# Install desktop environment and remote access tools (Phase 2)
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: yes
+
+- name: Install desktop environment and tools
+  apt:
+    name:
+      - "{{ desktop_package }}"
+      - xrdp
+      - xvfb
+      - x11vnc
+      - dbus-x11
+      - wget
+      - curl
+      - git
+      - vim
+    state: present
+  become: yes
+  async: 1800  # 30 minute timeout
+  poll: 30     # Check every 30 seconds
+  register: desktop_install
+
+- name: Wait for desktop installation to complete
+  async_status:
+    jid: "{{ desktop_install.ansible_job_id }}"
+  register: job_result
+  until: job_result.finished
+  retries: 60
+  delay: 30
+  when: desktop_install.ansible_job_id is defined
+
+- name: Enable and start XRDP service
+  systemd:
+    name: xrdp
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Download RustDesk
+  get_url:
+    url: "https://github.com/rustdesk/rustdesk/releases/download/1.2.3/rustdesk-1.2.3-x86_64.deb"
+    dest: "/tmp/rustdesk.deb"
+    mode: '0644'
+  become: yes
+
+- name: Install RustDesk
+  apt:
+    deb: "/tmp/rustdesk.deb"
+    state: present
+  become: yes
+
+- name: Create RustDesk config directory
+  file:
+    path: "/home/{{ rustdesk_user }}/.config/rustdesk"
+    state: directory
+    owner: "{{ rustdesk_user }}"
+    group: "{{ rustdesk_user }}"
+    mode: '0755'
+  become: yes
+
+- name: Configure RustDesk relay server
+  template:
+    src: rustdesk.toml.j2
+    dest: "/home/{{ rustdesk_user }}/.config/rustdesk/RustDesk.toml"
+    owner: "{{ rustdesk_user }}"
+    group: "{{ rustdesk_user }}"
+    mode: '0644'
+  become: yes
+
+- name: Create RustDesk systemd service
+  copy:
+    content: |
+      [Unit]
+      Description=RustDesk Remote Desktop
+      After=network.target
+
+      [Service]
+      Type=simple
+      User={{ rustdesk_user }}
+      Environment="DISPLAY=:99"
+      ExecStartPre=/usr/bin/Xvfb :99 -screen 0 {{ virtual_display_resolution }} -ac &
+      ExecStart=/usr/bin/rustdesk --server
+      Restart=always
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/rustdesk.service
+    mode: '0644'
+  become: yes
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Enable and start RustDesk service
+  systemd:
+    name: rustdesk
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Clean up RustDesk installer
+  file:
+    path: "/tmp/rustdesk.deb"
+    state: absent
+  become: yes
