@@ -18,7 +18,7 @@
     host: "{{ item.value.ip }}"
     port: 22
     delay: 10
-    timeout: 300
+    timeout: 900  # 15 minutes for cloud-init package installation
   loop: "{{ agents | dict2items }}"
   when: item.value.host == inventory_hostname
 
