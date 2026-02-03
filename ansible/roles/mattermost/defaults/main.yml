@@ -3,13 +3,13 @@
 reset: False
 
 # Mattermost configuration
-mattermost_version: "9.5"
+mattermost_version: "11.3"
 mattermost_port: 8065
 mattermost_domain: "mattermost.infiquetra.com"
 mattermost_site_name: "Mount Olympus Agent Team"
 
 # PostgreSQL configuration
-postgres_version: "13"
+postgres_version: "16"
 postgres_user: mmuser
 postgres_password: "{{ vault_mattermost_postgres_password | default('changeme_postgres') }}"
 postgres_db: mattermost
