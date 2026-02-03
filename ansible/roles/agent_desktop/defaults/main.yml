@@ -4,14 +4,5 @@
 # Desktop environment
 desktop_package: ubuntu-desktop-minimal
 
-# RustDesk configuration
-rustdesk_version: "1.2.3"
-rustdesk_relay_server: "{{ rustdesk_relay_server | default('10.220.1.11') }}"
-rustdesk_relay_key: "{{ rustdesk_relay_key | default('f9Tong7xbfjwY8M4i5B+rR5u5o7fgQvG+VxZNopLCaA=') }}"
-rustdesk_user: "{{ vm_ssh_user | default('agent') }}"
-
 # XRDP configuration
 xrdp_port: 3389
-
-# Display configuration for headless operation
-virtual_display_resolution: "1920x1080x24"
