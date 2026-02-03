@@ -1,0 +1,22 @@
+---
+# Quick playbook to regenerate cloud-init seed ISOs for existing VMs
+# Use this when you've modified cloud-init templates but don't want to recreate VMs
+#
+# Usage:
+#   uv run ansible-playbook regenerate_seed_isos.yml --vault-password-file ~/.vault_pass.txt
+
+- name: Regenerate Cloud-Init Seed ISOs
+  hosts: hypervisors
+  become: no
+
+  tasks:
+    - name: Include agent_vm defaults
+      include_vars:
+        file: roles/agent_vm/defaults/main.yml
+
+    - name: Process each agent assigned to this hypervisor
+      include_tasks: tasks/regenerate_seed_iso.yml
+      loop: "{{ agents | dict2items }}"
+      loop_control:
+        loop_var: agent_item
+      when: agent_item.value.host == inventory_hostname

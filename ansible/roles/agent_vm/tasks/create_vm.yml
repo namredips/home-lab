@@ -30,13 +30,20 @@
     dest: /tmp/{{ agent_name }}-network-config.yml
     mode: '0644'
 
+- name: Remove old cloud-init ISO for {{ agent_name }} if exists
+  file:
+    path: /var/lib/libvirt/images/{{ agent_name }}-seed.img
+    state: absent
+  become: yes
+
 - name: Create cloud-init ISO for {{ agent_name }}
   shell: |
-    cloud-localds --network-config=/tmp/{{ agent_name }}-network-config.yml \
-      /var/lib/libvirt/images/{{ agent_name }}-seed.img /tmp/{{ agent_name }}-cloudinit.yml
+    cloud-localds \
+      --disk-format raw \
+      --network-config=/tmp/{{ agent_name }}-network-config.yml \
+      /var/lib/libvirt/images/{{ agent_name }}-seed.img \
+      /tmp/{{ agent_name }}-cloudinit.yml
   become: yes
-  args:
-    creates: /var/lib/libvirt/images/{{ agent_name }}-seed.img
 
 - name: Define VM for {{ agent_name }}
   shell: |

@@ -1,0 +1,66 @@
+---
+# Task file to regenerate seed ISO for a single VM
+- name: Set agent facts
+  set_fact:
+    agent_name: "{{ agent_item.key }}"
+    agent_config: "{{ agent_item.value }}"
+
+- name: Stop VM {{ agent_name }}
+  shell: virsh destroy {{ agent_name }} 2>&1 || true
+  become: yes
+  register: vm_stop
+  changed_when: "'destroyed' in vm_stop.stdout"
+  failed_when: false
+
+- name: Create cloud-init config for {{ agent_name }}
+  template:
+    src: roles/agent_vm/templates/vm-cloudinit.yml.j2
+    dest: /tmp/{{ agent_name }}-cloudinit.yml
+    mode: '0644'
+
+- name: Create network config for {{ agent_name }}
+  template:
+    src: roles/agent_vm/templates/vm-network-config.yml.j2
+    dest: /tmp/{{ agent_name }}-network-config.yml
+    mode: '0644'
+
+- name: Remove old cloud-init ISO for {{ agent_name }}
+  file:
+    path: /var/lib/libvirt/images/{{ agent_name }}-seed.img
+    state: absent
+  become: yes
+
+- name: Create new cloud-init ISO for {{ agent_name }}
+  shell: |
+    cloud-localds \
+      --disk-format raw \
+      --network-config=/tmp/{{ agent_name }}-network-config.yml \
+      /var/lib/libvirt/images/{{ agent_name }}-seed.img \
+      /tmp/{{ agent_name }}-cloudinit.yml
+  become: yes
+
+- name: Start VM {{ agent_name }}
+  shell: virsh start {{ agent_name }} 2>&1
+  become: yes
+  register: vm_start
+  changed_when: true
+  failed_when: "'started' not in vm_start.stdout and 'Domain is already active' not in vm_start.stdout"
+
+- name: Wait for {{ agent_name }} to boot (cloud-init takes ~30s)
+  wait_for:
+    timeout: 35
+  delegate_to: localhost
+
+- name: Test connectivity to {{ agent_name }}
+  wait_for:
+    host: "{{ agent_config.ip }}"
+    port: 22
+    timeout: 30
+    msg: "VM {{ agent_name }} not reachable after reboot"
+  delegate_to: localhost
+  register: connectivity_test
+  failed_when: false
+
+- name: Report connectivity status for {{ agent_name }}
+  debug:
+    msg: "{{ agent_name }} ({{ agent_config.ip }}): {{ 'ONLINE ✓' if connectivity_test is succeeded else 'OFFLINE ✗' }}"
