@@ -5,36 +5,45 @@
     agent_name: "{{ agent_item.key }}"
     agent_config: "{{ agent_item.value }}"
 
+- name: Check if VM {{ agent_name }} already exists
+  stat:
+    path: /var/lib/libvirt/images/{{ agent_name }}.qcow2
+  become: yes
+  register: vm_disk_exists
+
 - name: Create disk image for {{ agent_name }}
   shell: |
     qemu-img create -f qcow2 -F qcow2 -b {{ vm_base_image_path }} \
       /var/lib/libvirt/images/{{ agent_name }}.qcow2 {{ agent_config.disk_gb }}G
   become: yes
-  args:
-    creates: /var/lib/libvirt/images/{{ agent_name }}.qcow2
+  when: not vm_disk_exists.stat.exists
 
 - name: Resize disk for {{ agent_name }}
   shell: |
     qemu-img resize /var/lib/libvirt/images/{{ agent_name }}.qcow2 {{ agent_config.disk_gb }}G
   become: yes
+  when: not vm_disk_exists.stat.exists
 
 - name: Create cloud-init config for {{ agent_name }}
   template:
     src: vm-cloudinit.yml.j2
     dest: /tmp/{{ agent_name }}-cloudinit.yml
     mode: '0644'
+  when: not vm_disk_exists.stat.exists
 
 - name: Create network config for {{ agent_name }}
   template:
     src: vm-network-config.yml.j2
     dest: /tmp/{{ agent_name }}-network-config.yml
     mode: '0644'
+  when: not vm_disk_exists.stat.exists
 
 - name: Remove old cloud-init ISO for {{ agent_name }} if exists
   file:
     path: /var/lib/libvirt/images/{{ agent_name }}-seed.img
     state: absent
   become: yes
+  when: not vm_disk_exists.stat.exists
 
 - name: Create cloud-init ISO for {{ agent_name }}
   shell: |
@@ -44,6 +53,7 @@
       /var/lib/libvirt/images/{{ agent_name }}-seed.img \
       /tmp/{{ agent_name }}-cloudinit.yml
   become: yes
+  when: not vm_disk_exists.stat.exists
 
 - name: Define VM for {{ agent_name }}
   shell: |
@@ -65,6 +75,7 @@
   become: yes
   register: vm_create
   failed_when: false
+  when: not vm_disk_exists.stat.exists
 
 - name: Start VM {{ agent_name }} if not running
   shell: virsh start {{ agent_name }} 2>&1 || true
