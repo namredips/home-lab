@@ -1,36 +1,5 @@
 ---
-# Desktop installation with NetworkManager protection
-
-# CRITICAL: Pre-mask NetworkManager BEFORE any packages are installed
-# This prevents NM from auto-starting during dpkg post-install
-- name: Pre-mask NetworkManager service (prevents auto-start during installation)
-  file:
-    src: /dev/null
-    dest: /etc/systemd/system/NetworkManager.service
-    state: link
-    force: yes
-  become: yes
-
-- name: Pre-mask NetworkManager-wait-online service
-  file:
-    src: /dev/null
-    dest: /etc/systemd/system/NetworkManager-wait-online.service
-    state: link
-    force: yes
-  become: yes
-
-- name: Pre-mask NetworkManager-dispatcher service
-  file:
-    src: /dev/null
-    dest: /etc/systemd/system/NetworkManager-dispatcher.service
-    state: link
-    force: yes
-  become: yes
-
-- name: Reload systemd to recognize masked services
-  systemd:
-    daemon_reload: yes
-  become: yes
+# Simplified desktop installation - let NetworkManager handle networking
 
 - name: Update apt cache
   apt:
@@ -48,30 +17,6 @@
   become: yes
   async: 3600  # 60 minute timeout
   poll: 30     # Check every 30 seconds
-
-# NetworkManager is now installed but NEVER started
-# Keep it masked and disabled
-- name: Ensure NetworkManager remains disabled
-  systemd:
-    name: NetworkManager
-    enabled: no
-    masked: yes
-  become: yes
-  ignore_errors: yes
-
-- name: Ensure systemd-networkd is managing network
-  systemd:
-    name: systemd-networkd
-    enabled: yes
-    state: started
-  become: yes
-
-- name: Ensure systemd-resolved is running (for DNS)
-  systemd:
-    name: systemd-resolved
-    enabled: yes
-    state: started
-  become: yes
 
 - name: Configure X11 wrapper to allow XRDP access
   lineinfile:
