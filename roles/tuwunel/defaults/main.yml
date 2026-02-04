@@ -1,0 +1,20 @@
+---
+# tuwunel role defaults
+reset: False
+
+# Tuwunel configuration
+tuwunel_version: "latest"
+tuwunel_server_name: "matrix.infiquetra.com"
+tuwunel_port: 8448
+tuwunel_data_dir: "/opt/tuwunel"
+tuwunel_container_name: "tuwunel"
+
+# Docker image
+tuwunel_image: "ghcr.io/matrix-construct/tuwunel:{{ tuwunel_version }}"
+
+# Network configuration
+tuwunel_bind_address: "0.0.0.0"
+
+# Feature flags
+tuwunel_federation_enabled: false
+tuwunel_registration_enabled: false

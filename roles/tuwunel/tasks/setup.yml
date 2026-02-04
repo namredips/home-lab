@@ -1,0 +1,46 @@
+---
+- name: Install Docker and Docker Compose
+  block:
+    - name: Install required packages
+      apt:
+        name:
+          - docker.io
+          - python3-docker
+        state: present
+        update_cache: yes
+
+    - name: Ensure Docker service is enabled and started
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+- name: Create Tuwunel directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ tuwunel_data_dir }}"
+    - "{{ tuwunel_data_dir }}/data"
+    - "{{ tuwunel_data_dir }}/media"
+    - "{{ tuwunel_data_dir }}/config"
+
+- name: Deploy Tuwunel configuration
+  template:
+    src: tuwunel.toml.j2
+    dest: "{{ tuwunel_data_dir }}/config/tuwunel.toml"
+    mode: '0644'
+  notify: restart tuwunel
+
+- name: Deploy Docker Compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ tuwunel_data_dir }}/docker-compose.yml"
+    mode: '0644'
+  notify: restart tuwunel
+
+- name: Start Tuwunel container
+  community.docker.docker_compose_v2:
+    project_src: "{{ tuwunel_data_dir }}"
+    state: present

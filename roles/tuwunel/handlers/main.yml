@@ -1,0 +1,5 @@
+---
+- name: restart tuwunel
+  community.docker.docker_compose_v2:
+    project_src: "{{ tuwunel_data_dir }}"
+    state: restarted

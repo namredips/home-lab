@@ -35,13 +35,13 @@ done
 gh auth refresh -s notifications
 ```
 
-### 5. Mattermost Setup
-- **URL**: http://10.220.1.10:8065
-- **Username**: {{ item.key }}
-- **Team**: OpenClaw
-- **Channels to join**:
-  - #dev (primary work coordination)
-  - #pr-reviews (code review requests)
+### 5. Matrix Setup
+- **Homeserver**: {{ matrix_homeserver_url }}
+- **Server Name**: {{ matrix_server_name }}
+- **Username**: @{{ item.key }}:{{ matrix_server_name }}
+- **Rooms to join**:
+  - #general:{{ matrix_server_name }} (primary work coordination)
+  - #pr-reviews:{{ matrix_server_name }} (code review requests)
 {% if item.key == 'zeus' %}
   - #zeus-office (PM check-ins)
 {% endif %}
@@ -70,7 +70,7 @@ ls ~/repos/
 
 ## Daily Startup Checklist
 
-1. Check Mattermost #dev channel for new work
+1. Check Matrix #general room for new work
 2. Check GitHub notifications (`gh api notifications`)
 3. Review open PRs in watched repos
 4. Check for unassigned issues in infiquetra org

@@ -14,11 +14,11 @@
   roles:
     - { role: libvirt, tags: ['libvirt'] }
 
-- name: Deploy Mattermost communication platform
-  hosts: mattermost_server
+- name: Deploy Tuwunel (Matrix) communication platform
+  hosts: matrix_server
   gather_facts: yes
   roles:
-    - { role: mattermost, tags: ['mattermost'] }
+    - { role: tuwunel, tags: ['tuwunel'] }
 
 - name: Provision agent VMs
   hosts: hypervisors
@@ -67,18 +67,17 @@
           - ""
           - "Infrastructure deployed:"
           - "  - 5 hypervisor hosts (libvirt/KVM)"
-          - "  - 8 agent VMs (Ubuntu Desktop 24.04 LTS)"
-          - "  - Mattermost server (http://10.220.1.10:8065)"
+          - "  - 7 agent VMs (Ubuntu Desktop 24.04 LTS)"
+          - "  - Tuwunel Matrix server (http://10.220.1.10:8448)"
           - ""
           - "Agents deployed:"
-          - "  - Zeus (10.220.1.50) - PM, orchestration"
-          - "  - Athena (10.220.1.51) - Senior Developer (Architecture)"
-          - "  - Apollo (10.220.1.52) - Development"
-          - "  - Artemis (10.220.1.53) - Development"
-          - "  - Hermes (10.220.1.54) - Development"
-          - "  - Perseus (10.220.1.55) - Development"
-          - "  - Prometheus (10.220.1.56) - Development"
-          - "  - Ares (10.220.1.57) - Development"
+          - "  - Zeus (10.220.1.199) - PM, orchestration"
+          - "  - Athena (10.220.1.123) - Senior Developer (Architecture)"
+          - "  - Apollo (10.220.1.153) - Development"
+          - "  - Artemis (10.220.1.194) - Development"
+          - "  - Hermes (10.220.1.198) - Development"
+          - "  - Perseus (10.220.1.113) - Development"
+          - "  - Prometheus (10.220.1.156) - Development"
           - ""
           - "REMOTE ACCESS:"
           - "  - Console login: agent / openclaw"
@@ -87,7 +86,7 @@
           - ""
           - "MANUAL STEPS REQUIRED:"
           - "  1. Configure Google Workspace catch-all email"
-          - "  2. Create Mattermost accounts for each agent"
+          - "  2. Create Matrix accounts for each agent (matrix.infiquetra.com)"
           - "  3. Authenticate AI tools on each VM:"
           - "     - Claude Code: claude-code auth"
           - "     - OpenAI: Set OPENAI_API_KEY"

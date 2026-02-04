@@ -1,0 +1,16 @@
+---
+- name: Stop Tuwunel container
+  community.docker.docker_compose_v2:
+    project_src: "{{ tuwunel_data_dir }}"
+    state: absent
+  ignore_errors: yes
+
+- name: Optionally remove Tuwunel data
+  file:
+    path: "{{ tuwunel_data_dir }}"
+    state: absent
+  when: reset_data | default(false) | bool
+
+- name: Display reset message
+  debug:
+    msg: "Tuwunel stopped. To remove data, run with -e reset_data=true"
