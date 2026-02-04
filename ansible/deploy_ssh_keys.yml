@@ -1,0 +1,22 @@
+---
+- name: Deploy SSH keys to agent VMs
+  hosts: agent_vms
+  gather_facts: no
+  become: yes
+  vars:
+    ssh_public_key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa.pub') }}"
+
+  tasks:
+    - name: Ensure .ssh directory exists
+      file:
+        path: /home/agent/.ssh
+        state: directory
+        mode: '0700'
+        owner: agent
+        group: agent
+
+    - name: Deploy authorized_key
+      ansible.posix.authorized_key:
+        user: agent
+        state: present
+        key: "{{ ssh_public_key }}"
