@@ -1,0 +1,17 @@
+---
+services:
+  tuwunel:
+    image: {{ tuwunel_image }}
+    container_name: {{ tuwunel_container_name }}
+    restart: unless-stopped
+    ports:
+      - "{{ tuwunel_bind_address }}:{{ tuwunel_port }}:6167"
+    volumes:
+      - {{ tuwunel_data_dir }}/data:/var/lib/tuwunel
+    environment:
+      - TUWUNEL_SERVER_NAME={{ tuwunel_server_name }}
+      - TUWUNEL_DATABASE_PATH=/var/lib/tuwunel
+      - TUWUNEL_ADDRESS=0.0.0.0
+      - TUWUNEL_PORT=6167
+      - TUWUNEL_ALLOW_REGISTRATION=false
+      - TUWUNEL_ALLOW_FEDERATION={{ 'true' if tuwunel_federation_enabled else 'false' }}
