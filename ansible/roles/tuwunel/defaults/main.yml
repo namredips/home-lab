@@ -18,3 +18,4 @@ tuwunel_bind_address: "0.0.0.0"
 # Feature flags
 tuwunel_federation_enabled: false
 tuwunel_registration_enabled: false
+tuwunel_registration_token: ""  # Set this to enable registration with a secret token
