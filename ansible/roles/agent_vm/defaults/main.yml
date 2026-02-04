@@ -17,8 +17,8 @@ vm_ssh_user: agent
 vm_ssh_authorized_keys: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa.pub') }}"
 
 # Console login configuration
-# Password: openclaw (hashed with mkpasswd --method=sha-512)
-vm_user_password_hash: "$6$rounds=4096$saltsaltsal$IxDD3jeSOb/7VB4bOvE.lJYqMq0nJHCUqFl1oTh0xH8vtKfq1qGE.Pj6tJZmGnvOX1u3Xv9m5.fNg6p7gQJqp/"
+# Password: openclaw (generated with: openssl passwd -6 -salt saltsaltsal openclaw)
+vm_user_password_hash: "$6$saltsaltsal$Eo580v0qxVaF/E1KauBb3sVRLxxO8Q8vHkkSvva8VsShpK582panPZeVK8qssRTkMi6YAl0D7vVeMP3nS4jUB1"
 
 # RustDesk configuration
 rustdesk_relay_server: "10.220.1.11"
