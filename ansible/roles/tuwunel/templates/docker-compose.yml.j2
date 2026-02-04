@@ -14,5 +14,7 @@ services:
       - TUWUNEL_ADDRESS=0.0.0.0
       - TUWUNEL_PORT=6167
       - TUWUNEL_ALLOW_REGISTRATION={{ 'true' if tuwunel_registration_enabled else 'false' }}
-      - TUWUNEL_REGISTRATION_TOKEN={{ tuwunel_registration_token | default('') }}
+{% if tuwunel_registration_token | default('') != '' %}
+      - TUWUNEL_REGISTRATION_TOKEN={{ tuwunel_registration_token }}
+{% endif %}
       - TUWUNEL_ALLOW_FEDERATION={{ 'true' if tuwunel_federation_enabled else 'false' }}
