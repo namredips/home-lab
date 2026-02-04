@@ -32,6 +32,7 @@ agents:
     memory_mb: 16384
     disk_gb: 250
     ip: 10.220.1.50
+    mac: "52:54:00:80:70:b5"
     email: zeus@infiquetra.com
     role: "PM, orchestration"
     trait: "Leadership & authority"
@@ -42,6 +43,7 @@ agents:
     memory_mb: 16384
     disk_gb: 250
     ip: 10.220.1.51
+    mac: "52:54:00:78:c4:0f"
     email: athena@infiquetra.com
     role: "Senior Developer (Architecture)"
     trait: "Wisdom & strategy"
@@ -52,6 +54,7 @@ agents:
     memory_mb: 16384
     disk_gb: 250
     ip: 10.220.1.52
+    mac: "52:54:00:64:b0:5e"
     email: apollo@infiquetra.com
     role: "Development"
     trait: "Light, truth, reason"
@@ -62,6 +65,7 @@ agents:
     memory_mb: 16384
     disk_gb: 250
     ip: 10.220.1.53
+    mac: "52:54:00:80:1a:26"
     email: artemis@infiquetra.com
     role: "Development"
     trait: "Precision, focus"
@@ -72,6 +76,7 @@ agents:
     memory_mb: 16384
     disk_gb: 250
     ip: 10.220.1.54
+    mac: "52:54:00:05:26:d8"
     email: hermes@infiquetra.com
     role: "Development"
     trait: "Speed, communication"
@@ -82,6 +87,7 @@ agents:
     memory_mb: 16384
     disk_gb: 250
     ip: 10.220.1.55
+    mac: "52:54:00:58:86:1c"
     email: perseus@infiquetra.com
     role: "Development"
     trait: "Heroic problem-solver"
@@ -92,6 +98,7 @@ agents:
     memory_mb: 16384
     disk_gb: 250
     ip: 10.220.1.56
+    mac: "52:54:00:7c:57:d6"
     email: prometheus@infiquetra.com
     role: "Development"
     trait: "Innovation, foresight"
@@ -102,6 +109,7 @@ agents:
     memory_mb: 16384
     disk_gb: 250
     ip: 10.220.1.57
+    mac: "52:54:00:00:00:00"  # Will be assigned on first creation
     email: ares@infiquetra.com
     role: "Development"
     trait: "Strength, determination"

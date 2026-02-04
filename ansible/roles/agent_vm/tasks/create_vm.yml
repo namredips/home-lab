@@ -64,7 +64,7 @@
       --disk /var/lib/libvirt/images/{{ agent_name }}.qcow2,device=disk,bus=virtio \
       --disk /var/lib/libvirt/images/{{ agent_name }}-seed.img,device=cdrom \
       --os-variant ubuntu24.04 \
-      --network network={{ vm_network }},model={{ vm_network_model }} \
+      --network network={{ vm_network }},model={{ vm_network_model }},mac={{ agent_config.mac }} \
       --graphics spice,listen=0.0.0.0 \
       --video qxl \
       --channel spicevmc,target_type=virtio,name=com.redhat.spice.0 \
