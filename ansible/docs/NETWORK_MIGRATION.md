@@ -28,14 +28,13 @@ We pivoted from fighting NetworkManager with complex pre-masking to embracing th
 Configure these MAC→IP mappings on your DHCP server:
 
 ```
-zeus:       52:54:00:df:8d:d4 → 10.220.1.50
-athena:     52:54:00:da:d4:dd → 10.220.1.51
-apollo:     52:54:00:85:f4:03 → 10.220.1.52
-artemis:    52:54:00:82:7a:18 → 10.220.1.53
-hermes:     52:54:00:13:11:dd → 10.220.1.54
-perseus:    52:54:00:d8:c3:78 → 10.220.1.55
-prometheus: 52:54:00:d7:2e:60 → 10.220.1.56
-ares:       (TBD - will get MAC when VM is created)
+zeus:       52:54:00:80:70:b5 → 10.220.1.199
+athena:     52:54:00:78:c4:0f → 10.220.1.123
+apollo:     52:54:00:64:b0:5e → 10.220.1.153
+artemis:    52:54:00:80:1a:26 → 10.220.1.194
+hermes:     52:54:00:05:26:d8 → 10.220.1.198
+perseus:    52:54:00:58:86:1c → 10.220.1.113
+prometheus: 52:54:00:7c:57:d6 → 10.220.1.156
 ```
 
 ## DHCP Server Configuration Examples
@@ -44,26 +43,26 @@ ares:       (TBD - will get MAC when VM is created)
 
 ```
 # Agent VMs
-host zeus       { hardware ethernet 52:54:00:df:8d:d4; fixed-address 10.220.1.50; }
-host athena     { hardware ethernet 52:54:00:da:d4:dd; fixed-address 10.220.1.51; }
-host apollo     { hardware ethernet 52:54:00:85:f4:03; fixed-address 10.220.1.52; }
-host artemis    { hardware ethernet 52:54:00:82:7a:18; fixed-address 10.220.1.53; }
-host hermes     { hardware ethernet 52:54:00:13:11:dd; fixed-address 10.220.1.54; }
-host perseus    { hardware ethernet 52:54:00:d8:c3:78; fixed-address 10.220.1.55; }
-host prometheus { hardware ethernet 52:54:00:d7:2e:60; fixed-address 10.220.1.56; }
+host zeus       { hardware ethernet 52:54:00:80:70:b5; fixed-address 10.220.1.199; }
+host athena     { hardware ethernet 52:54:00:78:c4:0f; fixed-address 10.220.1.123; }
+host apollo     { hardware ethernet 52:54:00:64:b0:5e; fixed-address 10.220.1.153; }
+host artemis    { hardware ethernet 52:54:00:80:1a:26; fixed-address 10.220.1.194; }
+host hermes     { hardware ethernet 52:54:00:05:26:d8; fixed-address 10.220.1.198; }
+host perseus    { hardware ethernet 52:54:00:58:86:1c; fixed-address 10.220.1.113; }
+host prometheus { hardware ethernet 52:54:00:7c:57:d6; fixed-address 10.220.1.156; }
 ```
 
 ### dnsmasq (/etc/dnsmasq.conf)
 
 ```
 # Agent VMs
-dhcp-host=52:54:00:df:8d:d4,zeus,10.220.1.50
-dhcp-host=52:54:00:da:d4:dd,athena,10.220.1.51
-dhcp-host=52:54:00:85:f4:03,apollo,10.220.1.52
-dhcp-host=52:54:00:82:7a:18,artemis,10.220.1.53
-dhcp-host=52:54:00:13:11:dd,hermes,10.220.1.54
-dhcp-host=52:54:00:d8:c3:78,perseus,10.220.1.55
-dhcp-host=52:54:00:d7:2e:60,prometheus,10.220.1.56
+dhcp-host=52:54:00:80:70:b5,zeus,10.220.1.199
+dhcp-host=52:54:00:78:c4:0f,athena,10.220.1.123
+dhcp-host=52:54:00:64:b0:5e,apollo,10.220.1.153
+dhcp-host=52:54:00:80:1a:26,artemis,10.220.1.194
+dhcp-host=52:54:00:05:26:d8,hermes,10.220.1.198
+dhcp-host=52:54:00:58:86:1c,perseus,10.220.1.113
+dhcp-host=52:54:00:7c:57:d6,prometheus,10.220.1.156
 ```
 
 ## Migration Steps
@@ -99,7 +98,7 @@ After migration, verify each VM:
 
 ```bash
 # Check IP and NetworkManager status
-for ip in 50 51 52 53 54 55 56 57; do
+for ip in 199 123 153 194 198 113 156; do
   echo "=== 10.220.1.$ip ==="
   ssh agent@10.220.1.$ip "hostname && ip addr show | grep '10.220.1' && systemctl status NetworkManager | grep Active"
 done

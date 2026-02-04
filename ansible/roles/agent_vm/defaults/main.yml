@@ -20,10 +20,6 @@ vm_ssh_authorized_keys: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa
 # Password: openclaw (generated with: openssl passwd -6 -salt saltsaltsal openclaw)
 vm_user_password_hash: "$6$saltsaltsal$Eo580v0qxVaF/E1KauBb3sVRLxxO8Q8vHkkSvva8VsShpK582panPZeVK8qssRTkMi6YAl0D7vVeMP3nS4jUB1"
 
-# RustDesk configuration
-rustdesk_relay_server: "10.220.1.11"
-rustdesk_relay_key: "f9Tong7xbfjwY8M4i5B+rR5u5o7fgQvG+VxZNopLCaA="
-
 # Agent definitions with VM specifications
 agents:
   zeus:
