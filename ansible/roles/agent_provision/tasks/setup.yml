@@ -253,19 +253,103 @@
     dest: ~/.config/nvim/
   delegate_to: "{{ inventory_hostname }}"
 
-# Starship prompt
-- name: Install Starship prompt
-  shell: curl -sS https://starship.rs/install.sh | sh -s -- -y
-  args:
-    creates: ~/.local/bin/starship
-  when: install_starship
+# oh-my-posh prompt (replaces Starship)
+- name: Create .local/bin directory
+  file:
+    path: ~/.local/bin
+    state: directory
+    mode: '0755'
+  when: install_oh_my_posh
 
-- name: Add Starship to bashrc
-  lineinfile:
-    path: ~/.bashrc
-    line: 'eval "$(starship init bash)"'
-    create: yes
-  when: install_starship
+- name: Download oh-my-posh binary
+  get_url:
+    url: https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/posh-linux-amd64
+    dest: ~/.local/bin/oh-my-posh
+    mode: '0755'
+  when: install_oh_my_posh
+
+- name: Copy oh-my-posh theme
+  copy:
+    src: oh-my-posh/{{ oh_my_posh_theme }}
+    dest: ~/{{ oh_my_posh_theme }}
+    mode: '0644'
+  when: install_oh_my_posh
+
+# Nerd Fonts for oh-my-posh
+- name: Create fonts directory
+  file:
+    path: ~/.local/share/fonts
+    state: directory
+    mode: '0755'
+  when: install_nerd_fonts
+
+- name: Download JetBrains Mono Nerd Font
+  get_url:
+    url: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip
+    dest: /tmp/JetBrainsMono.zip
+  when: install_nerd_fonts
+
+- name: Extract Nerd Font
+  unarchive:
+    src: /tmp/JetBrainsMono.zip
+    dest: ~/.local/share/fonts/
+    remote_src: yes
+  when: install_nerd_fonts
+
+- name: Update font cache
+  shell: fc-cache -f -v
+  when: install_nerd_fonts
+
+# vim-plug for neovim
+- name: Create neovim autoload directory
+  file:
+    path: ~/.local/share/nvim/site/autoload
+    state: directory
+    mode: '0755'
+  when: install_vim_plug
+
+- name: Download vim-plug
+  get_url:
+    url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+    dest: ~/.local/share/nvim/site/autoload/plug.vim
+    mode: '0644'
+  when: install_vim_plug
+
+- name: Install neovim plugins
+  shell: nvim --headless +PlugInstall +qall
+  when: install_vim_plug
+  ignore_errors: yes
+
+# Bin scripts deployment
+- name: Create bin directory
+  file:
+    path: ~/bin
+    state: directory
+    mode: '0755'
+  when: deploy_bin_scripts
+
+- name: Copy bin scripts
+  copy:
+    src: "bin/{{ item }}"
+    dest: "~/bin/{{ item }}"
+    mode: '0755'
+  loop:
+    - pswitch
+    - kswitch
+  when: deploy_bin_scripts
+
+# Shell configuration templates
+- name: Deploy bash_profile
+  template:
+    src: bash_profile.j2
+    dest: ~/.bash_profile
+    mode: '0644'
+
+- name: Deploy bashrc
+  template:
+    src: bashrc.j2
+    dest: ~/.bashrc
+    mode: '0644'
 
 # AI coding tools - Note: These require manual authentication
 - name: Install Claude Code CLI
@@ -304,8 +388,9 @@
       - "  - Docker"
       - "  - AWS CLI and CDK"
       - "  - GitHub CLI"
-      - "  - Neovim (with custom config)"
-      - "  - Starship prompt"
+      - "  - Neovim (with custom config and plugins)"
+      - "  - oh-my-posh prompt with JetBrains Mono Nerd Font"
+      - "  - Shell utilities (pswitch, kswitch)"
       - ""
       - "NEXT STEPS:"
       - "  1. Authenticate Claude Code: claude-code auth"

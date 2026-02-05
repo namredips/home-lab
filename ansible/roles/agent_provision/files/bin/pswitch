@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+
+export AWS_PROFILE=$1
+export AWS_REGION=us-east-1
+export AWS_DEFAULT_REGION=us-east-1
+export CDK_DEFAULT_REGION=us-east-1
+
+if [ -z "$1" ]
+then
+  unset AWS_REGION
+  unset AWS_DEFAULT_REGION
+  unset AWS_PROFILE
+  unset AWS_ACCOUNT
+  unset AWS_NAME
+  unset CDK_DEFAULT_ACCOUNT
+else
+  result=$(aws sts get-caller-identity --output text --query 'Account') && export AWS_ACCOUNT=$result
+  result=$(aws iam list-account-aliases --output json --query 'AccountAliases[0]') && result=${result%$quote}; result=${result#$quote}; result=${result:6}; export AWS_NAME=$result
+  #result=$(aws iam list-account-aliases --output json --query 'AccountAliases[0]') && result=${result%\"}; result=${result#\"}; export AWS_NAME=$result
+
+  export CDK_DEFAULT_ACCOUNT=$AWS_ACCOUNT
+
+fi

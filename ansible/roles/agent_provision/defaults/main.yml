@@ -54,4 +54,9 @@ install_docker: true
 
 # Shell configuration
 install_oh_my_bash: false
-install_starship: true
+install_starship: false
+install_oh_my_posh: true
+oh_my_posh_theme: default-posh-prompt.omp.json
+deploy_bin_scripts: true
+install_vim_plug: true
+install_nerd_fonts: true

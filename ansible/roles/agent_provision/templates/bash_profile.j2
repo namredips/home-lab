@@ -1,0 +1,41 @@
+# Agent VM bash_profile
+# Essential environment configuration for OpenClaw agents
+
+# Editor configuration
+export EDITOR=nvim
+export TERM=xterm-256color
+export KUBE_EDITOR=nvim
+
+# Python configuration
+export PYTHONDONTWRITEBYTECODE=1
+
+# Kubernetes configuration
+export KUBECONFIG=$HOME/.kube/config
+
+# PATH additions for installed languages
+export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/go/bin:$PATH"
+export PATH="$HOME/.flutter/bin:$PATH"
+export PATH="$HOME/bin:$PATH"
+
+# Aliases
+alias vi=nvim
+alias sp=". ~/bin/pswitch"
+alias sk=". ~/bin/kswitch"
+
+# History configuration
+shopt -s histappend
+export HISTSIZE=100000
+export HISTFILESIZE=100000
+export HISTFILE="$HOME/.bash_history"
+history -a
+
+# Initialize oh-my-posh prompt
+if [ -f "$HOME/.local/bin/oh-my-posh" ]; then
+  eval "$(oh-my-posh init bash --config ~{{ '/' }}{{ oh_my_posh_theme }})"
+fi
+
+# Source bashrc for additional configuration
+if [ -f "$HOME/.bashrc" ]; then
+  source "$HOME/.bashrc"
+fi

@@ -1,0 +1,24 @@
+#!/bin/bash
+
+CONFIG_FILE=$HOME/.kube/config
+if [[ ":$KUBECONFIG:" == *":$CONFIG_FILE:"* ]]; then
+  echo "KUBECONFIG already contains $CONFIG_FILE"
+else
+  echo "KUBECONFIG does not contain $CONFIG_FILE"
+  if [ -z "$KUBECONFIG" ]; then
+    export KUBECONFIG=$CONFIG_FILE
+  else
+    export KUBECONFIG=$KUBECONFIG:$CONFIG_FILE
+  fi
+  echo "KUBECONFIG now contains $KUBECONFIG"
+fi
+
+if [ -z "$1" ]
+then
+  unset K_STACK
+  unset K_SERVER
+else
+  kubectl config use-context $1
+  export K_STACK=$1
+  export K_SERVER=server=$(echo $(yq eval '.clusters[0].cluster.server' $KUBECONFIG) | awk -F/ '{print $3}' | awk -F: '{print $1}')
+fi

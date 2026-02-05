@@ -1,0 +1,22 @@
+# Agent VM bashrc
+# Additional shell configuration
+
+# Rust environment
+if [ -f "$HOME/.cargo/env" ]; then
+  source "$HOME/.cargo/env"
+fi
+
+# uv completions (Python package manager)
+if command -v uv &> /dev/null; then
+  eval "$(uv generate-shell-completion bash)"
+fi
+
+# fzf key bindings
+if [ -f /usr/share/doc/fzf/examples/key-bindings.bash ]; then
+  source /usr/share/doc/fzf/examples/key-bindings.bash
+fi
+
+# AWS CLI completion
+if command -v aws_completer &> /dev/null; then
+  complete -C '/usr/local/bin/aws_completer' aws
+fi

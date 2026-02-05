@@ -15,12 +15,45 @@
     path: ~/.config/nvim
     state: absent
 
-- name: Remove Starship prompt from bashrc
-  lineinfile:
-    path: ~/.bashrc
-    line: 'eval "$(starship init bash)"'
+- name: Remove oh-my-posh binary
+  file:
+    path: ~/.local/bin/oh-my-posh
     state: absent
-  when: install_starship
+  when: install_oh_my_posh
+
+- name: Remove oh-my-posh theme
+  file:
+    path: ~/{{ oh_my_posh_theme }}
+    state: absent
+  when: install_oh_my_posh
+
+- name: Remove vim-plug
+  file:
+    path: ~/.local/share/nvim/site/autoload/plug.vim
+    state: absent
+  when: install_vim_plug
+
+- name: Remove bin directory
+  file:
+    path: ~/bin
+    state: absent
+  when: deploy_bin_scripts
+
+- name: Remove bash_profile
+  file:
+    path: ~/.bash_profile
+    state: absent
+
+- name: Remove bashrc
+  file:
+    path: ~/.bashrc
+    state: absent
+
+- name: Remove Nerd Fonts
+  file:
+    path: ~/.local/share/fonts
+    state: absent
+  when: install_nerd_fonts
 
 - name: Display manual cleanup steps
   debug:
