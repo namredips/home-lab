@@ -36,7 +36,7 @@ flutter_channel: stable
 install_rust: true
 
 install_golang: true
-golang_version: "1.22"
+golang_version: "1.25.7"
 
 install_cpp: true
 
