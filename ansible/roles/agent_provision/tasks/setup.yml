@@ -300,6 +300,7 @@
 - name: Update font cache
   shell: fc-cache -f -v
   when: install_nerd_fonts
+  ignore_errors: yes
 
 # vim-plug for neovim
 - name: Create neovim autoload directory
