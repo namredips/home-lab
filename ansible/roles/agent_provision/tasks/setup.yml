@@ -248,10 +248,11 @@
     mode: '0755'
 
 - name: Copy neovim configuration
-  synchronize:
-    src: files/nvim/
+  copy:
+    src: nvim/
     dest: ~/.config/nvim/
-  delegate_to: "{{ inventory_hostname }}"
+    mode: '0644'
+    directory_mode: '0755'
 
 # oh-my-posh prompt (replaces Starship)
 - name: Create .local/bin directory
