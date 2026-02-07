@@ -68,14 +68,14 @@ This infrastructure deploys 8 OpenClaw AI agents that function as virtual softwa
 ### Prerequisites
 
 ```bash
-# Install Ansible
-pip install ansible
+# Install dependencies
+uv sync
 
 # Navigate to ansible directory
 cd ~/workspace/temp/home-lab/ansible
 
 # Test connectivity
-ansible all -i inventory/hosts.yml -m ping
+uv run ansible all -i inventory/hosts.yml -m ping
 ```
 
 ### Deploy Infrastructure

@@ -42,7 +42,7 @@ This is a home lab infrastructure repository that uses Ansible to automate the d
 ### Prerequisites
 ```bash
 # Install Python dependencies
-pip install -r requirements.txt
+cd ansible && uv sync
 
 # Ensure vault password file exists
 # ~/.vault_pass.txt should contain the Ansible Vault password

@@ -46,6 +46,8 @@ fi
 
 # Build the ansible-playbook command
 cmd=(
+    uv
+    run
     ansible-playbook
     -i "$inventory"
     "$playbook"

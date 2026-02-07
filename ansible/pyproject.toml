@@ -5,4 +5,7 @@ description = "OpenClaw Virtual Employee Infrastructure - Ansible automation"
 requires-python = ">=3.12"
 dependencies = [
     "ansible>=13.3.0",
+    "pyaml",
+    "jsonpatch",
+    "kubernetes",
 ]

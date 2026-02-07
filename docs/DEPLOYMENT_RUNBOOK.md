@@ -26,11 +26,11 @@ Complete step-by-step guide for deploying the "Mount Olympus" agent cluster.
 ### Local Machine Setup
 
 ```bash
-# Install Ansible
-pip install ansible
-
 # Clone the repository
 cd ~/workspace/temp/home-lab/ansible
+
+# Install dependencies
+uv sync
 
 # Test connectivity to all hosts
 ansible all -i inventory/hosts.yml -m ping
