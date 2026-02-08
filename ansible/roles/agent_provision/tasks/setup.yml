@@ -280,7 +280,9 @@
 
 # Python dev tools
 - name: Install Python development tools
-  shell: ~/.cargo/bin/uv tool install {{ item }}
+  shell: bash -lc "uv tool install {{ item }}"
+  args:
+    creates: ~/.local/bin/{{ item }}
   loop:
     - ruff
     - isort

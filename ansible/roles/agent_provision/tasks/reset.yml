@@ -39,6 +39,12 @@
     state: absent
   when: deploy_bin_scripts
 
+- name: Remove Claude Code configuration
+  file:
+    path: ~/.claude
+    state: absent
+  when: deploy_claude_config
+
 - name: Remove bash_profile
   file:
     path: ~/.bash_profile
