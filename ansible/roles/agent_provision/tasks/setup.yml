@@ -12,6 +12,19 @@
     autoclean: yes
   become: yes
 
+- name: Check if reboot is required
+  stat:
+    path: /var/run/reboot-required
+  register: reboot_required
+  become: yes
+
+- name: Reboot if required (kernel update)
+  reboot:
+    msg: "Rebooting for kernel update"
+    reboot_timeout: 300
+  become: yes
+  when: reboot_required.stat.exists
+
 - name: Install base packages
   apt:
     name: "{{ base_packages }}"
@@ -30,6 +43,18 @@
     enabled: yes
     state: started
   become: yes
+
+# Dotfiles repository clone
+- name: Clone dotfiles repository on controller
+  ansible.builtin.git:
+    repo: "{{ dotfiles_repo }}"
+    dest: "{{ dotfiles_local_path }}"
+    version: "{{ dotfiles_branch }}"
+    force: yes
+    accept_hostkey: yes
+  delegate_to: localhost
+  run_once: true
+  when: deploy_dotfiles_from_repo
 
 # Python installation
 - name: Add deadsnakes PPA for Python
@@ -170,6 +195,19 @@
   become: yes
   when: install_cpp
 
+- name: Install clangd for C/C++ LSP
+  apt:
+    name: clangd
+    state: present
+  become: yes
+  when: install_cpp
+
+- name: Install tree-sitter CLI via cargo
+  shell: ~/.cargo/bin/cargo install tree-sitter-cli
+  args:
+    creates: ~/.cargo/bin/tree-sitter
+  when: install_rust
+
 # Docker installation
 - name: Install Docker
   apt:
@@ -240,6 +278,31 @@
     update_cache: yes
   become: yes
 
+# Python dev tools
+- name: Install Python development tools
+  shell: ~/.cargo/bin/uv tool install {{ item }}
+  loop:
+    - ruff
+    - isort
+  when: install_python
+
+# Node.js dev tools
+- name: Install Node.js development tools
+  npm:
+    name: "{{ item }}"
+    global: yes
+    state: present
+  become: yes
+  loop:
+    - pyright
+    - prettier
+    - jsonlint
+    - fixjson
+    - yaml-language-server
+    - vscode-langservers-extracted
+    - dot-language-server
+  when: install_dev_tools and install_nodejs
+
 # Neovim configuration
 - name: Create .config directory
   file:
@@ -247,12 +310,29 @@
     state: directory
     mode: '0755'
 
-- name: Copy neovim configuration
+- name: Remove existing neovim config for refresh
+  file:
+    path: ~/.config/nvim
+    state: absent
+  when: force_dotfiles_refresh
+
+- name: Copy neovim configuration from dotfiles
+  copy:
+    src: "{{ dotfiles_local_path }}/.config/nvim/"
+    dest: ~/.config/nvim/
+    mode: '0644'
+    directory_mode: '0755'
+    force: no
+  when: deploy_dotfiles_from_repo
+
+- name: Copy neovim configuration (embedded fallback)
   copy:
     src: nvim/
     dest: ~/.config/nvim/
     mode: '0644'
     directory_mode: '0755'
+    force: no
+  when: not deploy_dotfiles_from_repo
 
 # oh-my-posh prompt (replaces Starship)
 - name: Create .local/bin directory
@@ -269,12 +349,27 @@
     mode: '0755'
   when: install_oh_my_posh
 
-- name: Copy oh-my-posh theme
+- name: Remove existing oh-my-posh theme for refresh
+  file:
+    path: ~/{{ oh_my_posh_theme }}
+    state: absent
+  when: force_dotfiles_refresh
+
+- name: Copy oh-my-posh theme from dotfiles
+  copy:
+    src: "{{ dotfiles_local_path }}/{{ oh_my_posh_theme }}"
+    dest: ~/{{ oh_my_posh_theme }}
+    mode: '0644'
+    force: no
+  when: install_oh_my_posh and deploy_dotfiles_from_repo
+
+- name: Copy oh-my-posh theme (embedded fallback)
   copy:
     src: oh-my-posh/{{ oh_my_posh_theme }}
     dest: ~/{{ oh_my_posh_theme }}
     mode: '0644'
-  when: install_oh_my_posh
+    force: no
+  when: install_oh_my_posh and not deploy_dotfiles_from_repo
 
 # Nerd Fonts for oh-my-posh
 - name: Create fonts directory
@@ -330,28 +425,95 @@
     mode: '0755'
   when: deploy_bin_scripts
 
-- name: Copy bin scripts
+- name: Remove existing bin scripts for refresh
+  file:
+    path: ~/bin
+    state: absent
+  when: force_dotfiles_refresh
+
+- name: Copy bin scripts from dotfiles
+  copy:
+    src: "{{ dotfiles_local_path }}/bin/"
+    dest: ~/bin/
+    mode: '0755'
+    directory_mode: '0755'
+    force: no
+  when: deploy_bin_scripts and deploy_dotfiles_from_repo
+
+- name: Copy bin scripts (embedded fallback)
   copy:
     src: "bin/{{ item }}"
     dest: "~/bin/{{ item }}"
     mode: '0755'
+    force: no
   loop:
     - pswitch
     - kswitch
-  when: deploy_bin_scripts
+  when: deploy_bin_scripts and not deploy_dotfiles_from_repo
 
-# Shell configuration templates
-- name: Deploy bash_profile
+# Claude Code configuration
+- name: Create .claude directory
+  file:
+    path: ~/.claude
+    state: directory
+    mode: '0755'
+  when: deploy_claude_config and deploy_dotfiles_from_repo
+
+- name: Remove existing Claude config for refresh
+  file:
+    path: ~/.claude
+    state: absent
+  when: force_dotfiles_refresh
+
+- name: Copy Claude Code configuration from dotfiles
+  copy:
+    src: "{{ dotfiles_local_path }}/.claude/"
+    dest: ~/.claude/
+    mode: '0644'
+    directory_mode: '0755'
+    force: no
+  when: deploy_claude_config and deploy_dotfiles_from_repo
+
+# Shell configuration
+- name: Check if bash_profile exists
+  stat:
+    path: ~/.bash_profile
+  register: bash_profile_stat
+
+- name: Check if bashrc exists
+  stat:
+    path: ~/.bashrc
+  register: bashrc_stat
+
+- name: Deploy bash_profile from template
   template:
     src: bash_profile.j2
     dest: ~/.bash_profile
     mode: '0644'
+  when: shell_config_source == "template" and not bash_profile_stat.stat.exists
 
-- name: Deploy bashrc
+- name: Deploy bashrc from template
   template:
     src: bashrc.j2
     dest: ~/.bashrc
     mode: '0644'
+  when: shell_config_source == "template" and not bashrc_stat.stat.exists
+
+- name: Deploy bash_profile from dotfiles
+  copy:
+    src: "{{ dotfiles_local_path }}/.bash_profile"
+    dest: ~/.bash_profile
+    mode: '0644'
+    force: no
+  when: shell_config_source == "dotfiles" and deploy_dotfiles_from_repo
+
+- name: Deploy bashrc from dotfiles
+  copy:
+    src: "{{ dotfiles_local_path }}/.bashrc"
+    dest: ~/.bashrc
+    mode: '0644'
+    force: no
+  when: shell_config_source == "dotfiles" and deploy_dotfiles_from_repo
 
 # AI coding tools - Note: These require manual authentication
 - name: Install Claude Code CLI
@@ -374,6 +536,15 @@
   debug:
     msg: "REMINDER: Gemini CLI installation requires manual setup - visit https://ai.google.dev/tutorials/setup"
   when: install_gemini_cli
+
+# Cleanup dotfiles checkout
+- name: Remove dotfiles checkout from controller
+  file:
+    path: "{{ dotfiles_local_path }}"
+    state: absent
+  delegate_to: localhost
+  run_once: true
+  when: deploy_dotfiles_from_repo
 
 # Final setup
 - name: Display completion message

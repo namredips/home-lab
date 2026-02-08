@@ -16,6 +16,7 @@ base_packages:
   - ripgrep
   - fd-find
   - fzf
+  - tree
   - unzip
   - software-properties-common
   - apt-transport-https
@@ -40,6 +41,12 @@ golang_version: "1.25.7"
 
 install_cpp: true
 
+# Development tools (linters, formatters, LSP servers)
+install_dev_tools: true
+
+# Dotfiles force refresh (override force: no — delete existing before re-deploying)
+force_dotfiles_refresh: false
+
 # AI coding tools
 install_claude_code: true
 install_codex_cli: true
@@ -60,3 +67,15 @@ oh_my_posh_theme: default-posh-prompt.omp.json
 deploy_bin_scripts: true
 install_vim_plug: true
 install_nerd_fonts: true
+
+# Dotfiles repository
+dotfiles_repo: "git@github.com:namredips/dotfiles.git"
+dotfiles_branch: "master"
+dotfiles_local_path: "/tmp/dotfiles-checkout"
+deploy_dotfiles_from_repo: true
+
+# Claude Code configuration from dotfiles
+deploy_claude_config: true
+
+# Shell config source: "template" or "dotfiles"
+shell_config_source: "template"

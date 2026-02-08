@@ -23,7 +23,7 @@ vm_user_password_hash: "$6$saltsaltsal$Eo580v0qxVaF/E1KauBb3sVRLxxO8Q8vHkkSvva8V
 # Agent definitions with VM specifications
 agents:
   zeus:
-    host: r420.infiquetra.com
+    host: r820.infiquetra.com
     vcpus: 4
     memory_mb: 16384
     disk_gb: 250
