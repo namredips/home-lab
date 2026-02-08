@@ -99,13 +99,13 @@ agents:
     role: "Development"
     trait: "Innovation, foresight"
 
-  # ares: # Temporarily disabled - needs real MAC before creation
-  #   host: r820.infiquetra.com
-  #   vcpus: 4
-  #   memory_mb: 16384
-  #   disk_gb: 250
-  #   ip: 10.220.1.57
-  #   mac: "52:54:00:00:00:00"  # Will be assigned on first creation
-  #   email: ares@infiquetra.com
-  #   role: "Development"
-  #   trait: "Strength, determination"
+  ares:
+    host: r820.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.57
+    mac: "52:54:00:ac:09:45"
+    email: ares@infiquetra.com
+    role: "Development"
+    trait: "Strength, determination"
