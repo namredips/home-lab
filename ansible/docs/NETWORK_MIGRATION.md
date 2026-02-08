@@ -35,6 +35,7 @@ artemis:    52:54:00:80:1a:26 → 10.220.1.194
 hermes:     52:54:00:05:26:d8 → 10.220.1.198
 perseus:    52:54:00:58:86:1c → 10.220.1.113
 prometheus: 52:54:00:7c:57:d6 → 10.220.1.156
+ares:       52:54:00:ac:09:45 → 10.220.1.57
 ```
 
 ## DHCP Server Configuration Examples
@@ -50,6 +51,7 @@ host artemis    { hardware ethernet 52:54:00:80:1a:26; fixed-address 10.220.1.19
 host hermes     { hardware ethernet 52:54:00:05:26:d8; fixed-address 10.220.1.198; }
 host perseus    { hardware ethernet 52:54:00:58:86:1c; fixed-address 10.220.1.113; }
 host prometheus { hardware ethernet 52:54:00:7c:57:d6; fixed-address 10.220.1.156; }
+host ares       { hardware ethernet 52:54:00:ac:09:45; fixed-address 10.220.1.57; }
 ```
 
 ### dnsmasq (/etc/dnsmasq.conf)
@@ -63,6 +65,7 @@ dhcp-host=52:54:00:80:1a:26,artemis,10.220.1.194
 dhcp-host=52:54:00:05:26:d8,hermes,10.220.1.198
 dhcp-host=52:54:00:58:86:1c,perseus,10.220.1.113
 dhcp-host=52:54:00:7c:57:d6,prometheus,10.220.1.156
+dhcp-host=52:54:00:ac:09:45,ares,10.220.1.57
 ```
 
 ## Migration Steps
