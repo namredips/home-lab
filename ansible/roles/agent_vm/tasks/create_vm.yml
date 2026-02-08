@@ -59,6 +59,7 @@
   shell: |
     virt-install \
       --name {{ agent_name }} \
+      --virt-type kvm \
       --memory {{ agent_config.memory_mb }} \
       --vcpus {{ agent_config.vcpus }} \
       --disk /var/lib/libvirt/images/{{ agent_name }}.qcow2,device=disk,bus=virtio \
