@@ -33,6 +33,9 @@ openclaw_enable_web_dashboard: true
 openclaw_dashboard_port: 18789
 openclaw_log_level: info
 
+# Gateway authentication token (generated per-agent)
+openclaw_gateway_token: "{{ (agent_name + 'openclaw-gateway-secret') | hash('sha256') }}"
+
 # Systemd service
 openclaw_enable_service: true
 openclaw_service_user: "{{ ansible_user }}"
