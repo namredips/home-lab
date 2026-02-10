@@ -11,8 +11,7 @@
         "id": "main",
         "default": true,
         "identity": {
-          "name": "{{ agent_name }}",
-          "email": "{{ agent_email }}"
+          "name": "{{ agent_name }}"
         }
       }
     ]
@@ -48,10 +47,7 @@
   },
   "channels": {
     "discord": {
-      "enabled": true,
-      "guildId": "{{ discord_guild_id }}",
-      "botToken": "${DISCORD_BOT_TOKEN}",
-      "defaultChannel": "general"
+      "enabled": true
     }
   },
   "gateway": {
@@ -65,7 +61,13 @@
     "headless": true
   },
   "logging": {
-    "level": "{{ openclaw_log_level }}",
-    "path": "{{ openclaw_install_dir }}/logs"
+    "level": "{{ openclaw_log_level }}"
+  },
+  "plugins": {
+    "entries": {
+      "discord": {
+        "enabled": true
+      }
+    }
   }
 }
