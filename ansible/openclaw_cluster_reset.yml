@@ -16,7 +16,6 @@
           - "This will remove:"
           - "  - All 7 agent VMs"
           - "  - OpenClaw services and configs"
-          - "  - Tuwunel containers (data preserved)"
           - "  - Libvirt VMs and networks"
           - ""
           - "This will NOT remove:"
@@ -69,12 +68,6 @@
   roles:
     - { role: agent_vm, reset: True, tags: ['agent_vm'] }
 
-- name: Stop Tuwunel
-  hosts: matrix_server
-  gather_facts: no
-  roles:
-    - { role: tuwunel, reset: True, tags: ['tuwunel'] }
-
 - name: Remove libvirt networks and VMs
   hosts: hypervisors
   gather_facts: no
@@ -95,11 +88,9 @@
           - "Removed:"
           - "  - All agent VMs and their services"
           - "  - OpenClaw configurations"
-          - "  - Tuwunel containers"
           - ""
           - "Preserved:"
           - "  - VM disk images in /var/lib/libvirt/images"
-          - "  - Tuwunel data in /opt/tuwunel"
           - "  - Host configurations and packages"
           - "  - Libvirt and KVM packages (network cleaned up)"
           - "=========================================="

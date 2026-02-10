@@ -14,12 +14,6 @@
   roles:
     - { role: libvirt, tags: ['libvirt'] }
 
-- name: Deploy Tuwunel (Matrix) communication platform
-  hosts: matrix_server
-  gather_facts: yes
-  roles:
-    - { role: tuwunel, tags: ['tuwunel'] }
-
 - name: Provision agent VMs
   hosts: hypervisors
   gather_facts: yes
@@ -68,7 +62,7 @@
           - "Infrastructure deployed:"
           - "  - 5 hypervisor hosts (libvirt/KVM)"
           - "  - 7 agent VMs (Ubuntu Desktop 24.04 LTS)"
-          - "  - Tuwunel Matrix server (http://10.220.1.10:8448)"
+          - "  - Discord communication platform (Guild ID: 832250938571227217)"
           - ""
           - "Agents deployed:"
           - "  - Zeus (10.220.1.199) - PM, orchestration"
@@ -86,7 +80,7 @@
           - ""
           - "MANUAL STEPS REQUIRED:"
           - "  1. Configure Google Workspace catch-all email"
-          - "  2. Create Matrix accounts for each agent (matrix.infiquetra.com)"
+          - "  2. Create Discord bot applications for each agent"
           - "  3. Authenticate AI tools on each VM:"
           - "     - Claude Code: claude-code auth"
           - "     - OpenAI: Set OPENAI_API_KEY"
