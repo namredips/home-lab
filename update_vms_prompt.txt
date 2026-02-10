@@ -1,7 +1,0 @@
-Regarding the agent VM's I have some notes/changes:
-
-1. Move zeus to the r820 box, the r420 is not really handing the VM very well
-2. I have noticed that two things are not installed on all the VM's like they should be: oh-my-posh and tree-setter. Can you make sure they are installed anc properly configured
-3. All the VM's seem to need an upgrade. Some outdated packages and a new kernal
-4. my dotfile github repository has been updated with some changes to the nvim configurations. Specifically some of the lsp configs have changed due to depricated configuration syntax. Can you look into the changes and be sure all the agent vms are up to date with the dotfile repository.
-5. Can you look at the .bash_profile that is being deployed to each VM and look for programs that are expected to be installed, and make sure those are setup to be installed as well
