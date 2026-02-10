@@ -52,7 +52,11 @@
   },
   "gateway": {
     "mode": "local",
-    "port": {{ openclaw_dashboard_port }}
+    "port": {{ openclaw_dashboard_port }},
+    "auth": {
+      "mode": "token",
+      "token": "${OPENCLAW_GATEWAY_TOKEN}"
+    }
   },
   "tools": {
     "profile": "full"
