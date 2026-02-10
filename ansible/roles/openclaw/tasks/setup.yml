@@ -40,15 +40,20 @@
 
 - name: Deploy agent personality files
   template:
-    src: "{{ item }}.j2"
-    dest: "{{ openclaw_install_dir }}/workspace/{{ item }}"
+    src: "{{ loop_item }}.j2"
+    dest: "{{ openclaw_install_dir }}/workspace/{{ loop_item }}"
     mode: '0644'
+  vars:
+    item:
+      key: "{{ inventory_hostname_short }}"
   loop:
     - SOUL.md
     - IDENTITY.md
     - AGENTS.md
     - BOOTSTRAP.md
     - USER.md
+  loop_control:
+    loop_var: loop_item
 
 - name: Create systemd service for OpenClaw Gateway
   template:
