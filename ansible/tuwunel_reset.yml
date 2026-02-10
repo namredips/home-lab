@@ -1,0 +1,6 @@
+---
+- name: Stop and remove Tuwunel Matrix server
+  hosts: matrix_server
+  gather_facts: no
+  roles:
+    - { role: tuwunel, reset: True }
