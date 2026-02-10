@@ -1,0 +1,41 @@
+---
+- name: Stop Ollama service
+  systemd:
+    name: ollama
+    state: stopped
+  become: yes
+  failed_when: false
+
+- name: Remove Ollama binary
+  file:
+    path: /usr/local/bin/ollama
+    state: absent
+  become: yes
+
+- name: Remove Ollama systemd service
+  file:
+    path: /etc/systemd/system/ollama.service
+    state: absent
+  become: yes
+
+- name: Remove Ollama config directory
+  file:
+    path: "{{ ollama_install_dir }}"
+    state: absent
+
+- name: Remove Ollama models directory
+  file:
+    path: ~/.ollama
+    state: absent
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Display Ollama reset information
+  debug:
+    msg:
+      - "Ollama has been removed"
+      - "Service stopped and disabled"
+      - "All models and configuration deleted"

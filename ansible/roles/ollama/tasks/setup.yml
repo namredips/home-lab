@@ -1,0 +1,60 @@
+---
+- name: Check if Ollama is already installed
+  command: which ollama
+  register: ollama_check
+  changed_when: false
+  failed_when: false
+
+- name: Install Ollama via official installer
+  shell: curl -fsSL https://ollama.com/install.sh | sh
+  when: ollama_check.rc != 0
+  become: yes
+
+- name: Ensure Ollama service is running
+  systemd:
+    name: ollama
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Create Ollama config directory
+  file:
+    path: "{{ ollama_install_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create Ollama SSH key directory
+  file:
+    path: "{{ ollama_install_dir }}"
+    state: directory
+    mode: '0700'
+
+- name: Deploy Ollama SSH private key
+  copy:
+    src: ollama_id_ed25519
+    dest: "{{ ollama_install_dir }}/id_ed25519"
+    mode: '0600'
+
+- name: Deploy Ollama SSH public key
+  copy:
+    src: ollama_id_ed25519.pub
+    dest: "{{ ollama_install_dir }}/id_ed25519.pub"
+    mode: '0644'
+
+- name: Pull Ollama cloud models
+  command: "ollama pull {{ item }}"
+  loop: "{{ ollama_cloud_models }}"
+  register: ollama_pull
+  changed_when: "'pulled' in ollama_pull.stdout or 'downloading' in ollama_pull.stdout"
+  failed_when: false
+  retries: 3
+  delay: 5
+
+- name: Display Ollama setup information
+  debug:
+    msg:
+      - "Ollama installed and configured"
+      - "Models pulled: {{ ollama_cloud_models | join(', ') }}"
+      - "Service: systemctl status ollama"
+      - ""
+      - "Verify with: ollama list"

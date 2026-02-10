@@ -33,6 +33,12 @@
   roles:
     - { role: agent_provision, tags: ['agent_provision'] }
 
+- name: Install and configure Ollama
+  hosts: agent_vms
+  gather_facts: yes
+  roles:
+    - { role: ollama, tags: ['ollama'] }
+
 - name: Setup OpenClaw agents
   hosts: agent_vms
   gather_facts: yes
@@ -61,7 +67,8 @@
           - ""
           - "Infrastructure deployed:"
           - "  - 5 hypervisor hosts (libvirt/KVM)"
-          - "  - 7 agent VMs (Ubuntu Desktop 24.04 LTS)"
+          - "  - 8 agent VMs (Ubuntu Desktop 24.04 LTS)"
+          - "  - Ollama Cloud LLM provider (8 cloud models per VM)"
           - "  - Discord communication platform (Guild ID: 832250938571227217)"
           - ""
           - "Agents deployed:"
@@ -72,21 +79,28 @@
           - "  - Hermes (10.220.1.198) - Development"
           - "  - Perseus (10.220.1.113) - Development"
           - "  - Prometheus (10.220.1.156) - Development"
+          - "  - Ares (10.220.1.22) - Development"
           - ""
           - "REMOTE ACCESS:"
           - "  - Console login: agent / openclaw"
           - "  - SSH: ssh agent@<vm-ip> (password: openclaw)"
           - "  - XRDP: rdp://<vm-ip>:3389 (agent / openclaw)"
           - ""
-          - "MANUAL STEPS REQUIRED:"
+          - "LLM CONFIGURATION:"
+          - "  - Provider: Ollama Cloud"
+          - "  - Primary Model: kimi-k2.5:cloud"
+          - "  - All 8 cloud models available on each VM"
+          - "  - Verify: ssh agent@<vm-ip> 'ollama list'"
+          - ""
+          - "SERVICES:"
+          - "  - OpenClaw Gateway: systemctl status openclaw-gateway"
+          - "  - Web Dashboard: http://<vm-ip>:18789"
+          - "  - Discord: Guild ID 832250938571227217"
+          - ""
+          - "MANUAL STEPS (if needed):"
           - "  1. Configure Google Workspace catch-all email"
-          - "  2. Create Discord bot applications for each agent"
-          - "  3. Authenticate AI tools on each VM:"
-          - "     - Claude Code: claude-code auth"
-          - "     - OpenAI: Set OPENAI_API_KEY"
-          - "     - Google: Set GOOGLE_API_KEY"
-          - "  4. Configure GitHub accounts for agents"
-          - "  5. Start OpenClaw services: systemctl start openclaw-<agent>"
+          - "  2. Configure GitHub accounts for agents"
+          - "  3. Start services: sudo systemctl start openclaw-gateway"
           - ""
           - "See docs/DEPLOYMENT_RUNBOOK.md for detailed instructions"
           - "=========================================="

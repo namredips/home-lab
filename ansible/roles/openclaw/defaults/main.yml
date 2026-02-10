@@ -6,14 +6,22 @@ reset: False
 openclaw_version: latest
 openclaw_install_dir: ~/.openclaw
 
-# API keys (stored in vault)
-openclaw_anthropic_api_key: "{{ vault_openclaw_anthropic_api_key | default('') }}"
-openclaw_openai_api_key: "{{ vault_openclaw_openai_api_key | default('') }}"
-openclaw_google_api_key: "{{ vault_openclaw_google_api_key | default('') }}"
+# Ollama Cloud models (imported from ollama role)
+ollama_primary_model: "kimi-k2.5:cloud"
+ollama_cloud_models:
+  - "kimi-k2.5:cloud"
+  - "deepseek-v3.1:671b-cloud"
+  - "deepseek-v3.2:cloud"
+  - "gemini-3-flash-preview:cloud"
+  - "gemini-3-pro-preview:latest"
+  - "glm-4.7:cloud"
+  - "gpt-oss:120b-cloud"
+  - "qwen3-coder:480b-cloud"
 
 # Discord configuration
 discord_guild_id: "832250938571227217"
-discord_bot_token: "{{ vault_discord_bot_token | default('') }}"
+# Per-agent Discord bot token mapping
+discord_bot_token: "{{ lookup('vars', 'vault_discord_bot_token_' + inventory_hostname_short) }}"
 
 # Agent-specific configuration
 agent_name: "{{ inventory_hostname_short }}"

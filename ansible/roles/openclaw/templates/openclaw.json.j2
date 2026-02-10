@@ -1,0 +1,72 @@
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "ollama/{{ ollama_primary_model }}"
+      }
+    }
+  },
+  "models": {
+    "providers": {
+      "ollama": {
+        "api": "openai-completions",
+        "apiKey": "ollama-local",
+        "baseUrl": "http://127.0.0.1:11434/v1",
+        "models": [
+{% for model in ollama_cloud_models %}
+          {
+            "contextWindow": 131072,
+            "cost": {
+              "cacheRead": 0,
+              "cacheWrite": 0,
+              "input": 0,
+              "output": 0
+            },
+            "id": "{{ model }}",
+            "input": [
+              "text"
+            ],
+            "maxTokens": 16384,
+            "name": "{{ model }}",
+            "reasoning": false
+          }{{ "," if not loop.last else "" }}
+{% endfor %}
+        ]
+      }
+    }
+  },
+  "integrations": {
+    "discord": {
+      "enabled": true,
+      "guildId": "{{ discord_guild_id }}",
+      "botToken": "${DISCORD_BOT_TOKEN}",
+      "defaultChannel": "general"
+    }
+  },
+  "features": {
+    "memory": {
+      "enabled": {{ openclaw_enable_memory | lower }},
+      "storagePath": "{{ openclaw_install_dir }}/memory"
+    },
+    "webDashboard": {
+      "enabled": {{ openclaw_enable_web_dashboard | lower }},
+      "port": {{ openclaw_dashboard_port }}
+    },
+    "terminal": {
+      "enabled": true,
+      "sandboxMode": "main"
+    },
+    "webBrowsing": {
+      "enabled": true,
+      "headless": true
+    }
+  },
+  "logging": {
+    "level": "{{ openclaw_log_level }}",
+    "path": "{{ openclaw_install_dir }}/logs"
+  },
+  "agent": {
+    "name": "{{ agent_name }}",
+    "email": "{{ agent_email }}"
+  }
+}

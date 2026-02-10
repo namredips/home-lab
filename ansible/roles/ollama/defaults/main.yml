@@ -1,0 +1,22 @@
+---
+# ollama role defaults
+reset: False
+
+# Ollama configuration
+ollama_version: latest
+ollama_install_dir: ~/.ollama
+
+# Ollama Cloud models (all agents use same set)
+ollama_cloud_models:
+  - "kimi-k2.5:cloud"                  # PRIMARY model
+  - "deepseek-v3.1:671b-cloud"         # Coding specialist
+  - "deepseek-v3.2:cloud"              # General purpose
+  - "gemini-3-flash-preview:cloud"     # Fast responses
+  - "gemini-3-pro-preview:latest"      # High quality
+  - "glm-4.7:cloud"                    # General purpose
+  - "gpt-oss:120b-cloud"               # General purpose
+  - "qwen3-coder:480b-cloud"           # Coding specialist
+
+# Ollama service
+ollama_enable_service: true
+ollama_service_user: "{{ ansible_user }}"

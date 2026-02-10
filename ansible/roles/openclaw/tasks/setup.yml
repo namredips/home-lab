@@ -21,8 +21,8 @@
 
 - name: Create OpenClaw configuration file
   template:
-    src: openclaw-config.yml.j2
-    dest: "{{ openclaw_install_dir }}/config.yml"
+    src: openclaw.json.j2
+    dest: "{{ openclaw_install_dir }}/openclaw.json"
     mode: '0600'
 
 - name: Create OpenClaw environment file
@@ -49,10 +49,10 @@
     - BOOTSTRAP.md
     - USER.md
 
-- name: Create systemd service for OpenClaw
+- name: Create systemd service for OpenClaw Gateway
   template:
     src: openclaw.service.j2
-    dest: /etc/systemd/system/openclaw-{{ agent_name }}.service
+    dest: /etc/systemd/system/openclaw-gateway.service
     mode: '0644'
   become: yes
   when: openclaw_enable_service
@@ -63,9 +63,9 @@
   become: yes
   when: openclaw_enable_service
 
-- name: Enable OpenClaw service
+- name: Enable OpenClaw Gateway service
   systemd:
-    name: openclaw-{{ agent_name }}
+    name: openclaw-gateway
     enabled: yes
   become: yes
   when: openclaw_enable_service
@@ -75,14 +75,13 @@
     msg:
       - "OpenClaw installed for agent: {{ agent_name }}"
       - "Email: {{ agent_email }}"
-      - "Config: {{ openclaw_install_dir }}/config.yml"
+      - "Config: {{ openclaw_install_dir }}/openclaw.json"
+      - "LLM Provider: Ollama Cloud (http://127.0.0.1:11434/v1)"
+      - "Primary Model: {{ ollama_primary_model }}"
       - ""
-      - "IMPORTANT: Manual steps required:"
-      - "  1. Authenticate with Anthropic (Claude Code): claude-code auth"
-      - "  2. Authenticate with OpenAI: Set OPENAI_API_KEY in {{ openclaw_install_dir }}/.env"
-      - "  3. Authenticate with Google: Set GOOGLE_API_KEY in {{ openclaw_install_dir }}/.env"
-      - "  4. Create Matrix account for {{ agent_name }} on {{ matrix_server_name }}"
-      - "  5. Generate Matrix access token and update vault_matrix_bot_token"
-      - "  6. Start service: sudo systemctl start openclaw-{{ agent_name }}"
+      - "Discord: Enabled (Guild ID: {{ discord_guild_id }})"
       - ""
+      - "Service: sudo systemctl start openclaw-gateway"
       - "Web dashboard: http://{{ ansible_host }}:{{ openclaw_dashboard_port }}"
+      - ""
+      - "Verify models: ollama list"
