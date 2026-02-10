@@ -18,7 +18,8 @@ import sys
 import json
 import time
 from typing import Dict, List, Optional, Any
-import requests
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 # Configuration
 GUILD_ID = "832250938571227217"
@@ -121,6 +122,7 @@ class DiscordSetup:
         self.headers = {
             "Authorization": f"Bot {token}",
             "Content-Type": "application/json",
+            "User-Agent": "DiscordBot (https://github.com/infiquetra/home-lab, 1.0)",
         }
         self.config: Dict[str, Any] = {
             "guild_id": guild_id,
@@ -135,24 +137,36 @@ class DiscordSetup:
         """Make API request with rate limit handling"""
         url = f"{API_BASE}{endpoint}"
         try:
-            response = requests.request(
-                method, url, headers=self.headers, json=data, timeout=10
-            )
+            # Prepare request data
+            request_data = None
+            if data is not None:
+                request_data = json.dumps(data).encode('utf-8')
 
+            # Create request
+            req = Request(url, data=request_data, headers=self.headers, method=method)
+
+            # Make request
+            with urlopen(req, timeout=10) as response:
+                response_data = response.read()
+                if response_data:
+                    return json.loads(response_data.decode('utf-8'))
+                return None
+
+        except HTTPError as e:
             # Handle rate limits
-            if response.status_code == 429:
-                retry_after = response.json().get("retry_after", 1)
+            if e.code == 429:
+                error_data = json.loads(e.read().decode('utf-8'))
+                retry_after = error_data.get("retry_after", 1)
                 print(f"Rate limited. Waiting {retry_after}s...")
                 time.sleep(retry_after)
                 return self._request(method, endpoint, data)
 
-            response.raise_for_status()
-            return response.json() if response.content else None
+            print(f"API request failed: HTTP {e.code}")
+            print(f"Response: {e.read().decode('utf-8')}")
+            return None
 
-        except requests.exceptions.RequestException as e:
+        except (URLError, Exception) as e:
             print(f"API request failed: {e}")
-            if hasattr(e, "response") and e.response is not None:
-                print(f"Response: {e.response.text}")
             return None
 
     def get_current_state(self) -> Dict[str, Any]:
