@@ -11,10 +11,9 @@ openclaw_anthropic_api_key: "{{ vault_openclaw_anthropic_api_key | default('') }
 openclaw_openai_api_key: "{{ vault_openclaw_openai_api_key | default('') }}"
 openclaw_google_api_key: "{{ vault_openclaw_google_api_key | default('') }}"
 
-# Matrix configuration
-matrix_homeserver_url: "http://10.220.1.10:8448"
-matrix_server_name: "matrix.infiquetra.com"
-matrix_bot_token: "{{ vault_matrix_bot_token | default('') }}"
+# Discord configuration
+discord_guild_id: "832250938571227217"
+discord_bot_token: "{{ vault_discord_bot_token | default('') }}"
 
 # Agent-specific configuration
 agent_name: "{{ inventory_hostname_short }}"

@@ -28,12 +28,11 @@ llm:
 
 # Communication platforms
 integrations:
-  matrix:
+  discord:
     enabled: true
-    homeserver_url: {{ matrix_homeserver_url }}
-    server_name: {{ matrix_server_name }}
-    access_token: ${MATRIX_ACCESS_TOKEN}
-    default_room: "#general:{{ matrix_server_name }}"
+    guild_id: {{ discord_guild_id }}
+    bot_token: ${DISCORD_BOT_TOKEN}
+    default_channel: "general"
 
 # Features
 features:
