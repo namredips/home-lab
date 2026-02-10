@@ -9,7 +9,7 @@ User={{ openclaw_service_user }}
 WorkingDirectory=/home/{{ openclaw_service_user }}/.openclaw
 Environment="NODE_ENV=production"
 EnvironmentFile=/home/{{ openclaw_service_user }}/.openclaw/.env
-ExecStart=/usr/bin/openclaw gateway --config /home/{{ openclaw_service_user }}/.openclaw/openclaw.json --port {{ openclaw_dashboard_port }}
+ExecStart=/usr/bin/openclaw gateway --port {{ openclaw_dashboard_port }}
 Restart=always
 RestartSec=10
 
