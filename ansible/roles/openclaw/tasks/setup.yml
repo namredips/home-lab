@@ -24,6 +24,7 @@
     src: openclaw.json.j2
     dest: "{{ openclaw_install_dir }}/openclaw.json"
     mode: '0600'
+  notify: restart openclaw-gateway
 
 - name: Create OpenClaw environment file
   template:
@@ -63,10 +64,11 @@
   become: yes
   when: openclaw_enable_service
 
-- name: Enable OpenClaw Gateway service
+- name: Enable and start OpenClaw Gateway service
   systemd:
     name: openclaw-gateway
     enabled: yes
+    state: started
   become: yes
   when: openclaw_enable_service
 

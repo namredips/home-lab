@@ -1,10 +1,21 @@
 {
   "agents": {
     "defaults": {
+      "workspace": "{{ openclaw_install_dir }}/workspace",
       "model": {
         "primary": "ollama/{{ ollama_primary_model }}"
       }
-    }
+    },
+    "list": [
+      {
+        "id": "main",
+        "default": true,
+        "identity": {
+          "name": "{{ agent_name }}",
+          "email": "{{ agent_email }}"
+        }
+      }
+    ]
   },
   "models": {
     "providers": {
@@ -35,7 +46,7 @@
       }
     }
   },
-  "integrations": {
+  "channels": {
     "discord": {
       "enabled": true,
       "guildId": "{{ discord_guild_id }}",
@@ -43,30 +54,18 @@
       "defaultChannel": "general"
     }
   },
-  "features": {
-    "memory": {
-      "enabled": {{ openclaw_enable_memory | lower }},
-      "storagePath": "{{ openclaw_install_dir }}/memory"
-    },
-    "webDashboard": {
-      "enabled": {{ openclaw_enable_web_dashboard | lower }},
-      "port": {{ openclaw_dashboard_port }}
-    },
-    "terminal": {
-      "enabled": true,
-      "sandboxMode": "main"
-    },
-    "webBrowsing": {
-      "enabled": true,
-      "headless": true
-    }
+  "gateway": {
+    "mode": "local",
+    "port": {{ openclaw_dashboard_port }}
+  },
+  "tools": {
+    "profile": "full"
+  },
+  "browser": {
+    "headless": true
   },
   "logging": {
     "level": "{{ openclaw_log_level }}",
     "path": "{{ openclaw_install_dir }}/logs"
-  },
-  "agent": {
-    "name": "{{ agent_name }}",
-    "email": "{{ agent_email }}"
   }
 }
