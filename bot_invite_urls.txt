@@ -1,0 +1,39 @@
+Discord Bot Invite URLs
+========================
+
+Instructions:
+1. Click each URL below (or copy/paste into browser)
+2. Select server: "Jeff's server"
+3. Click "Authorize"
+4. Complete CAPTCHA if prompted
+
+Greek Agents (Olympus role - Standard bot permissions: 274878295104)
+=====================================================================
+
+Zeus:
+https://discord.com/api/oauth2/authorize?client_id=1470606502179110912&permissions=274878295104&scope=bot
+
+Athena:
+https://discord.com/api/oauth2/authorize?client_id=1470607465136787621&permissions=274878295104&scope=bot
+
+Apollo:
+https://discord.com/api/oauth2/authorize?client_id=1470608246669578423&permissions=274878295104&scope=bot
+
+Artemis:
+https://discord.com/api/oauth2/authorize?client_id=1470608455818543135&permissions=274878295104&scope=bot
+
+Hermes:
+https://discord.com/api/oauth2/authorize?client_id=1470608660714754102&permissions=274878295104&scope=bot
+
+Perseus:
+https://discord.com/api/oauth2/authorize?client_id=1470608832672829635&permissions=274878295104&scope=bot
+
+Prometheus:
+https://discord.com/api/oauth2/authorize?client_id=1470609038008913930&permissions=274878295104&scope=bot
+
+Ares:
+https://discord.com/api/oauth2/authorize?client_id=1470609201771315220&permissions=274878295104&scope=bot
+
+Note: Freya is already in the server, so no invite needed!
+
+After adding all bots to the server, return here for Phase 3 automation.
