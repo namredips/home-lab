@@ -6,10 +6,10 @@ Requires=ollama.service
 [Service]
 Type=simple
 User={{ openclaw_service_user }}
-WorkingDirectory={{ openclaw_install_dir }}
+WorkingDirectory=%h/.openclaw
 Environment="NODE_ENV=production"
-EnvironmentFile={{ openclaw_install_dir }}/.env
-ExecStart=/usr/bin/openclaw gateway --config {{ openclaw_install_dir }}/openclaw.json --port {{ openclaw_dashboard_port }}
+EnvironmentFile=%h/.openclaw/.env
+ExecStart=/usr/bin/openclaw gateway --config %h/.openclaw/openclaw.json --port {{ openclaw_dashboard_port }}
 Restart=always
 RestartSec=10
 
