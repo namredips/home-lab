@@ -1,96 +1,125 @@
-# Bootstrap Instructions for {{ item.key | title }}
+# Bootstrap Instructions for {{ agent_name | title }}
 
 ## First-Time Setup
 
-### 1. GitHub Authentication
+### 1. Verify SSH Key & GitHub Access
 ```bash
-gh auth login
-# Select: GitHub.com
-# Protocol: HTTPS
-# Authenticate: with web browser
-# Organization: infiquetra
+# Test GitHub SSH connection
+ssh -T git@github.com
+
+# List accessible repos
+gh repo list infiquetra --limit 20
 ```
 
-### 2. Configure Git
+If SSH fails, generate and register a key:
 ```bash
-git config --global user.name "{{ item.key | title }}"
-git config --global user.email "{{ item.value.email }}"
-git config --global init.defaultBranch main
-```
-
-### 3. Claude Code Authentication
-```bash
-claude-code auth
-# Follow browser authentication flow
-```
-
-### 4. Watch Infiquetra Repositories
-```bash
-# Clone infiquetra organization repos
-gh repo list infiquetra --limit 100 | while read -r repo _; do
-    gh repo clone "$repo" ~/repos/
-done
-
-# Set up GitHub notifications
-gh auth refresh -s notifications
-```
-
-### 5. Matrix Setup
-- **Homeserver**: {{ matrix_homeserver_url }}
-- **Server Name**: {{ matrix_server_name }}
-- **Username**: @{{ item.key }}:{{ matrix_server_name }}
-- **Rooms to join**:
-  - #general:{{ matrix_server_name }} (primary work coordination)
-  - #pr-reviews:{{ matrix_server_name }} (code review requests)
-{% if item.key == 'zeus' %}
-  - #zeus-office (PM check-ins)
-{% endif %}
-{% if item.value.role == 'Senior Developer (Architecture)' %}
-  - #architecture (design discussions)
-{% endif %}
-
-### 6. SSH Keys (if needed)
-```bash
-ssh-keygen -t ed25519 -C "{{ item.value.email }}"
+ssh-keygen -t ed25519 -C "{{ agent_email }}"
 cat ~/.ssh/id_ed25519.pub
 # Add to GitHub: https://github.com/settings/keys
 ```
 
-### 7. Verify Environment
+### 2. Configure Git
 ```bash
-# Check tools
-claude-code --version
+git config --global user.name "{{ agent_name | title }}"
+git config --global user.email "{{ agent_email }}"
+git config --global init.defaultBranch main
+```
+
+### 3. GitHub CLI Authentication
+```bash
+gh auth status
+# If not authenticated:
+gh auth login --hostname github.com --web
+```
+
+### 4. Clone Infiquetra Repositories
+```bash
+mkdir -p ~/workspace/infiquetra
+
+gh repo list infiquetra --limit 100 | while read -r repo _; do
+    name=$(basename "$repo")
+    gh repo clone "infiquetra/$name" ~/workspace/infiquetra/$name 2>/dev/null || true
+done
+```
+
+### 5. Discord (Already Configured)
+Your Discord bot token is pre-configured in OpenClaw. Verify it's connected:
+- Check that OpenClaw gateway service is running: `sudo systemctl status openclaw-gateway`
+- Look for your agent in Discord — it should show as online in the guild
+- If offline: `sudo systemctl restart openclaw-gateway`
+
+{% if agent_name == 'zeus' %}
+As Zeus, verify you can see and post to all channels:
+- `#general`
+- `#dev-chat`
+- `#pr-reviews`
+- `#architecture`
+{% elif agent_role == 'Senior Developer (Architecture)' %}
+As Athena, make sure you're monitoring the `#architecture` channel closely.
+{% endif %}
+
+### 6. Verify All Tools
+```bash
+# AI coding tools
+claude --version
 gh --version
+
+# Languages
 python3 --version
 node --version
+go version
+rustc --version
 
-# Check repos
-ls ~/repos/
+# Dev tools
+ruff --version
+uv --version
+docker --version
+
+# Check workspace
+ls ~/.openclaw/workspace/
 ```
+
+---
 
 ## Daily Startup Checklist
 
-1. Check Matrix #general room for new work
-2. Check GitHub notifications (`gh api notifications`)
-3. Review open PRs in watched repos
-4. Check for unassigned issues in infiquetra org
+1. Check Discord `#dev-chat` for new messages and @ mentions
+2. Check GitHub notifications: `gh api notifications --jq '.[].subject.title'`
+3. Review open PRs awaiting your review: `gh pr list --assignee @me`
+4. Check your assigned issues: `gh issue list --assignee @me --state open`
+5. Scan for high-priority unassigned work:
+   ```bash
+   gh issue list --repo infiquetra/<repo> --assignee "" --state open --label "P0"
+   ```
+
+---
 
 ## Workspace Organization
 
 ```
 ~/
-├── repos/                    # Git repositories
-│   └── infiquetra/
+├── workspace/
+│   └── infiquetra/      # Git repositories
 ├── .openclaw/
-│   └── workspace/           # OpenClaw memory/context
+│   └── workspace/       # OpenClaw memory/context
+│       ├── MEMORY.md    # Long-term memory
+│       ├── notes/       # Daily session notes
+│       ├── SOUL.md
+│       ├── IDENTITY.md
+│       ├── AGENTS.md
+│       ├── WORKFLOW.md
+│       ├── MODEL-ROUTING.md
+│       └── TOOLS.md
 ├── .config/
-│   └── nvim/                # Neovim config
-└── .ssh/                    # SSH keys
+│   └── nvim/            # Neovim config
+└── .ssh/                # SSH keys
 ```
+
+---
 
 ## Need Help?
 
-- **Technical issues**: Post in #dev channel
-- **Architecture questions**: Tag @athena in #architecture
-- **Process questions**: DM @zeus
-- **Documentation**: Check ~/repos/home-lab/docs/
+- **Technical issues**: Post in `#dev-chat`
+- **Architecture questions**: Tag @athena in `#architecture`
+- **Process questions**: Ask @zeus in `#dev-chat`
+- **Documentation**: Check `~/workspace/infiquetra/home-lab/`
