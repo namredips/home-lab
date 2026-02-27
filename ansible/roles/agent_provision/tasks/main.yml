@@ -3,6 +3,10 @@
   import_tasks: setup.yml
   when: not reset | bool
 
+- name: Configure GitHub SSH auth and git identity
+  import_tasks: github_auth.yml
+  when: not reset | bool
+
 - name: Remove agent provisioning
   import_tasks: reset.yml
   when: reset | bool

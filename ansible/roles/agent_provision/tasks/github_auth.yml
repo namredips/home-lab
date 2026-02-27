@@ -1,0 +1,46 @@
+---
+- name: Generate SSH key for agent GitHub access
+  openssh_keypair:
+    path: "/home/{{ ansible_user }}/.ssh/id_ed25519"
+    type: ed25519
+    comment: "{{ agent_email }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+  register: agent_ssh_key
+
+- name: Display public key for GitHub registration
+  debug:
+    msg:
+      - "{{ agent_name | title }} SSH public key — add to GitHub (https://github.com/settings/keys):"
+      - "{{ agent_ssh_key.public_key }}"
+  when: agent_ssh_key.changed
+
+- name: Configure SSH for GitHub
+  blockinfile:
+    path: "/home/{{ ansible_user }}/.ssh/config"
+    create: yes
+    mode: '0600'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    marker: "# {mark} ANSIBLE MANAGED - GitHub"
+    block: |
+      Host github.com
+        HostName github.com
+        User git
+        IdentityFile ~/.ssh/id_ed25519
+        StrictHostKeyChecking accept-new
+
+- name: Configure git identity
+  git_config:
+    name: "{{ git_item.key }}"
+    value: "{{ git_item.value }}"
+    scope: global
+  become_user: "{{ ansible_user }}"
+  loop:
+    - { key: "user.name", value: "{{ agent_name | title }}" }
+    - { key: "user.email", value: "{{ agent_email }}" }
+    - { key: "init.defaultBranch", value: "main" }
+    - { key: "pull.rebase", value: "false" }
+  loop_control:
+    loop_var: git_item

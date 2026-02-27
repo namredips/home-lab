@@ -1,0 +1,29 @@
+---
+- name: Create workspace directory
+  file:
+    path: "/home/{{ ansible_user }}/workspace/infiquetra"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Clone infiquetra repositories
+  git:
+    repo: "git@github.com:infiquetra/{{ repo_item }}.git"
+    dest: "/home/{{ ansible_user }}/workspace/infiquetra/{{ repo_item }}"
+    accept_hostkey: yes
+    update: no
+  become_user: "{{ ansible_user }}"
+  loop: "{{ infiquetra_repos }}"
+  loop_control:
+    loop_var: repo_item
+  ignore_errors: yes
+  register: clone_results
+
+- name: Report clone results
+  debug:
+    msg: >-
+      {{ repo_item.item }}: {{ 'cloned' if repo_item.changed else 'already exists or failed' }}
+  loop: "{{ clone_results.results }}"
+  loop_control:
+    loop_var: repo_item

@@ -79,3 +79,11 @@ deploy_claude_config: true
 
 # Shell config source: "template" or "dotfiles"
 shell_config_source: "template"
+
+# GitHub configuration
+github_org: "infiquetra"
+
+# Infiquetra repos to clone on each agent VM
+# Run clone_repos.yml after SSH keys are registered in GitHub
+infiquetra_repos:
+  - home-lab
