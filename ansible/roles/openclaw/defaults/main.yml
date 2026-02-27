@@ -36,6 +36,58 @@ openclaw_log_level: info
 # Gateway authentication token (generated per-agent)
 openclaw_gateway_token: "{{ (agent_name + 'openclaw-gateway-secret') | hash('sha256') }}"
 
+# Heartbeat and active hours
+openclaw_heartbeat_interval: "20m"
+openclaw_active_hours_start: "08:00"
+openclaw_active_hours_end: "01:00"
+openclaw_timezone: "America/New_York"
+
+# Concurrency
+openclaw_max_concurrent: 4
+openclaw_subagent_max_concurrent: 8
+
+# Allowed binaries for exec tool
+openclaw_safe_bins:
+  - curl
+  - wget
+  - jq
+  - claude
+  - gh
+  - git
+  - grep
+  - rg
+  - sed
+  - awk
+  - cat
+  - ls
+  - find
+  - fd
+  - python3
+  - uv
+  - pip
+  - node
+  - npm
+  - npx
+  - go
+  - rustc
+  - cargo
+  - dart
+  - flutter
+  - docker
+  - kubectl
+  - microk8s
+  - aws
+  - ruff
+  - mypy
+  - black
+  - tsc
+  - make
+  - bash
+  - sh
+  - tmux
+  - ssh
+  - scp
+
 # Systemd service
 openclaw_enable_service: true
 openclaw_service_user: "{{ ansible_user }}"

@@ -3,7 +3,31 @@
     "defaults": {
       "workspace": "{{ openclaw_install_dir }}/workspace",
       "model": {
-        "primary": "ollama/{{ ollama_primary_model }}"
+        "primary": "ollama/{{ ollama_primary_model }}",
+        "fallbacks": [
+          "ollama/kimi-k2.5:cloud",
+          "ollama/deepseek-v3.2:cloud",
+          "ollama/gemini-3-flash-preview:cloud"
+        ]
+      },
+      "compaction": {
+        "mode": "safeguard"
+      },
+      "heartbeat": {
+        "every": "{{ openclaw_heartbeat_interval }}",
+        "activeHours": {
+          "start": "{{ openclaw_active_hours_start }}",
+          "end": "{{ openclaw_active_hours_end }}",
+          "timezone": "{{ openclaw_timezone }}"
+        },
+        "model": "ollama/gemini-3-flash-preview:cloud",
+        "target": "discord",
+        "ackMaxChars": 500
+      },
+      "maxConcurrent": {{ openclaw_max_concurrent }},
+      "subagents": {
+        "maxConcurrent": {{ openclaw_subagent_max_concurrent }},
+        "model": "ollama/gemini-3-flash-preview:cloud"
       }
     },
     "list": [
@@ -55,13 +79,35 @@
     "port": {{ openclaw_dashboard_port }}
   },
   "tools": {
-    "profile": "full"
+    "profile": "full",
+    "exec": {
+      "safeBins": {{ openclaw_safe_bins | to_json }}
+    }
   },
   "browser": {
     "headless": true
   },
   "logging": {
     "level": "{{ openclaw_log_level }}"
+  },
+  "cron": {
+    "enabled": true
+  },
+  "hooks": {
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "self-improvement": {
+          "enabled": true,
+          "path": "{{ openclaw_install_dir }}/hooks/self-improvement/handler.js"
+        }
+      }
+    }
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true
   },
   "plugins": {
     "entries": {
