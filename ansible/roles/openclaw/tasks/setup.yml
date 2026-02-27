@@ -55,6 +55,23 @@
   loop_control:
     loop_var: loop_item
 
+- name: Create OpenClaw hooks directory
+  file:
+    path: "{{ openclaw_install_dir }}/hooks/self-improvement"
+    state: directory
+    mode: '0755'
+
+- name: Deploy self-improvement hook files
+  copy:
+    src: "hooks/self-improvement/{{ hook_file }}"
+    dest: "{{ openclaw_install_dir }}/hooks/self-improvement/{{ hook_file }}"
+    mode: '0644'
+  loop:
+    - handler.js
+    - HOOK.md
+  loop_control:
+    loop_var: hook_file
+
 - name: Create systemd service for OpenClaw Gateway
   template:
     src: openclaw.service.j2
