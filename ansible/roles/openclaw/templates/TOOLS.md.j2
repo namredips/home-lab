@@ -1,0 +1,265 @@
+# Tools: {{ agent_name | title }}
+
+## Team Directory
+
+| Agent | IP | Role | Specialty |
+|-------|----|------|-----------|
+| Zeus | 10.220.1.50 | PM / Orchestrator | Coordination, planning |
+| Athena | 10.220.1.51 | Senior Dev (Architecture) | System design |
+| Apollo | 10.220.1.52 | Dev (Code Quality) | Documentation, testing |
+| Artemis | 10.220.1.53 | Dev (Testing & Precision) | Edge cases, correctness |
+| Hermes | 10.220.1.54 | Dev (Integrations) | APIs, speed |
+| Perseus | 10.220.1.55 | Dev (Complex Problems) | Hard bugs, rescue |
+| Prometheus | 10.220.1.56 | Dev (Innovation) | New tech, experiments |
+| Ares | 10.220.1.57 | Dev (Performance) | Optimization, resilience |
+
+SSH between agents: `ssh agent@10.220.1.<ip>` (if needed for coordination)
+
+---
+
+## Core Dev Tools
+
+### Claude Code
+```bash
+/usr/local/bin/claude
+
+# Coding tasks
+claude "implement X in Y"
+claude --continue  # resume previous session
+
+# With files
+claude "review this" < myfile.py
+```
+
+### GitHub CLI
+```bash
+# Issues
+gh issue list --repo infiquetra/<repo>
+gh issue create --repo infiquetra/<repo> --title "..." --body "..."
+gh issue edit <num> --add-assignee @me
+
+# PRs
+gh pr create --title "..." --body "..."
+gh pr list --search "review-requested:@me"
+gh pr review <num> --approve --body "LGTM"
+gh pr merge <num> --squash
+
+# Repos
+gh repo list infiquetra
+gh repo clone infiquetra/<repo>
+```
+
+### Git
+```bash
+git checkout -b {{ agent_name }}/<issue>-<description>
+git add -p          # interactive staging
+git commit -m "type(scope): description"
+git push -u origin HEAD
+```
+
+---
+
+## Language Toolchains
+
+### Python
+```bash
+python3 --version       # 3.12
+uv venv && source .venv/bin/activate
+uv pip install <package>
+uv run pytest
+ruff check .
+mypy src/
+```
+
+### Node.js / TypeScript
+```bash
+node --version          # 22.x
+npm install
+npx tsc --noEmit        # type check
+npx eslint .
+```
+
+### Go
+```bash
+go version              # 1.25.x
+go build ./...
+go test ./...
+go vet ./...
+```
+
+### Rust
+```bash
+rustc --version
+cargo build
+cargo test
+cargo clippy
+cargo fmt
+```
+
+### Dart / Flutter
+```bash
+dart --version
+flutter --version
+dart analyze
+dart format .
+flutter test
+```
+
+---
+
+## Infrastructure Tools
+
+### AWS CLI
+```bash
+aws --version
+aws sts get-caller-identity   # verify auth
+aws s3 ls
+aws lambda list-functions
+```
+
+### Docker
+```bash
+docker build -t <name> .
+docker run --rm <name>
+docker ps
+docker logs <container>
+```
+
+### Kubernetes (MicroK8s)
+```bash
+microk8s kubectl get pods -A
+microk8s kubectl logs <pod>
+kubectl apply -f <manifest>
+```
+
+### Ansible (from home-lab repo)
+```bash
+cd ~/workspace/infiquetra/home-lab/ansible
+ansible-playbook -i inventory/hosts.yml k8_cluster.yml -u jefcox
+./run_ansible_role.sh -r <role> -u jefcox
+```
+
+---
+
+## Editor
+
+### Neovim
+```bash
+nvim <file>
+
+# Key plugins available:
+# - CodeCompanion (AI coding)
+# - nvim-lsp (language servers)
+# - telescope (fuzzy finder)
+# - fugitive (git)
+```
+
+---
+
+## Search & Navigation
+
+```bash
+# Fast file search
+fd <name>
+find . -name "*.py"
+
+# Content search
+rg <pattern>
+rg <pattern> --type py
+
+# JSON processing
+jq '.' < file.json
+gh api /repos/infiquetra/<repo>/issues | jq '.[].title'
+```
+
+---
+
+## OpenClaw Service
+
+```bash
+# Service management
+sudo systemctl status openclaw-gateway
+sudo systemctl restart openclaw-gateway
+sudo journalctl -u openclaw-gateway -f    # live logs
+
+# Config location
+cat ~/.openclaw/openclaw.json
+ls ~/.openclaw/workspace/
+```
+
+---
+
+{% if agent_name == 'zeus' %}
+## Zeus-Specific: Orchestration Scripts
+
+```bash
+# Check all agent statuses
+for ip in 50 51 52 53 54 55 56 57; do
+    echo "--- 10.220.1.$ip ---"
+    ssh agent@10.220.1.$ip "sudo systemctl is-active openclaw-gateway" 2>/dev/null || echo "unreachable"
+done
+
+# Broadcast to all agents (via Discord preferred)
+# Use the Discord bot to post in #dev-chat
+```
+{% elif agent_name == 'ares' %}
+## Ares-Specific: Performance Tools
+
+```bash
+# Python profiling
+python3 -m cProfile -o output.pstats script.py
+python3 -m pstats output.pstats
+
+# Memory profiling
+pip install memory-profiler
+python3 -m memory_profiler script.py
+
+# Load testing
+ab -n 1000 -c 10 http://localhost:8080/
+wrk -t4 -c100 -d30s http://localhost:8080/
+
+# System metrics
+htop
+iostat -x 1
+ss -tulpn
+```
+{% elif agent_name == 'prometheus' %}
+## Prometheus-Specific: Experiment Tracking
+
+When evaluating new tech, document in `workspace/experiments/`:
+```
+workspace/experiments/
+├── YYYY-MM-DD-<tool-name>.md   # experiment notes
+└── results.md                  # outcomes summary
+```
+
+Template for experiment notes:
+```markdown
+# Experiment: <tool/approach>
+Date: YYYY-MM-DD
+Hypothesis: <what you expect>
+
+## Setup
+<how you tested it>
+
+## Results
+<what happened>
+
+## Verdict
+Adopt / Adopt with caveats / Reject
+Reason: <why>
+```
+{% endif %}
+
+---
+
+## Useful Paths
+
+```
+~/.openclaw/                  # OpenClaw home
+~/.openclaw/openclaw.json     # config
+~/.openclaw/workspace/        # agent memory/docs
+~/workspace/infiquetra/       # cloned repos
+~/.ssh/id_ed25519.pub         # your GitHub SSH key
+~/.config/nvim/               # editor config
+```
