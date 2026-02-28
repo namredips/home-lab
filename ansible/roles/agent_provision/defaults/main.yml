@@ -80,6 +80,10 @@ deploy_claude_config: true
 # Shell config source: "template" or "dotfiles"
 shell_config_source: "template"
 
+# Agent identity (mirrors openclaw role defaults)
+agent_name: "{{ inventory_hostname_short }}"
+agent_email: "{{ inventory_hostname_short }}@infiquetra.com"
+
 # GitHub configuration
 github_org: "infiquetra"
 
