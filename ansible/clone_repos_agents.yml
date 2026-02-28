@@ -1,0 +1,10 @@
+---
+# Clone infiquetra repositories on all agent VMs
+# Run this AFTER adding agent SSH public keys to GitHub
+# See: https://github.com/infiquetra/home-lab/settings/keys
+- name: Clone infiquetra repos on agent VMs
+  hosts: agent_vms
+  gather_facts: yes
+  roles:
+    - role: agent_provision
+      tasks_from: clone_repos
