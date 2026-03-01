@@ -22,5 +22,6 @@ zfs_pools:
       - sdh
       - sdi
     options: "-o ashift=12"
-    proxmox_storage_type: zfspool
-    proxmox_content: "backup,iso,vztmpl,snippets"
+    proxmox_storage_type: dir
+    proxmox_path: /sas-data
+    proxmox_content: "backup,iso,vztmpl,snippets,images"

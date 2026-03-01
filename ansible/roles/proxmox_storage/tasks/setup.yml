@@ -47,6 +47,8 @@
   loop_control:
     label: "{{ item.name }}"
 
+# Storage config is cluster-wide in Proxmox (/etc/pve/storage.cfg via pmxcfs).
+# Only master registers storages — all nodes see them automatically.
 - name: Check which pools are already registered in Proxmox
   ansible.builtin.command: pvesm list {{ item.name }}
   register: pvesm_checks
@@ -54,16 +56,34 @@
   changed_when: false
   no_log: true
   loop: "{{ zfs_pools | default([]) }}"
+  when: inventory_hostname in groups['proxmox_master']
 
-- name: Register ZFS pools with Proxmox storage
+- name: Register zfspool-type storage (supports images, rootdir)
   ansible.builtin.command: >
-    pvesm add {{ item.item.proxmox_storage_type }}
+    pvesm add zfspool
     {{ item.item.name }}
     --pool {{ item.item.name }}
     --content {{ item.item.proxmox_content }}
     --sparse 1
-  when: item.rc != 0
-  loop: "{{ pvesm_checks.results }}"
+  when:
+    - inventory_hostname in groups['proxmox_master']
+    - item.rc != 0
+    - item.item.proxmox_storage_type == 'zfspool'
+  loop: "{{ pvesm_checks.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Register dir-type storage (supports backup, iso, vztmpl, snippets, images)
+  ansible.builtin.command: >
+    pvesm add dir
+    {{ item.item.name }}
+    --path {{ item.item.proxmox_path }}
+    --content {{ item.item.proxmox_content }}
+  when:
+    - inventory_hostname in groups['proxmox_master']
+    - item.rc != 0
+    - item.item.proxmox_storage_type == 'dir'
+  loop: "{{ pvesm_checks.results | default([]) }}"
   loop_control:
     label: "{{ item.item.name }}"
 
