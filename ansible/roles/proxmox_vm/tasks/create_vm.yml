@@ -1,5 +1,6 @@
 ---
 # Called per-agent with vars: agent_name, agent (dict with vmid, mac, ip, etc.)
+# Snippets are pre-deployed in setup.yml to every node's local:snippets/.
 
 # Check from target node — qm status only sees VMs local to this node
 - name: Check if VM {{ agent.vmid }} ({{ agent_name }}) already exists
@@ -37,15 +38,17 @@
   delegate_to: "{{ groups['proxmox_master'][0] }}"
   when: vm_check.rc != 0
 
+# --cicustom user= replaces Proxmox's auto-generated user-data (which includes
+# package_upgrade: true).  The snippet is on local:snippets/ of every node.
+# Omit --sshkeys and --cipassword here — they're in the snippet instead.
 - name: Set cloud-init config
   ansible.builtin.command: >
     qm set {{ agent.vmid }}
     --ciuser {{ vm_ssh_user }}
-    --cipassword {{ vm_user_password }}
-    --sshkeys /root/.ssh/authorized_keys
     --ipconfig0 ip=dhcp
     --nameserver 10.220.1.1
     --searchdomain infiquetra.com
+    --cicustom user=local:snippets/{{ agent_name }}-user-data.yaml
   delegate_to: "{{ groups['proxmox_master'][0] }}"
   when: vm_check.rc != 0
 
@@ -66,7 +69,7 @@
 
 # VMs use DHCP — static IP requires a UDM reservation for the VM's MAC.
 # Add reservations in UniFi (Settings → Networks → Default → DHCP → Static Leases)
-# before running agent provisioning. SSH wait is non-fatal here.
+# before running agent provisioning.  SSH wait is non-fatal here.
 - name: Wait for SSH on {{ agent_name }} ({{ agent.ip }})
   ansible.builtin.wait_for:
     host: "{{ agent.ip }}"

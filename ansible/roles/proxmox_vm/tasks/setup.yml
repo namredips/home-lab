@@ -1,5 +1,51 @@
 ---
-# Filter agents assigned to this Proxmox host
+# ── Pre-deploy cloud-init snippets to all nodes ─────────────────────────────
+# Snippets must be present on EVERY Proxmox node because:
+#   - qm set --cicustom is run on master (for cloning), reads local:snippets/
+#   - After migration, if Proxmox regenerates the cloud-init drive, it reads
+#     local:snippets/ on the VM's current node
+# Using local:snippets/ (not sas-data:snippets/) ensures r8202 is covered too.
+
+- name: Generate password hash for VM user ({{ vm_ssh_user }})
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - "import crypt, os; salt=crypt.mksalt(crypt.METHOD_SHA512); print(crypt.crypt('{{ vm_user_password }}', salt))"
+  register: pw_hash
+  changed_when: false
+  run_once: false   # generate fresh hash per node (different salts are fine)
+
+- name: Read SSH keys from authorized_keys
+  ansible.builtin.slurp:
+    src: /root/.ssh/authorized_keys
+  register: node_auth_keys
+
+- name: Ensure local snippets directory exists
+  ansible.builtin.file:
+    path: /var/lib/vz/snippets
+    state: directory
+    mode: '0755'
+
+- name: Deploy cloud-init user-data snippet for all agents
+  ansible.builtin.template:
+    src: agent-user-data.j2
+    dest: /var/lib/vz/snippets/{{ item.key }}-user-data.yaml
+    mode: '0644'
+  loop: "{{ agents | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  vars:
+    agent_name: "{{ item.key }}"
+    vm_user_password_hash: "{{ pw_hash.stdout | trim }}"
+    vm_ssh_keys: >-
+      {{
+        (node_auth_keys.content | b64decode).splitlines()
+        | select('match', '^ssh-')
+        | list
+      }}
+
+# ── Filter agents assigned to this Proxmox host ─────────────────────────────
 - name: Build list of agents for this host
   ansible.builtin.set_fact:
     host_agents: >-
