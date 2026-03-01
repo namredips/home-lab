@@ -9,9 +9,10 @@
 - name: Generate password hash for VM user ({{ vm_ssh_user }})
   ansible.builtin.command:
     argv:
-      - python3
-      - -c
-      - "import crypt, os; salt=crypt.mksalt(crypt.METHOD_SHA512); print(crypt.crypt('{{ vm_user_password }}', salt))"
+      - openssl
+      - passwd
+      - -6
+      - "{{ vm_user_password }}"
   register: pw_hash
   changed_when: false
   run_once: false   # generate fresh hash per node (different salts are fine)
