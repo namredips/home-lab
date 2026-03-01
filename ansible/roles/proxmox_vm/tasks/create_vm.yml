@@ -7,12 +7,16 @@
   changed_when: false
   failed_when: false
 
+# Template (VM 9000) exists only on master. Delegate clone to master and use
+# --target to place the new VM on the correct node.
 - name: Clone template to create VM {{ agent.vmid }} ({{ agent_name }})
   ansible.builtin.command: >
     qm clone {{ template_vmid }} {{ agent.vmid }}
     --name {{ agent_name }}
     --full true
     --storage {{ vm_storage }}
+    --target {{ inventory_hostname_short }}
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
   when: vm_check.rc != 0
 
 - name: Configure VM resources
@@ -45,15 +49,19 @@
   ansible.builtin.command: qm start {{ agent.vmid }}
   when: vm_check.rc != 0
 
+# VMs use DHCP — static IP requires a UDM reservation for the VM's MAC.
+# Add reservations in UniFi (Settings → Networks → Default → DHCP → Static Leases)
+# before running agent provisioning. SSH wait is non-fatal here.
 - name: Wait for SSH on {{ agent_name }} ({{ agent.ip }})
   ansible.builtin.wait_for:
     host: "{{ agent.ip }}"
     port: 22
     delay: 15
-    timeout: 300
+    timeout: 120
     state: started
   delegate_to: localhost
   become: false
+  ignore_errors: true
   when: vm_check.rc != 0
 
 - name: Show VM {{ agent.vmid }} status
