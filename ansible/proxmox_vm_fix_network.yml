@@ -1,32 +1,52 @@
 ---
 # Diagnose and fix IPv4 networking in agent VMs via QEMU guest agent.
-# Does not require SSH — uses qm exec which talks directly to the qemu-guest-agent
-# process running inside each VM.
+# Does not require SSH — uses qm guest exec which talks directly to the
+# qemu-guest-agent process running inside each VM.
+#
+# Proxmox 9.x command is: qm guest exec <vmid> [OPTIONS] [<extra-args>]
+# Use --synchronize 1 to block and return stdout/stderr.
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml proxmox_vm_fix_network.yml \
 #     --vault-password-file ~/.vault_pass.txt
-#
-# What it does:
-#   1. Checks VM status (running/stopped)
-#   2. Waits for guest agent to respond (up to 2 minutes per VM)
-#   3. Dumps current IPv4 address and SSH service state
-#   4. If IPv4 is missing, runs dhclient to re-acquire a lease
-#   5. Reports final state of each VM
 
 - name: Fix agent VM networking via QEMU guest agent
   hosts: proxmox_hosts
   gather_facts: false
   vars:
     agents:
-      zeus:      {vmid: 100, host: r820.infiquetra.com,   ip: 10.220.1.50}
-      athena:    {vmid: 101, host: r820.infiquetra.com,   ip: 10.220.1.51}
-      apollo:    {vmid: 102, host: r820.infiquetra.com,   ip: 10.220.1.52}
-      artemis:   {vmid: 103, host: r420.infiquetra.com,   ip: 10.220.1.53}
-      hermes:    {vmid: 104, host: r420.infiquetra.com,   ip: 10.220.1.54}
-      perseus:   {vmid: 105, host: r720xd.infiquetra.com, ip: 10.220.1.55}
-      prometheus:{vmid: 106, host: r720xd.infiquetra.com, ip: 10.220.1.56}
-      ares:      {vmid: 107, host: r8202.infiquetra.com,  ip: 10.220.1.57}
+      zeus:
+        vmid: 100
+        host: r820.infiquetra.com
+        ip: 10.220.1.50
+      athena:
+        vmid: 101
+        host: r820.infiquetra.com
+        ip: 10.220.1.51
+      apollo:
+        vmid: 102
+        host: r820.infiquetra.com
+        ip: 10.220.1.52
+      artemis:
+        vmid: 103
+        host: r420.infiquetra.com
+        ip: 10.220.1.53
+      hermes:
+        vmid: 104
+        host: r420.infiquetra.com
+        ip: 10.220.1.54
+      perseus:
+        vmid: 105
+        host: r720xd.infiquetra.com
+        ip: 10.220.1.55
+      prometheus:
+        vmid: 106
+        host: r720xd.infiquetra.com
+        ip: 10.220.1.56
+      ares:
+        vmid: 107
+        host: r8202.infiquetra.com
+        ip: 10.220.1.57
 
   tasks:
     - name: Build list of VMs for this Proxmox host
@@ -37,10 +57,6 @@
             | selectattr('value.host', 'equalto', inventory_hostname)
             | list
           }}
-
-    - name: Show VMs assigned to this host
-      ansible.builtin.debug:
-        msg: "{{ inventory_hostname }}: {{ host_vms | map(attribute='key') | list }}"
 
     # ── Step 1: Confirm VMs are running ────────────────────────────────────────
     - name: Check VM status
@@ -59,22 +75,38 @@
       loop_control:
         label: "{{ item.item.key }}"
 
-    # ── Step 2: Wait for guest agent, then get current IP ──────────────────────
+    # ── Step 2: Wait for guest agent ───────────────────────────────────────────
+    # In Proxmox 9.x the ping command is: qm agent <vmid> ping
+    # Retries for 3 minutes to allow apt-get upgrade to complete first.
     - name: Wait for QEMU guest agent on each VM
       ansible.builtin.command: qm agent {{ item.value.vmid }} ping
       register: agent_ping
       until: agent_ping.rc == 0
-      retries: 24       # 2 minutes total (24 x 5s)
+      retries: 36       # 3 minutes total (36 x 5s)
       delay: 5
       loop: "{{ host_vms }}"
       loop_control:
         label: "{{ item.key }} ({{ item.value.vmid }})"
       ignore_errors: true
+      changed_when: false
 
+    # ── Step 3: Get current IP via guest exec ──────────────────────────────────
+    # In Proxmox 9.x: qm guest exec (not qm exec)
+    # --synchronize 1 blocks until command finishes and returns stdout
     - name: Get current IPv4 address via guest agent
-      ansible.builtin.command: >
-        qm exec {{ item.value.vmid }} -- bash -c
-        "ip -4 addr show eth0 | grep -oP '(?<=inet )[\d.]+' || echo NONE"
+      ansible.builtin.command:
+        argv:
+          - qm
+          - guest
+          - exec
+          - "{{ item.value.vmid }}"
+          - --synchronize
+          - "1"
+          - --timeout
+          - "30"
+          - bash
+          - -c
+          - "ip -4 addr show eth0 | grep -oP '(?<=inet )[\\d.]+' | head -1 || echo NONE"
       register: current_ips
       loop: "{{ host_vms }}"
       loop_control:
@@ -92,66 +124,91 @@
       loop_control:
         label: "{{ item.item.key }}"
 
-    # ── Step 3: Fix DHCP if IPv4 is missing or wrong ──────────────────────────
-    # Kill any running apt-get first so dhclient can run cleanly.
-    # Then release + renew DHCP on eth0.
-    - name: Release stale DHCP lease and request new one
-      ansible.builtin.command: >
-        qm exec {{ item.item.value.vmid }} -- bash -c
-        "systemctl restart systemd-networkd && sleep 3 &&
-         dhclient -1 eth0 2>&1 | tail -5 &&
-         ip -4 addr show eth0"
+    # ── Step 4: Fix DHCP if IPv4 is missing or wrong ──────────────────────────
+    - name: Restart networkd and renew DHCP lease
+      ansible.builtin.command:
+        argv:
+          - qm
+          - guest
+          - exec
+          - "{{ item.item.value.vmid }}"
+          - --synchronize
+          - "1"
+          - --timeout
+          - "60"
+          - bash
+          - -c
+          - "systemctl restart systemd-networkd && sleep 3 && ip -4 addr show eth0"
       loop: "{{ current_ips.results }}"
       loop_control:
         label: "{{ item.item.key }}"
       when: >-
         item.rc != 0
+        or (item.stdout | default('') | trim | length == 0)
         or (item.stdout | default('') | trim == 'NONE')
         or (item.stdout | default('') | trim != item.item.value.ip)
       register: dhcp_fix
       ignore_errors: true
-      changed_when: true
 
-    - name: Show DHCP fix results
+    - name: Show DHCP fix output
       ansible.builtin.debug:
         msg: "{{ item.item.item.key }}: {{ item.stdout | default(item.stderr) | default('n/a') | trim }}"
-      loop: "{{ dhcp_fix.results }}"
+      loop: "{{ dhcp_fix.results | default([]) }}"
       loop_control:
-        label: "{{ item.item.item.key }}"
+        label: "{{ item.item.item.key | default('unknown') }}"
       when: item is not skipped
 
-    # ── Step 4: Check SSH service ──────────────────────────────────────────────
-    - name: Check SSH service state inside VMs
-      ansible.builtin.command: >
-        qm exec {{ item.value.vmid }} -- bash -c
-        "systemctl is-active ssh || systemctl is-active sshd || echo 'ssh-not-found'"
-      register: ssh_status
+    # ── Step 5: Check and restart SSH if needed ────────────────────────────────
+    - name: Check SSH service and restart if inactive
+      ansible.builtin.command:
+        argv:
+          - qm
+          - guest
+          - exec
+          - "{{ item.value.vmid }}"
+          - --synchronize
+          - "1"
+          - --timeout
+          - "30"
+          - bash
+          - -c
+          - >-
+            s=$(systemctl is-active ssh 2>/dev/null || systemctl is-active sshd 2>/dev/null || echo inactive);
+            echo "ssh=$s";
+            if [ "$s" != "active" ]; then
+              systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true;
+              echo "restarted";
+            fi
+      register: ssh_check
       loop: "{{ host_vms }}"
       loop_control:
         label: "{{ item.key }} ({{ item.value.vmid }})"
       ignore_errors: true
-      changed_when: false
+      changed_when: "'restarted' in (ssh_check.stdout | default(''))"
 
-    - name: Restart SSH if inactive
-      ansible.builtin.command: >
-        qm exec {{ item.item.value.vmid }} -- bash -c
-        "systemctl restart ssh || systemctl restart sshd"
-      loop: "{{ ssh_status.results }}"
+    - name: Show SSH status
+      ansible.builtin.debug:
+        msg: "{{ item.item.key }}: {{ item.stdout | default('guest exec failed') | trim }}"
+      loop: "{{ ssh_check.results }}"
       loop_control:
         label: "{{ item.item.key }}"
-      when: >-
-        item.rc != 0
-        or 'inactive' in (item.stdout | default(''))
-        or 'failed' in (item.stdout | default(''))
-      ignore_errors: true
 
-    # ── Step 5: Verify final state ─────────────────────────────────────────────
-    - name: Get final IP and SSH state
-      ansible.builtin.command: >
-        qm exec {{ item.value.vmid }} -- bash -c
-        "echo IP=$(ip -4 addr show eth0 | grep -oP '(?<=inet )[\d./]+' || echo NONE);
-         echo SSH=$(systemctl is-active ssh 2>/dev/null || systemctl is-active sshd 2>/dev/null || echo unknown)"
-      register: final_state
+    # ── Step 6: Final IP summary ───────────────────────────────────────────────
+    - name: Get final IP addresses
+      ansible.builtin.command:
+        argv:
+          - qm
+          - guest
+          - exec
+          - "{{ item.value.vmid }}"
+          - --synchronize
+          - "1"
+          - --timeout
+          - "20"
+          - bash
+          - -c
+          - "ip -4 addr show eth0 | grep -oP '(?<=inet )[\\d.]+' | head -1 || echo NONE"
+      register: final_ips
       loop: "{{ host_vms }}"
       loop_control:
         label: "{{ item.key }} ({{ item.value.vmid }})"
@@ -160,7 +217,11 @@
 
     - name: Final VM state summary
       ansible.builtin.debug:
-        msg: "{{ item.item.key }}: {{ item.stdout | default('guest agent unreachable') | trim }}"
-      loop: "{{ final_state.results }}"
+        msg: >-
+          {{ item.item.key }} (vmid {{ item.item.value.vmid }}):
+          IP={{ item.stdout | default('?') | trim }}
+          expected={{ item.item.value.ip }}
+          {{ 'OK' if (item.stdout | default('') | trim == item.item.value.ip) else 'MISMATCH' }}
+      loop: "{{ final_ips.results }}"
       loop_control:
         label: "{{ item.item.key }}"

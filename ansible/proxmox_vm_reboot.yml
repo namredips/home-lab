@@ -1,0 +1,59 @@
+---
+# Gracefully reboot all agent VMs via Proxmox.
+# Run AFTER adding UDM static DHCP reservations so VMs come back with
+# the correct IPs.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml proxmox_vm_reboot.yml \
+#     --vault-password-file ~/.vault_pass.txt
+
+- name: Reboot agent VMs and wait for SSH
+  hosts: proxmox_hosts
+  gather_facts: false
+
+  tasks:
+    - name: Build list of VMs for this host
+      ansible.builtin.set_fact:
+        host_agents: >-
+          {{
+            agents | dict2items
+            | selectattr('value.host', 'equalto', inventory_hostname)
+            | list
+          }}
+
+    - name: Reboot VM {{ item.key }} (vmid {{ item.value.vmid }})
+      ansible.builtin.command: qm reboot {{ item.value.vmid }}
+      loop: "{{ host_agents }}"
+      loop_control:
+        label: "{{ item.key }} ({{ item.value.vmid }})"
+      ignore_errors: true
+
+    # Wait for all VMs on this host to come up
+    - name: Wait for SSH on {{ item.key }} ({{ item.value.ip }})
+      ansible.builtin.wait_for:
+        host: "{{ item.value.ip }}"
+        port: 22
+        delay: 30
+        timeout: 300
+        state: started
+      loop: "{{ host_agents }}"
+      loop_control:
+        label: "{{ item.key }} ({{ item.value.ip }})"
+      delegate_to: localhost
+      become: false
+      ignore_errors: true
+
+    - name: Show VM status after reboot
+      ansible.builtin.command: qm status {{ item.value.vmid }}
+      register: post_status
+      loop: "{{ host_agents }}"
+      loop_control:
+        label: "{{ item.key }}"
+      changed_when: false
+
+    - name: Display post-reboot status
+      ansible.builtin.debug:
+        msg: "{{ item.item.key }} ({{ item.item.value.vmid }}): {{ item.stdout }}"
+      loop: "{{ post_status.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
