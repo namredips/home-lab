@@ -1,16 +1,27 @@
 ---
+# Use shell + throttle to avoid race when all hosts delegate to localhost simultaneously
 - name: Remove stale SSH known_hosts entry for this host
-  ansible.builtin.known_hosts:
-    name: "{{ ansible_host }}"
-    state: absent
+  ansible.builtin.shell: |
+    ssh-keygen -R {{ ansible_host }} -f ~/.ssh/known_hosts 2>/dev/null || true
+  args:
+    executable: /bin/bash
   delegate_to: localhost
   become: false
+  throttle: 1
+  changed_when: false
 
+# DEB822 format uses "Enabled: no" — commenting out the Types line breaks parsing
 - name: Disable Proxmox enterprise subscription repo
-  ansible.builtin.replace:
-    path: /etc/apt/sources.list.d/pve-enterprise.sources
-    regexp: '^(Types: deb)'
-    replace: '# \1'
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/pve-enterprise.sources
+    content: |
+      # Enterprise repo disabled — no subscription
+      Enabled: no
+      Types: deb
+      URIs: https://enterprise.proxmox.com/debian/pve
+      Suites: trixie
+      Components: pve-enterprise
+    mode: '0644'
   ignore_errors: true
 
 - name: Add Proxmox no-subscription repo (DEB822 format)
@@ -24,11 +35,25 @@
       Signed-By: /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg
     mode: '0644'
 
-- name: Disable Ceph enterprise repo if it exists
-  ansible.builtin.replace:
-    path: /etc/apt/sources.list.d/ceph.list
-    regexp: '^(deb)'
-    replace: '# \1'
+- name: Disable Ceph enterprise repo (.list format)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/ceph.list
+    content: "# Ceph enterprise repo disabled\n"
+    mode: '0644'
+  ignore_errors: true
+
+- name: Disable Ceph enterprise repo (DEB822 format)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/ceph.sources
+    content: |
+      # Ceph enterprise repo disabled
+      Enabled: no
+      Types: deb
+      URIs: https://enterprise.proxmox.com/debian/ceph-squid
+      Suites: trixie
+      Components: enterprise
+      Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+    mode: '0644'
   ignore_errors: true
 
 - name: Run apt update and dist-upgrade

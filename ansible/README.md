@@ -2,51 +2,70 @@
 
 **"Mount Olympus" Agent Cluster**
 
-AI-powered virtual employees for software development using OpenClaw, deployed across 5 Dell servers.
+AI-powered virtual employees for software development using OpenClaw, deployed across 4 Dell servers running Proxmox VE.
 
 ## Overview
 
-This infrastructure deploys 8 OpenClaw AI agents that function as virtual software development team members. All agents are full-stack generalists who can wear different "hats" (security, QA, DevOps, etc.) depending on the review context.
+This infrastructure deploys 8 OpenClaw AI agents as Ubuntu 24.04 VMs on a Proxmox VE 9.1.1 cluster. Each agent is a full-stack generalist that can take on different specializations (security, QA, DevOps, etc.) depending on the task.
 
 ### Team Composition
 
-| Agent | Role | Trait | IP | Email |
-|-------|------|-------|-----|-------|
-| **Athena** | PM, Orchestration | Wisdom & strategy | 10.220.1.50 | athena@infiquetra.com |
-| **Apollo** | Development | Light, truth, reason | 10.220.1.51 | apollo@infiquetra.com |
-| **Artemis** | Development | Precision, focus | 10.220.1.52 | artemis@infiquetra.com |
-| **Hermes** | Development | Speed, communication | 10.220.1.53 | hermes@infiquetra.com |
-| **Perseus** | Development | Heroic problem-solver | 10.220.1.54 | perseus@infiquetra.com |
-| **Prometheus** | Development | Innovation, foresight | 10.220.1.55 | prometheus@infiquetra.com |
-| **Ares** | Development | Strength, determination | 10.220.1.56 | ares@infiquetra.com |
-| **Poseidon** | Development | Depth, persistence | 10.220.1.57 | poseidon@infiquetra.com |
+| VMID | Agent | Role | Trait | IP | Host |
+|------|-------|------|-------|-----|------|
+| 100 | **Zeus** | PM, Orchestration | Leadership & authority | 10.220.1.50 | r820 |
+| 101 | **Athena** | Senior Developer (Architecture) | Wisdom & strategy | 10.220.1.51 | r820 |
+| 102 | **Apollo** | Developer (Code Quality) | Light, truth, reason | 10.220.1.52 | r820 |
+| 103 | **Artemis** | Developer (Testing & Precision) | Precision, focus | 10.220.1.53 | r420 |
+| 104 | **Hermes** | Developer (Integrations) | Speed, communication | 10.220.1.54 | r420 |
+| 105 | **Perseus** | Developer (Complex Problems) | Heroic problem-solver | 10.220.1.55 | r720xd |
+| 106 | **Prometheus** | Developer (Innovation) | Innovation, foresight | 10.220.1.56 | r720xd |
+| 107 | **Ares** | Developer (Performance) | Strength, determination | 10.220.1.57 | r8202 |
 
 ## Architecture
 
 ### Physical Infrastructure
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Mount Olympus Cluster                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  r420 (10.220.1.7)      → Athena (Orchestrator)                 │
-│  r710 (10.220.1.9)      → Apollo, Artemis                       │
-│  r8202 (10.220.1.8)     → Hermes                                │
-│  r720xd (10.220.1.10)   → Perseus + Mattermost                  │
-│  r820 (10.220.1.11)     → Prometheus, Ares, Poseidon            │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                    Proxmox VE Cluster "olympus"                       │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  r420  (10.220.1.7)   Proxmox master │ Artemis(103) Hermes(104)      │
+│  r8202 (10.220.1.8)   Proxmox node   │ Ares(107)                     │
+│  r720xd(10.220.1.10)  Proxmox node   │ Perseus(105) Prometheus(106)  │
+│  r820  (10.220.1.11)  Proxmox node   │ Zeus(100) Athena(101)         │
+│                                       │ Apollo(102)                   │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
+         │
+         │ 10.220.1.0/24 (UniFi UDM, static DHCP reservations)
+         │
+┌────────▼─────────────────────────────────────────────────────────────┐
+│            Agent VMs (Ubuntu 24.04, 4 vCPU, 16GB RAM, 250GB)        │
+│                                                                       │
+│  zeus.infiquetra.com     10.220.1.50                                  │
+│  athena.infiquetra.com   10.220.1.51                                  │
+│  ...                                                                  │
+└──────────────────────────────────────────────────────────────────────┘
 ```
+
+### Storage Layout
+
+| Host | Pool | Type | Devices | Content |
+|------|------|------|---------|---------|
+| all | `nvme-fast` | ZFS single | nvme0n1 | images, rootdir |
+| r420 | `sas-data` | ZFS raidz1 | sdb,sdc,sdd | backup, iso |
+| r720xd | `sas-data` | ZFS raidz2 ×2 | 11 SAS drives | backup, iso, images |
+| r820 | `sas-data` | ZFS raidz2 | sdb–sdi | backup, iso |
 
 ### Technology Stack
 
-**Infrastructure**:
-- KVM/libvirt hypervisors
-- Ubuntu 22.04 VMs (8 agents)
-- Mattermost (self-hosted team communication)
+**Hypervisor layer**:
+- Proxmox VE 9.1.1 on Debian Trixie
+- 4-node cluster (`pvecm`/corosync) named `olympus`
+- VM template: Ubuntu 24.04 cloud image (VM 9000)
 
-**Development Environment** (per agent):
+**Development Environment** (per agent VM):
 - Python 3.12, Node.js 22, Dart/Flutter, Rust, Go, C/C++
 - Docker, AWS CLI, AWS CDK
 - Neovim (custom config), tmux, Starship prompt
@@ -55,12 +74,11 @@ This infrastructure deploys 8 OpenClaw AI agents that function as virtual softwa
 **AI Orchestration**:
 - OpenClaw (autonomous agent framework)
 - Anthropic Claude (primary LLM)
-- OpenAI GPT/Codex (secondary)
-- Google Gemini (tertiary)
+- Ollama (local LLM inference)
 
-**Collaboration Tools**:
+**Collaboration**:
 - GitHub (code, issues, PRs)
-- Mattermost (team communication)
+- Discord (team communication)
 - Git (shared repositories)
 
 ## Quick Start
@@ -68,252 +86,216 @@ This infrastructure deploys 8 OpenClaw AI agents that function as virtual softwa
 ### Prerequisites
 
 ```bash
-# Install dependencies
+cd ansible
+
+# Install Python dependencies
 uv sync
 
-# Navigate to ansible directory
-cd ~/workspace/temp/home-lab/ansible
+# Install Ansible collections
+ansible-galaxy collection install -r requirements.yml
 
-# Test connectivity
-uv run ansible all -i inventory/hosts.yml -m ping
+# Ensure vault password file exists
+echo "your-vault-password" > ~/.vault_pass.txt
+chmod 600 ~/.vault_pass.txt
 ```
 
-### Deploy Infrastructure
+### Deploy Proxmox Cluster
 
 ```bash
-# Create vault password file
-echo "your-vault-password" > .vault_pass
-chmod 600 .vault_pass
+cd ansible
 
-# Create and edit vault for secrets
-ansible-vault create passwd.yml --vault-password-file .vault_pass
+# Full pipeline (base → cluster → storage → template → VMs)
+ansible-playbook -i inventory/hosts.yml proxmox_cluster.yml \
+  --vault-password-file ~/.vault_pass.txt
 
-# Deploy entire infrastructure
-ansible-playbook openclaw_cluster.yml --vault-password-file .vault_pass
-
-# Estimated time: 90-120 minutes
+# Single phase by tag
+ansible-playbook -i inventory/hosts.yml proxmox_cluster.yml \
+  --tags proxmox_storage --vault-password-file ~/.vault_pass.txt
 ```
 
-### Teardown Infrastructure
+### Deploy Agent Stack (after VMs are running)
 
 ```bash
-# Remove all VMs and services
-ansible-playbook openclaw_cluster_reset.yml --vault-password-file .vault_pass
+ansible-playbook -i inventory/hosts.yml openclaw_cluster.yml \
+  --vault-password-file ~/.vault_pass.txt
+```
 
-# Optional: Also remove libvirt
-ansible-playbook openclaw_cluster_reset.yml \
-  -e remove_libvirt=true \
-  --vault-password-file .vault_pass
+### Verify Cluster Health
+
+```bash
+ansible-playbook -i inventory/hosts.yml proxmox_verify.yml \
+  --vault-password-file ~/.vault_pass.txt
+
+# Individual checks
+ansible-playbook proxmox_verify.yml --tags verify_cluster
+ansible-playbook proxmox_verify.yml --tags verify_storage
+ansible-playbook proxmox_verify.yml --tags verify_vms
+ansible-playbook proxmox_verify.yml --tags verify_ssh
+```
+
+### Teardown
+
+```bash
+ansible-playbook -i inventory/hosts.yml proxmox_cluster_reset.yml \
+  -e reset=true --vault-password-file ~/.vault_pass.txt
 ```
 
 ## Ansible Roles
 
-| Role | Purpose | Files Created |
-|------|---------|---------------|
-| **host_prepare** | OS updates, disk provisioning | - |
-| **libvirt** | KVM/libvirt hypervisor setup | Networks, storage pools |
-| **mattermost** | Team communication platform | Docker containers, database |
-| **agent_vm** | VM provisioning | 8 Ubuntu VMs with cloud-init |
-| **agent_provision** | Development environment | Languages, tools, configs |
-| **openclaw** | OpenClaw agent installation | Service, config, API keys |
+### Proxmox Infrastructure Roles
+
+| Role | Purpose |
+|------|---------|
+| `proxmox_base` | Repo config, dist-upgrade, API user/token creation |
+| `proxmox_cluster` | Form 4-node cluster via pvecm |
+| `proxmox_storage` | ZFS pool creation + pvesm registration |
+| `proxmox_template` | Ubuntu 24.04 cloud image → VM template (ID 9000) |
+| `proxmox_vm` | Clone template, configure agents, start VMs |
+
+### Agent Stack Roles (target: `agent_vms`)
+
+| Role | Purpose |
+|------|---------|
+| `agent_provision` | Dev tools, SSH keys, GitHub setup |
+| `agent_desktop` | Neovim, tmux, shell config, Starship |
+| `ollama` | Local LLM inference |
+| `openclaw` | OpenClaw agent + systemd service |
+
+### Archived Roles (kept for reference)
+
+| Role | Reason archived |
+|------|----------------|
+| `host_prepare` | Replaced by `proxmox_base` |
+| `libvirt` | Proxmox has built-in KVM |
+| `agent_vm` | Replaced by `proxmox_vm` |
+| `zfs_disk_pools` | Absorbed into `proxmox_storage` |
+| All K8s roles | MicroK8s cluster replaced by Proxmox |
 
 ## Deployment Phases
 
-1. **Host Preparation** (15-30 min)
-   - Update all servers
-   - Provision storage for VMs
+1. **Proxmox base** (~10 min)
+   - Configure apt repos (no-subscription), dist-upgrade
+   - Create `ansible@pam` API user and token
 
-2. **Infrastructure Setup** (10-15 min)
-   - Install libvirt/KVM on hypervisors
-   - Deploy Mattermost on r720xd
+2. **Cluster formation** (~5 min)
+   - Master creates cluster `olympus`
+   - 3 nodes join one at a time (serial)
 
-3. **VM Provisioning** (20-30 min)
-   - Create 8 Ubuntu 22.04 VMs
-   - Distribute across hypervisors
+3. **ZFS storage** (~5 min)
+   - Create pools from host_vars definitions
+   - Register with Proxmox storage manager
 
-4. **Agent Environment** (45-60 min)
-   - Install development tools
-   - Configure neovim, shell, AI CLIs
+4. **VM template** (~10 min)
+   - Download Ubuntu 24.04 cloud image (~600MB)
+   - Create and convert VM 9000 to template
 
-5. **OpenClaw Setup** (10-15 min)
-   - Install OpenClaw
-   - Configure systemd services
+5. **Agent VMs** (~15 min)
+   - Clone template on each host for assigned agents
+   - Configure resources, cloud-init, start
+   - Wait for SSH on each VM
 
-6. **Manual Configuration** (30-60 min)
-   - Authenticate AI tools
-   - Create Mattermost accounts
-   - Setup GitHub accounts
+6. **Agent software stack** (~60 min)
+   - Install dev tools, AI CLIs, OpenClaw
 
-**Total deployment time**: 2.5-3.5 hours
+7. **Manual steps** (~30 min)
+   - Authenticate AI tools on each VM
+   - Configure GitHub SSH keys
+   - Configure Discord bot tokens
+
+**Total**: ~2-2.5 hours
 
 ## Post-Deployment
 
 ### Manual Steps Required
 
-1. **Google Workspace**: Configure catch-all email routing
-   - See: `docs/GOOGLE_WORKSPACE_SETUP.md`
+1. **API Token**: After `proxmox_base` run, the token secret is printed — add it to vault as `proxmox_api_token_secret`
 
-2. **Mattermost**: Create agent accounts
-   - http://10.220.1.10:8065
-   - Create account for each agent
-   - Generate bot tokens
-
-3. **GitHub**: Create agent accounts
-   - Setup SSH keys on each VM
-   - Create organization: `infiquetra-agents`
-
-4. **AI Tools**: Authenticate on each VM
+2. **AI Tools**: Authenticate on each VM
    ```bash
    ssh agent@<agent-ip>
-   claude-code auth
+   claude --login
    # Edit ~/.openclaw/.env for OpenAI/Google keys
    ```
 
-5. **Start Services**: Enable OpenClaw agents
+3. **GitHub**: Add SSH keys per agent
    ```bash
-   ansible agent_vms -i inventory/hosts.yml \
-     -m systemd \
-     -a "name=openclaw-{{ inventory_hostname_short }} state=started" \
-     -u agent --become
+   ansible-playbook -i inventory/hosts.yml github_auth_agents.yml \
+     --vault-password-file ~/.vault_pass.txt
    ```
+
+4. **DHCP reservations**: Ensure each VM's MAC has a static reservation on UDM (10.220.1.1)
+   - MACs defined in `roles/proxmox_vm/defaults/main.yml`
 
 ### Verification
 
 ```bash
-# Check all VMs are accessible
-ansible agent_vms -i inventory/hosts.yml -m ping -u agent
+# All agent VMs reachable
+ansible agent_vms -i inventory/hosts.yml -m ping
 
-# Check OpenClaw services
+# OpenClaw services running
 ansible agent_vms -i inventory/hosts.yml \
   -a "systemctl status openclaw-{{ inventory_hostname_short }}" \
   -u agent --become
 
-# Access Mattermost
-curl http://10.220.1.10:8065/api/v4/system/ping
-
-# View agent dashboards
-open http://10.220.1.50:18789  # Athena
-open http://10.220.1.51:18789  # Apollo
-# (etc for all agents)
+# Proxmox cluster
+ssh root@10.220.1.7 pvecm status
 ```
 
-## Workflow
+## Troubleshooting
 
+```bash
+# VM not starting
+ssh root@<proxmox-host> "qm list && qm status <vmid>"
+
+# SSH access fails
+ping <agent-ip>
+ssh root@<proxmox-host> "qm agent <vmid> ping"
+
+# ZFS pool degraded
+ssh root@<proxmox-host> "zpool status"
+
+# OpenClaw service fails
+ssh agent@<agent-ip> "systemctl status openclaw-<agent-name>"
+
+# Cluster quorum lost
+ssh root@10.220.1.7 "pvecm status"
 ```
-Human + Athena ──(Mattermost)──► GitHub Issues
-                                       │
-                                       ▼
-              Dev Agents ◄──(assigned)── Issue Queue
-                    │
-                    ▼
-              Shared Git Repos (PRs)
-                    │
-                    ▼
-              Human Approval ──► Deploy to AWS
-```
-
-**Key principles**:
-- Agents are full-stack generalists
-- Reviews use situational "hats" (security, QA, performance, etc.)
-- Human collaborates with Athena to define work
-- Developers work autonomously or via assignment
-- Deployment requires human approval gates
-
-## Documentation
-
-- **[Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md)**: Step-by-step deployment guide
-- **[Google Workspace Setup](docs/GOOGLE_WORKSPACE_SETUP.md)**: Email configuration
-- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)**: Common issues and solutions
-- **[Architecture Overview](docs/ARCHITECTURE.md)**: System design and decisions
 
 ## Project Structure
 
 ```
 ansible/
 ├── roles/
-│   ├── host_prepare/       # Host OS preparation
-│   ├── libvirt/            # KVM/libvirt setup
-│   ├── mattermost/         # Team communication
-│   ├── agent_vm/           # VM provisioning
-│   ├── agent_provision/    # Development environment
-│   └── openclaw/           # OpenClaw installation
+│   ├── proxmox_base/       # Proxmox repo, API user setup
+│   ├── proxmox_cluster/    # pvecm cluster formation
+│   ├── proxmox_storage/    # ZFS + pvesm registration
+│   ├── proxmox_template/   # Ubuntu 24.04 VM template
+│   ├── proxmox_vm/         # Agent VM provisioning
+│   ├── agent_provision/    # Dev environment
+│   ├── agent_desktop/      # Neovim, tmux, shell
+│   ├── ollama/             # Local LLM
+│   └── openclaw/           # OpenClaw agent
 ├── inventory/
-│   └── hosts.yml           # Server and VM inventory
-├── openclaw_cluster.yml    # Main deployment playbook
-├── openclaw_cluster_reset.yml  # Teardown playbook
-└── passwd.yml              # Encrypted secrets (vault)
+│   ├── hosts.yml           # Cluster + VM inventory
+│   ├── host_vars/          # Per-server ZFS pool config
+│   └── group_vars/all/     # Encrypted secrets (vault)
+├── proxmox_cluster.yml     # Main Proxmox setup playbook
+├── proxmox_cluster_reset.yml  # Teardown playbook
+├── proxmox_verify.yml      # Health check playbook
+├── openclaw_cluster.yml    # Agent stack playbook
+└── requirements.yml        # Ansible collection deps
 ```
 
 ## Resource Allocation
 
-| Server | CPU | RAM | Disk | VMs | RAM Used |
-|--------|-----|-----|------|-----|----------|
-| r420 | Lower | ~32GB | 836GB | 1 | 8GB |
-| r710 | Medium | ~64GB | 852GB | 2 | 32GB |
-| r8202 | Medium | ~64GB | 851GB | 1 | 16GB |
-| r720xd | Medium | ~128GB | 852GB | 1 + Services | 16GB |
-| r820 | High | ~128GB | 851GB | 3 | 48GB |
+| Server | RAM | vCPU | VMs | RAM Committed |
+|--------|-----|------|-----|---------------|
+| r420 | 70G | 24 | 2 (Artemis, Hermes) | 32G |
+| r8202 | 51G | 32 | 1 (Ares) | 16G |
+| r720xd | 94G | 24 | 2 (Perseus, Prometheus) | 32G |
+| r820 | 377G | 64 | 3 (Zeus, Athena, Apollo) | 48G |
 
-**Total**: 8 VMs, 120GB RAM allocated, 2TB disk
-
-## Cost Analysis
-
-**Hardware**: Existing (no additional cost)
-
-**Software**:
-- Mattermost: Free (self-hosted)
-- GitHub: Free (public repos) or existing subscription
-- LLM APIs:
-  - Anthropic Claude: Existing subscription (jefcox)
-  - OpenAI GPT: Existing subscription (jefcox)
-  - Google Gemini: Existing subscription (jefcox)
-- Google Workspace: $0 (catch-all routing, no additional users)
-
-**Total monthly cost**: $0 (using existing subscriptions)
-
-**Savings vs. alternatives**:
-- 8 human developers @ $100k/year = $800k/year
-- 8 Google Workspace users = $576/year
-- Cloud VMs (8× 16GB) = ~$1,200/month
-
-## Future Enhancements
-
-1. **Local LLM inference**: Add Ollama on dedicated hardware
-2. **Expanded team**: Add more specialized agents (QA, DevOps, etc.)
-3. **Monitoring**: Prometheus/Grafana for agent metrics
-4. **CI/CD integration**: GitHub Actions with approval gates
-5. **Email automation**: IMAP/SMTP for programmatic email access
-
-## Security Considerations
-
-- All agent emails route to jeff@infiquetra.com (catch-all)
-- API keys stored in Ansible vault (encrypted)
-- SSH key authentication for VM access
-- Deployment gates require human approval
-- Sensitive data isolated per agent VM
-
-## Troubleshooting
-
-See [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for common issues.
-
-Quick checks:
-```bash
-# VM not starting
-ssh jefcox@<hypervisor> "virsh list --all"
-
-# SSH access fails
-ping <agent-ip>
-
-# Mattermost down
-curl http://10.220.1.10:8065/api/v4/system/ping
-
-# OpenClaw service fails
-ssh agent@<agent-ip> "systemctl status openclaw-<agent>"
-```
-
-## License
-
-Internal use only - Infiquetra infrastructure.
+**Total**: 8 VMs, 128GB RAM committed, 2TB disk (8× 250GB)
 
 ## Maintainer
 
@@ -321,4 +303,4 @@ Internal use only - Infiquetra infrastructure.
 
 ---
 
-**Last Updated**: 2026-01-30
+**Last Updated**: 2026-02-28

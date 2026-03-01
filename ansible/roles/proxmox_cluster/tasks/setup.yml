@@ -1,5 +1,5 @@
 ---
-# Run on master: create cluster if it doesn't already exist
+# ─── Master: create cluster ───────────────────────────────────────────────────
 - name: Check if already in a cluster (master)
   ansible.builtin.command: pvecm status
   register: pvecm_status
@@ -14,7 +14,7 @@
     - "'Cluster information' not in pvecm_status.stdout"
     - pvecm_status.rc != 0
 
-# Run on nodes: join cluster one at a time
+# ─── Nodes: pre-authorize root SSH key on master so ssh-copy-id works ─────────
 - name: Check if node is already in cluster
   ansible.builtin.command: pvecm status
   register: node_cluster_status
@@ -22,7 +22,34 @@
   failed_when: false
   when: inventory_hostname in groups['proxmox_nodes']
 
-- name: Accept master SSH host key
+- name: Generate root SSH key on node if missing
+  ansible.builtin.command: ssh-keygen -t rsa -b 4096 -N "" -f /root/.ssh/id_rsa
+  args:
+    creates: /root/.ssh/id_rsa
+  when:
+    - inventory_hostname in groups['proxmox_nodes']
+    - node_cluster_status.rc != 0
+
+- name: Fetch node root public key
+  ansible.builtin.slurp:
+    src: /root/.ssh/id_rsa.pub
+  register: node_pubkey
+  when:
+    - inventory_hostname in groups['proxmox_nodes']
+    - node_cluster_status.rc != 0
+
+# Authorize this node's key on the master so pvecm's ssh-copy-id works without a password
+- name: Authorize node root key on master
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ node_pubkey.content | b64decode }}"
+    state: present
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  when:
+    - inventory_hostname in groups['proxmox_nodes']
+    - node_cluster_status.rc != 0
+
+- name: Accept master SSH host key (node → master)
   ansible.builtin.shell: |
     ssh-keyscan -H {{ proxmox_master_ip }} >> /root/.ssh/known_hosts
   args:

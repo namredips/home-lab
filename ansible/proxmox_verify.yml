@@ -1,0 +1,237 @@
+---
+# Proxmox VE cluster verification playbook
+# Runs read-only checks — safe to run at any time.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml proxmox_verify.yml
+#
+# Single check:
+#   ansible-playbook -i inventory/hosts.yml proxmox_verify.yml --tags verify_cluster
+
+# ─── 1. Cluster health ───────────────────────────────────────────────────────
+- name: Verify Proxmox cluster
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: verify_cluster
+  tasks:
+    - name: Check Proxmox version
+      ansible.builtin.command: pveversion
+      register: pve_ver
+      changed_when: false
+
+    - name: Check cluster status
+      ansible.builtin.command: pvecm status
+      register: pvecm_out
+      changed_when: false
+      failed_when: "'Cluster information' not in pvecm_out.stdout"
+
+    - name: Check all cluster nodes are online
+      ansible.builtin.command: pvecm nodes
+      register: pvecm_nodes
+      changed_when: false
+
+    - name: Display cluster status
+      ansible.builtin.debug:
+        msg:
+          - "Host: {{ inventory_hostname }}"
+          - "Version: {{ pve_ver.stdout }}"
+          - "{{ pvecm_nodes.stdout_lines }}"
+
+# ─── 2. Storage health ───────────────────────────────────────────────────────
+- name: Verify storage pools
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: verify_storage
+  tasks:
+    - name: Check ZFS pool status
+      ansible.builtin.command: zpool status -x
+      register: zpool_status
+      changed_when: false
+
+    - name: Check ZFS pool list
+      ansible.builtin.command: zpool list
+      register: zpool_list
+      changed_when: false
+
+    - name: Check Proxmox storage registration
+      ansible.builtin.command: pvesm status
+      register: pvesm_status
+      changed_when: false
+
+    - name: Assert all expected pools exist
+      ansible.builtin.assert:
+        that:
+          - "'nvme-fast' in pvesm_status.stdout"
+        fail_msg: "nvme-fast pool not registered in Proxmox on {{ inventory_hostname }}"
+        success_msg: "nvme-fast OK on {{ inventory_hostname }}"
+
+    - name: Assert sas-data exists where expected
+      ansible.builtin.assert:
+        that:
+          - "'sas-data' in pvesm_status.stdout"
+        fail_msg: "sas-data pool not registered on {{ inventory_hostname }}"
+        success_msg: "sas-data OK on {{ inventory_hostname }}"
+      when: inventory_hostname != 'r8202.infiquetra.com'
+
+    - name: Display storage summary
+      ansible.builtin.debug:
+        msg:
+          - "Host: {{ inventory_hostname }}"
+          - "ZFS pools: {{ zpool_list.stdout_lines }}"
+          - "ZFS health: {{ zpool_status.stdout }}"
+          - "Proxmox storage:"
+          - "{{ pvesm_status.stdout_lines }}"
+
+# ─── 3. Template VM ──────────────────────────────────────────────────────────
+- name: Verify VM template
+  hosts: proxmox_master
+  gather_facts: false
+  tags: verify_template
+  tasks:
+    - name: Check template VM 9000 exists
+      ansible.builtin.command: qm status 9000
+      register: template_status
+      changed_when: false
+      failed_when: template_status.rc != 0
+
+    - name: Confirm VM 9000 is a template
+      ansible.builtin.command: qm config 9000
+      register: template_config
+      changed_when: false
+
+    - name: Assert template flag is set
+      ansible.builtin.assert:
+        that:
+          - "'template: 1' in template_config.stdout"
+        fail_msg: "VM 9000 exists but is not marked as a template"
+        success_msg: "Template 9000 OK"
+
+    - name: Display template config
+      ansible.builtin.debug:
+        msg: "{{ template_config.stdout_lines }}"
+
+# ─── 4. Agent VMs ────────────────────────────────────────────────────────────
+- name: Verify agent VMs on each host
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: verify_vms
+  tasks:
+    - name: List all VMs on this host
+      ansible.builtin.command: qm list
+      register: vm_list
+      changed_when: false
+
+    - name: Display VMs
+      ansible.builtin.debug:
+        msg:
+          - "VMs on {{ inventory_hostname }}:"
+          - "{{ vm_list.stdout_lines }}"
+
+    - name: Build expected VM list for this host
+      ansible.builtin.set_fact:
+        expected_vmids: >-
+          {{
+            agents | dict2items
+            | selectattr('value.host', 'equalto', inventory_hostname)
+            | map(attribute='value.vmid')
+            | map('string')
+            | list
+          }}
+
+    - name: Check each expected VM is running
+      ansible.builtin.command: qm status {{ item }}
+      register: vm_statuses
+      changed_when: false
+      loop: "{{ expected_vmids }}"
+      loop_control:
+        label: "vmid {{ item }}"
+
+    - name: Assert VMs are running
+      ansible.builtin.assert:
+        that:
+          - "'running' in item.stdout"
+        fail_msg: "VM {{ item.item }} is not running on {{ inventory_hostname }}"
+        success_msg: "VM {{ item.item }} running OK"
+      loop: "{{ vm_statuses.results }}"
+      loop_control:
+        label: "vmid {{ item.item }}"
+
+# ─── 5. SSH connectivity to agent VMs ────────────────────────────────────────
+- name: Verify SSH access to all agent VMs
+  hosts: agent_vms
+  gather_facts: false
+  tags: verify_ssh
+  tasks:
+    - name: Ping all agent VMs via SSH
+      ansible.builtin.ping:
+
+    - name: Check QEMU guest agent is running
+      ansible.builtin.command: systemctl is-active qemu-guest-agent
+      register: qga_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display agent VM status
+      ansible.builtin.debug:
+        msg:
+          - "{{ inventory_hostname }} ({{ ansible_host }}): reachable"
+          - "QEMU guest agent: {{ qga_status.stdout | default('not checked') }}"
+
+# ─── 6. Agent stack (openclaw) ───────────────────────────────────────────────
+- name: Verify agent software stack
+  hosts: agent_vms
+  gather_facts: false
+  tags: verify_agents
+  tasks:
+    - name: Check OpenClaw service status
+      ansible.builtin.command: >
+        systemctl is-active openclaw-{{ inventory_hostname_short }}
+      register: openclaw_status
+      changed_when: false
+      failed_when: false
+
+    - name: Check claude-code is installed
+      ansible.builtin.command: which claude
+      register: claude_installed
+      changed_when: false
+      failed_when: false
+
+    - name: Check ollama is running
+      ansible.builtin.command: systemctl is-active ollama
+      register: ollama_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display agent stack summary
+      ansible.builtin.debug:
+        msg:
+          - "Agent: {{ inventory_hostname }}"
+          - "OpenClaw: {{ openclaw_status.stdout }}"
+          - "Claude Code: {{ 'installed' if claude_installed.rc == 0 else 'not found' }}"
+          - "Ollama: {{ ollama_status.stdout }}"
+
+# ─── Summary ─────────────────────────────────────────────────────────────────
+- name: Print verification summary
+  hosts: localhost
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Verification complete
+      ansible.builtin.debug:
+        msg: |
+          ╔══════════════════════════════════════════╗
+          ║   Proxmox cluster verification done      ║
+          ║                                          ║
+          ║  Tags run: {{ ansible_run_tags | join(', ') }}
+          ║                                          ║
+          ║  To run all checks:                      ║
+          ║    ansible-playbook proxmox_verify.yml   ║
+          ║                                          ║
+          ║  To run specific checks:                 ║
+          ║    --tags verify_cluster                 ║
+          ║    --tags verify_storage                 ║
+          ║    --tags verify_template                ║
+          ║    --tags verify_vms                     ║
+          ║    --tags verify_ssh                     ║
+          ║    --tags verify_agents                  ║
+          ╚══════════════════════════════════════════╝

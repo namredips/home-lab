@@ -18,55 +18,54 @@ Technical architecture and design decisions for the OpenClaw virtual employee in
 ### High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          Physical Layer                                  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │   r420   │  │   r710   │  │  r8202   │  │  r720xd  │  │   r820   │  │
-│  │ 32GB RAM │  │ 64GB RAM │  │ 64GB RAM │  │ 128GB RAM│  │ 128GB RAM│  │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  │
-│       │             │             │             │             │         │
-└───────┼─────────────┼─────────────┼─────────────┼─────────────┼─────────┘
-        │             │             │             │             │
-┌───────▼─────────────▼─────────────▼─────────────▼─────────────▼─────────┐
-│                    Hypervisor Layer (KVM/libvirt)                        │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │ Athena   │  │ Apollo   │  │ Hermes   │  │ Perseus  │  │Prometheus│  │
-│  │ 8GB RAM  │  │ Artemis  │  │ 16GB RAM │  │ 16GB RAM │  │ Ares     │  │
-│  │          │  │ 32GB RAM │  │          │  │          │  │ Poseidon │  │
-│  │          │  │          │  │          │  │          │  │ 48GB RAM │  │
-│  └─────┬────┘  └─────┬────┘  └─────┬────┘  └─────┬────┘  └─────┬────┘  │
-└────────┼─────────────┼─────────────┼─────────────┼─────────────┼────────┘
-         │             │             │             │             │
-┌────────▼─────────────▼─────────────▼─────────────▼─────────────▼────────┐
-│                      Network Layer (10.220.1.0/24)                       │
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          Physical Layer                                   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐                │
+│  │   r420   │  │  r8202   │  │  r720xd  │  │   r820   │                │
+│  │  70G RAM │  │  51G RAM │  │  94G RAM │  │ 377G RAM │                │
+│  │  24 vCPU │  │  32 vCPU │  │  24 vCPU │  │  64 vCPU │                │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘                │
+└───────┼─────────────┼─────────────┼─────────────┼──────────────────────┘
+        │             │             │             │
+┌───────▼─────────────▼─────────────▼─────────────▼──────────────────────┐
+│               Hypervisor Layer — Proxmox VE 9.1.1 (Debian Trixie)       │
+│               Cluster "olympus" — 4-node corosync quorum                │
 │                                                                           │
-│  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │  Agent VMs: 10.220.1.50-57  │  Mattermost: 10.220.1.10:8065      │  │
-│  └───────────────────────────────────────────────────────────────────┘  │
+│  r420 (master)   r8202 (node)   r720xd (node)   r820 (node)             │
+│  ├─ Artemis(103) ├─ Ares(107)   ├─ Perseus(105)  ├─ Zeus(100)           │
+│  └─ Hermes(104)                 └─ Prometheus(106)├─ Athena(101)         │
+│                                                   └─ Apollo(102)         │
+│                                                                           │
+│  ZFS storage per host:                                                    │
+│  nvme-fast (VM disks) + sas-data (backup/bulk, where available)          │
 └───────────────────────────────────────────────────────────────────────────┘
-         │             │             │             │             │
-┌────────▼─────────────▼─────────────▼─────────────▼─────────────▼────────┐
-│                      Application Layer                                   │
+        │             │             │             │
+┌───────▼─────────────▼─────────────▼─────────────▼──────────────────────┐
+│                    Network Layer (10.220.1.0/24)                         │
+│                    Gateway/DNS: 10.220.1.1 (UniFi UDM)                  │
 │                                                                           │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                  │
-│  │  OpenClaw    │  │  Mattermost  │  │   GitHub     │                  │
-│  │  Agents      │  │  (Self-host) │  │  (External)  │                  │
-│  │              │  │              │  │              │                  │
-│  │  - Memory    │  │  - Postgres  │  │  - Repos     │                  │
-│  │  - Tasks     │  │  - Chat      │  │  - Issues    │                  │
-│  │  - Dashboard │  │  - Webhooks  │  │  - PRs       │                  │
-│  └──────────────┘  └──────────────┘  └──────────────┘                  │
-│                                                                           │
+│  Agent VMs: 10.220.1.50–57  (static DHCP via MAC reservations)          │
 └───────────────────────────────────────────────────────────────────────────┘
-         │             │             │
-┌────────▼─────────────▼─────────────▼────────────────────────────────────┐
-│                      External Services Layer                             │
+        │
+┌───────▼──────────────────────────────────────────────────────────────────┐
+│                        Application Layer                                  │
 │                                                                           │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                  │
-│  │  Anthropic   │  │   OpenAI     │  │   Google     │                  │
-│  │  Claude API  │  │   GPT API    │  │  Gemini API  │                  │
-│  └──────────────┘  └──────────────┘  └──────────────┘                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                   │
+│  │  OpenClaw    │  │    Ollama    │  │    GitHub    │                   │
+│  │  Agents      │  │  (local LLM) │  │  (external)  │                   │
+│  │  - Memory    │  │  - Llama 3   │  │  - Repos     │                   │
+│  │  - Tasks     │  │  - Mistral   │  │  - Issues    │                   │
+│  │  - Discord   │  │              │  │  - PRs       │                   │
+│  └──────────────┘  └──────────────┘  └──────────────┘                   │
+└───────────────────────────────────────────────────────────────────────────┘
+        │
+┌───────▼──────────────────────────────────────────────────────────────────┐
+│                       External Services Layer                             │
 │                                                                           │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                   │
+│  │  Anthropic   │  │   OpenAI     │  │   Google     │                   │
+│  │  Claude API  │  │   GPT API    │  │  Gemini API  │                   │
+│  └──────────────┘  └──────────────┘  └──────────────┘                   │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -74,193 +73,119 @@ Technical architecture and design decisions for the OpenClaw virtual employee in
 
 #### Physical Infrastructure
 
-| Server | Role | CPU | RAM | Storage | VMs Hosted |
-|--------|------|-----|-----|---------|------------|
-| **r420** | Light orchestration | Lower | 32GB | 836GB | Athena |
-| **r710** | Dev pool | Medium | 64GB | 852GB | Apollo, Artemis |
-| **r8202** | Dev pool | Medium | 64GB | 851GB | Hermes |
-| **r720xd** | Services + dev | Medium | 128GB | 852GB+ | Perseus, Mattermost |
-| **r820** | Heavy compute | High | 128GB | 851GB | Prometheus, Ares, Poseidon |
+| Server | Role | RAM | vCPU | NVMe | SAS | VMs Hosted |
+|--------|------|-----|------|------|-----|------------|
+| **r420** | Proxmox master | 70G | 24 | 931G | 3×931G (raidz1) | Artemis, Hermes |
+| **r8202** | Proxmox node | 51G | 32 | 931G | — | Ares |
+| **r720xd** | Proxmox node | 94G | 24 | 931G | 6×1.8T + 5×2.7T (raidz2×2) | Perseus, Prometheus |
+| **r820** | Proxmox node | 377G | 64 | 931G | 8×931G (raidz2) | Zeus, Athena, Apollo |
 
-**Total capacity**: 416GB RAM, 4.2TB storage across 5 servers
-
-**Utilization**: 120GB RAM (29%), 2TB storage (48%)
+**Total capacity**: 592G RAM, 64TB+ raw storage across 4 servers
 
 #### Virtual Machine Layer
 
-| VM | Host | vCPU | RAM | Disk | Role | IP |
-|----|------|------|-----|------|------|----|
-| Athena | r420 | 4 | 8GB | 250GB | PM, Orchestration | 10.220.1.50 |
-| Apollo | r710 | 4 | 16GB | 250GB | Development | 10.220.1.51 |
-| Artemis | r710 | 4 | 16GB | 250GB | Development | 10.220.1.52 |
-| Hermes | r8202 | 4 | 16GB | 250GB | Development | 10.220.1.53 |
-| Perseus | r720xd | 4 | 16GB | 250GB | Development | 10.220.1.54 |
-| Prometheus | r820 | 4 | 16GB | 250GB | Development | 10.220.1.55 |
-| Ares | r820 | 4 | 16GB | 250GB | Development | 10.220.1.56 |
-| Poseidon | r820 | 4 | 16GB | 250GB | Development | 10.220.1.57 |
+| VMID | Agent | Host | vCPU | RAM | Disk | Role | IP |
+|------|-------|------|------|-----|------|------|----|
+| 100 | Zeus | r820 | 4 | 16G | 250G | PM, Orchestration | 10.220.1.50 |
+| 101 | Athena | r820 | 4 | 16G | 250G | Senior Dev (Architecture) | 10.220.1.51 |
+| 102 | Apollo | r820 | 4 | 16G | 250G | Dev (Code Quality) | 10.220.1.52 |
+| 103 | Artemis | r420 | 4 | 16G | 250G | Dev (Testing) | 10.220.1.53 |
+| 104 | Hermes | r420 | 4 | 16G | 250G | Dev (Integrations) | 10.220.1.54 |
+| 105 | Perseus | r720xd | 4 | 16G | 250G | Dev (Complex Problems) | 10.220.1.55 |
+| 106 | Prometheus | r720xd | 4 | 16G | 250G | Dev (Innovation) | 10.220.1.56 |
+| 107 | Ares | r8202 | 4 | 16G | 250G | Dev (Performance) | 10.220.1.57 |
 
-**OS**: Ubuntu 22.04 LTS (cloud image)
-**Provisioning**: Cloud-init with static IPs
+**OS**: Ubuntu 24.04 LTS (cloud image, provisioned via Proxmox cloud-init)
 **Access**: SSH key authentication (agent user)
+**Template**: VM ID 9000 on r420 (clone source for all VMs)
 
-#### Application Services
+#### ZFS Storage Layout
 
-**Mattermost** (r720xd):
-- **Purpose**: Self-hosted team communication
-- **Components**:
-  - PostgreSQL 13 (database)
-  - Mattermost Team Edition 9.5 (app)
-- **Deployment**: Docker Compose
-- **Port**: 8065 (HTTP)
-- **Data**: `/opt/mattermost/data`
-
-**OpenClaw** (all VMs):
-- **Purpose**: AI agent orchestration
-- **Components**:
-  - Node.js 22 runtime
-  - OpenClaw CLI (npm global package)
-  - Systemd service per agent
-- **Config**: `~/.openclaw/config.yml`
-- **Logs**: `~/.openclaw/logs/`
-- **Dashboard**: Port 18789 per agent
-
-**Development Environment** (all VMs):
-- Languages: Python 3.12, Node 22, Dart, Rust, Go, C/C++
-- Tools: Docker, AWS CLI, AWS CDK, GitHub CLI
-- Editors: Neovim (custom config), VS Code
-- Shell: Bash with Starship prompt
+| Host | Pool | RAID type | Devices | Usable | Registered as |
+|------|------|-----------|---------|--------|---------------|
+| all | `nvme-fast` | single | nvme0n1 | ~931G | images, rootdir |
+| r420 | `sas-data` | raidz1 | sdb,sdc,sdd | ~1.86T | backup,iso,snippets |
+| r720xd | `sas-data` | raidz2 ×2 vdevs | 6×1.8T + 5×2.7T | ~21T | backup,iso,images |
+| r820 | `sas-data` | raidz2 | sdb-sdi (8×931G) | ~5.6T | backup,iso,snippets |
 
 ---
 
 ## Design Decisions
 
-### Decision 1: VMs vs Containers
+### Decision 1: Proxmox VE over bare-metal Ubuntu + libvirt
 
-**Chosen**: KVM/libvirt VMs
+**Chosen**: Proxmox VE 9.1.1 (Debian Trixie)
 
-**Alternatives considered**:
-1. Docker containers
-2. LXC containers
-3. Native installation
+**Previous approach**: Ubuntu 22.04 + libvirt/KVM + Ansible-managed VMs
 
 **Rationale**:
-- **Identity separation**: Each agent needs distinct identity for Slack, Discord, GitHub, etc.
-- **Full isolation**: Complete OS environment per agent
-- **Snapshot capability**: Easy backup and rollback
-- **Desktop support**: Can run GUI apps if needed (VNC/SPICE)
+- **Native cluster management**: `pvecm` handles quorum, live migration, HA without extra software
+- **Web UI**: Proxmox web console for emergency access without Ansible
+- **ZFS integration**: pvesm registers ZFS pools as first-class storage
+- **Cloud-init support**: `qm set --ide2 storage:cloudinit` native, no virt-install overhead
+- **Template cloning**: `qm clone` is significantly faster than virt-install from ISO
 
 **Trade-offs**:
-- Higher resource overhead (~8GB RAM per VM vs ~2GB for containers)
-- Slower startup time (minutes vs seconds)
-- More complex networking
+- No-subscription nag (cosmetic, suppressed via no-sub repo)
+- Less familiar than Ubuntu for host-level debugging
 
-### Decision 2: AI-Native Team Model
+### Decision 2: VMs over Containers
 
-**Chosen**: Generalists with situational "hats"
+**Chosen**: KVM VMs
 
-**Alternatives considered**:
-1. Fixed specialization (backend, frontend, QA agents)
-2. Single multi-purpose agent
-3. Swarm of identical agents
+**Alternatives considered**: Docker, LXC, native installation
 
 **Rationale**:
-- **Modern AI capabilities**: Claude/GPT are full-stack capable
-- **Flexible collaboration**: Any agent can review with any lens
-- **Realistic team dynamics**: Mirrors human cross-functional reviews
-- **Scalability**: Add agents without specialization constraints
+- **Identity separation**: Each agent needs distinct MAC, IP, SSH identity for GitHub, Discord, etc.
+- **Full OS isolation**: Complete Debian userspace per agent
+- **Cloud-init**: Native cloud image provisioning is fast and clean
+- **Snapshot capability**: `qm snapshot` for easy rollback
 
-**Example**:
-```
-Apollo writes API code
-  → Artemis reviews (infrastructure lens)
-  → Hermes reviews (mobile/UX lens)
-  → Perseus reviews (security lens)
-All capable of writing the same code, different review perspectives
-```
+### Decision 3: VM Distribution Strategy
 
-### Decision 3: Shared vs Individual LLM Accounts
+**Chosen**: Distribute by host RAM headroom
 
-**Chosen**: Shared API subscriptions (Phase 1)
+| Host | RAM | VMs | Committed | Headroom |
+|------|-----|-----|-----------|---------|
+| r420 | 70G | 2 | 32G | 38G |
+| r8202 | 51G | 1 | 16G | 35G |
+| r720xd | 94G | 2 | 32G | 62G |
+| r820 | 377G | 3 | 48G | 329G |
 
-**Rationale**:
-- **Cost savings**: ~$60/month for all agents vs ~$500/month individual
-- **Simplicity**: Single set of credentials to manage
-- **Rate limiting**: Still need to monitor across all agents
-- **Future**: Can migrate to individual accounts as needed
+r8202 gets only 1 VM due to its 51G RAM being the most constrained.
+r820 is intentionally under-provisioned to leave headroom for future expansion.
 
-**Migration path**:
-- Phase 2: Individual accounts per agent
-- Phase 3: Local inference (Ollama) on dedicated hardware
+### Decision 4: ZFS Pool Naming
 
-### Decision 4: Communication Platform
-
-**Chosen**: Mattermost (self-hosted)
-
-**Alternatives considered**:
-1. Slack (cloud, $8/user/month)
-2. Discord (cloud, free but gaming-focused)
-3. Matrix (self-hosted, complex)
-4. Custom solution
+**Chosen**: `nvme-fast` (always) + `sas-data` (where SAS disks exist)
 
 **Rationale**:
-- **Cost**: $0 (self-hosted, unlimited users)
-- **Control**: Full data ownership
-- **Familiarity**: Slack-like UX
-- **Integration**: Webhooks, bots, API
-- **Realistic**: Mirrors real team collaboration
+- Consistent naming across hosts makes playbooks host-agnostic
+- `nvme-fast` used for VM disk images (IOPS-sensitive)
+- `sas-data` used for bulk content (backup, ISO, snippets) where latency matters less
 
-### Decision 5: Email Strategy
+### Decision 5: Cloud Image Template Approach
 
-**Chosen**: Google Workspace catch-all routing
-
-**Alternatives considered**:
-1. Individual Google Workspace users ($6/user/month)
-2. Self-hosted email (Mailcow, Mailu)
-3. No email (use Mattermost only)
+**Chosen**: Download Ubuntu cloud image once on master, convert to Proxmox template (VM 9000), clone per VM
 
 **Rationale**:
-- **Cost**: $0 vs $48/month
-- **Simplicity**: Single inbox for all verification emails
-- **Reliability**: Google's email infrastructure
-- **Trade-off**: Manual checking required
+- Download once vs 8 times
+- `qm clone --full true` creates fully independent copy on nvme-fast
+- Cloud-init handles per-VM customization (user, SSH keys, network, hostname)
+- Future re-provisioning is fast: destroy + clone takes ~2 minutes
 
-**Savings**: $576/year
-
-### Decision 6: Deployment Automation
-
-**Chosen**: Ansible roles with setup/reset pattern
-
-**Rationale**:
-- **Idempotency**: Can re-run safely
-- **Modularity**: Each role is independent
-- **Rollback**: Reset playbook for cleanup
-- **Consistency**: Same pattern across all roles
+### Decision 6: Ansible Deployment Automation
 
 **Role structure**:
 ```
 role/
-├── defaults/main.yml    # reset: False, config
-├── tasks/main.yml       # Routes to setup or reset
-├── tasks/setup.yml      # Installation
-└── tasks/reset.yml      # Cleanup
+├── defaults/main.yml    # reset: false, config vars
+├── tasks/main.yml       # Routes to setup or reset based on `reset` var
+├── tasks/setup.yml      # Idempotent installation
+└── tasks/reset.yml      # Cleanup (runs when reset=true)
 ```
 
-### Decision 7: VM Distribution Strategy
-
-**Chosen**: Balanced distribution across hypervisors
-
-**Distribution**:
-- r420: 1 VM (8GB) - lightest server for orchestrator
-- r710: 2 VMs (32GB) - balanced dev agents
-- r8202: 1 VM (16GB) - balanced
-- r720xd: 1 VM + services (16GB) - storage-rich server
-- r820: 3 VMs (48GB) - highest capacity, leaves 80GB free
-
-**Rationale**:
-- Spreads load across servers
-- r820 has headroom for future expansion
-- Mattermost on r720xd (separate from heavy compute)
-- Orchestrator on r420 (dedicated, always-on)
+**Playbook phase tags** allow running individual phases without the full pipeline.
 
 ---
 
@@ -270,59 +195,34 @@ role/
 
 ```
 Network: 10.220.1.0/24
-Gateway: 10.220.1.1
-DNS: 8.8.8.8, 8.8.4.4
+Gateway / DNS: 10.220.1.1 (UniFi UDM)
 
-┌─────────────────────────────────────────────────────────┐
-│  Hypervisors (Physical Servers)                         │
-│  ├─ r420:    10.220.1.7                                 │
-│  ├─ r8202:   10.220.1.8                                 │
-│  ├─ r710:    10.220.1.9                                 │
-│  ├─ r720xd:  10.220.1.10                                │
-│  └─ r820:    10.220.1.11                                │
-├─────────────────────────────────────────────────────────┤
-│  Agent VMs (Static IPs via cloud-init)                  │
-│  ├─ Athena:     10.220.1.50                             │
-│  ├─ Apollo:     10.220.1.51                             │
-│  ├─ Artemis:    10.220.1.52                             │
-│  ├─ Hermes:     10.220.1.53                             │
-│  ├─ Perseus:    10.220.1.54                             │
-│  ├─ Prometheus: 10.220.1.55                             │
-│  ├─ Ares:       10.220.1.56                             │
-│  └─ Poseidon:   10.220.1.57                             │
-├─────────────────────────────────────────────────────────┤
-│  Services                                                │
-│  └─ Mattermost: 10.220.1.10:8065 (r720xd)              │
-└─────────────────────────────────────────────────────────┘
+Proxmox hosts (physical):
+  r420:    10.220.1.7   (Proxmox master)
+  r8202:   10.220.1.8   (Proxmox node)
+  r720xd:  10.220.1.10  (Proxmox node)
+  r820:    10.220.1.11  (Proxmox node)
+
+Agent VMs (static DHCP reservations on UDM, MAC-based):
+  Zeus:       10.220.1.50   MAC: 52:54:00:80:70:b5
+  Athena:     10.220.1.51   MAC: 52:54:00:78:c4:0f
+  Apollo:     10.220.1.52   MAC: 52:54:00:64:b0:5e
+  Artemis:    10.220.1.53   MAC: 52:54:00:80:1a:26
+  Hermes:     10.220.1.54   MAC: 52:54:00:05:26:d8
+  Perseus:    10.220.1.55   MAC: 52:54:00:58:86:1c
+  Prometheus: 10.220.1.56   MAC: 52:54:00:7c:57:d6
+  Ares:       10.220.1.57   MAC: 52:54:00:ac:09:45
 ```
 
 ### Connectivity Matrix
 
 | From | To | Protocol | Port | Purpose |
 |------|-----|----------|------|---------|
-| Agent VMs | Hypervisors | SSH | 22 | Management |
-| Agent VMs | Mattermost | HTTP | 8065 | Team communication |
+| Ansible (localhost) | Proxmox hosts | SSH | 22 | Cluster management (user: root) |
+| Ansible (localhost) | Agent VMs | SSH | 22 | Agent stack deployment (user: agent) |
 | Agent VMs | Internet | HTTPS | 443 | API calls, git, packages |
 | Agent VMs | GitHub | SSH | 22 | Git operations |
-| Local workstation | Agent VMs | SSH | 22 | Admin access |
-| Local workstation | Mattermost | HTTP | 8065 | Web UI |
-| Local workstation | Agent dashboards | HTTP | 18789 | OpenClaw UI |
-
-### Firewall Rules
-
-**Agent VMs** (ufw):
-```
-Allow 22/tcp (SSH)
-Allow 18789/tcp (OpenClaw dashboard)
-Allow outbound all
-```
-
-**Mattermost host**:
-```
-Allow 22/tcp (SSH)
-Allow 8065/tcp (Mattermost)
-Allow outbound all
-```
+| Agent VMs | Agent VMs | any | any | Inter-agent coordination |
 
 ---
 
@@ -331,102 +231,36 @@ Allow outbound all
 ### Work Assignment Flow
 
 ```
-┌─────────┐
-│  Human  │
-│  (Jeff) │
-└────┬────┘
-     │
-     │ Mattermost message
-     │ "@athena create issue for TODO app"
-     │
-     ▼
-┌──────────┐
-│  Athena  │ (Orchestrator)
-│   10.220.1.50│
-└────┬────┘
-     │
-     │ GitHub API
-     │ Creates issue #123
-     │
-     ▼
-┌─────────────────────┐
-│  GitHub Repository  │
-│  Issues, PRs        │
-└────┬────────────────┘
-     │
-     │ Notification
-     │ or Pull
-     │
-     ▼
-┌──────────┐
-│  Apollo  │ (Developer)
-│   10.220.1.51│
-└────┬────┘
-     │
-     │ 1. git clone
-     │ 2. git checkout -b feature
-     │ 3. Code changes
-     │ 4. git push
-     │ 5. gh pr create
-     │
-     ▼
-┌─────────────────────┐
-│  Pull Request #45   │
-│  Awaiting review    │
-└────┬────────────────┘
-     │
-     │ Automated reviews
-     │
-     ▼
-┌──────────┬──────────┬──────────┐
-│ Artemis  │ Hermes   │ Perseus  │
-│ (Infra)  │ (UX)     │ (Sec)    │
-└────┬─────┴────┬─────┴────┬─────┘
-     │          │          │
-     └──────────┼──────────┘
-                │
-                │ All approvals
-                │
-                ▼
-         ┌─────────────┐
-         │  Human      │
-         │  Approval   │
-         └──────┬──────┘
-                │
-                │ Merge + Deploy
-                │
-                ▼
-         ┌─────────────┐
-         │  Production │
-         │  (AWS)      │
-         └─────────────┘
+Human (Jeff)
+    │  Discord / direct
+    ▼
+Zeus (PM — 10.220.1.50)
+    │  GitHub API → creates issue
+    ▼
+GitHub Issue Queue
+    │  assigned to agent
+    ▼
+Developer Agent (e.g. Apollo)
+    │  1. git clone → 2. code → 3. PR
+    ▼
+Pull Request
+    │  peer reviews
+    ▼
+Reviewer Agents (Artemis, Hermes, Perseus)
+    │  approvals
+    ▼
+Human Approval Gate
+    │  merge
+    ▼
+Production (AWS)
 ```
 
 ### Communication Flow
 
-```
-Mattermost ◄──┬──► Athena
-              │
-              ├──► Apollo
-              │
-              ├──► Artemis
-              │
-              ├──► Hermes
-              │
-              ├──► Perseus
-              │
-              ├──► Prometheus
-              │
-              ├──► Ares
-              │
-              └──► Poseidon
-
-Each agent:
-  - Listens on Mattermost channels
-  - Responds to @mentions
-  - Posts updates on task progress
-  - Coordinates with other agents
-```
+Each agent connects to:
+- **Discord** — team channel for discussion and coordination
+- **GitHub** — issues, PRs, code review
+- **Ollama** (local) + **Cloud APIs** (Anthropic, OpenAI, Google) for LLM inference
 
 ---
 
@@ -434,165 +268,55 @@ Each agent:
 
 ### Authentication Layers
 
-1. **Hypervisor Access**:
-   - SSH key authentication (jefcox user)
-   - No password login
-   - Limited to local network
-
-2. **VM Access**:
-   - SSH key authentication (agent user)
-   - Unique keys per admin
-   - Sudo with NOPASSWD for agent user
-
-3. **Service Authentication**:
-   - Mattermost: Username/password + bot tokens
-   - GitHub: SSH keys + personal access tokens
-   - AI APIs: API keys in vault
+1. **Proxmox hosts**: SSH key auth as `root` (Ansible automation), Proxmox web UI with local PAM
+2. **Proxmox API**: `ansible@pam` token (`ansible-token`) with `PVEAdmin` role
+3. **Agent VMs**: SSH key auth as `agent` user, sudo NOPASSWD
+4. **GitHub**: Per-agent SSH keys (generated during `agent_provision`)
+5. **LLM APIs**: API keys in Ansible vault, deployed to `~/.openclaw/.env` (mode 0600)
 
 ### Secrets Management
 
-**Ansible Vault**:
-```
-ansible/passwd.yml (encrypted)
-├── vault_mattermost_postgres_password
-├── vault_mattermost_bot_token
-├── vault_openclaw_anthropic_api_key
-├── vault_openclaw_openai_api_key
-└── vault_openclaw_google_api_key
-```
-
-**VM Environment Files**:
-```
-~/.openclaw/.env (mode 0600)
-├── ANTHROPIC_API_KEY
-├── OPENAI_API_KEY
-├── GOOGLE_API_KEY
-└── MATTERMOST_BOT_TOKEN
-```
+**Ansible Vault** (`group_vars/all/all.yml`):
+- Discord bot tokens per agent
+- SSH become password
+- Docker Hub token
+- Proxmox API token secret (`proxmox_api_token_secret`)
 
 ### Isolation Boundaries
 
-1. **VM Isolation**: Full OS separation via KVM
-2. **Network Isolation**: Private network (10.220.1.0/24)
-3. **Process Isolation**: Systemd services per agent
-4. **Data Isolation**: Separate home directories
-
-### Deployment Gates
-
-Human approval required for:
-- Production deployments
-- Infrastructure changes
-- Sensitive data access
-- Destructive operations
+1. **VM isolation**: Full KVM hardware virtualization
+2. **Network**: Private 10.220.1.0/24, UDM firewall controls external access
+3. **Process**: Systemd service per agent with restricted user
+4. **Credentials**: Per-agent SSH keys, no shared secrets between VMs
 
 ---
 
 ## Scalability
 
-### Current Capacity
+### Current Utilization
 
-| Resource | Used | Available | Utilization |
-|----------|------|-----------|-------------|
-| RAM | 120GB | 416GB | 29% |
-| Disk | 2TB | 4.2TB | 48% |
-| vCPUs | 32 | ~100+ | ~30% |
-| VMs | 8 | ~40+ | ~20% |
+| Resource | Committed | Available | Headroom |
+|----------|-----------|-----------|---------|
+| RAM | 128G | 592G | 78% free |
+| VM disk | 2TB | ~28T (nvme-fast across all hosts) | ~93% free |
+| vCPUs | 32 | 144 | 78% free |
 
 ### Expansion Options
 
-**Add more agents** (up to ~40 VMs with current hardware):
-- 3-4 VMs per hypervisor
-- Each VM: 16GB RAM, 4 vCPUs, 250GB disk
+**Add agents** (r820 has 329G free RAM — can host 20+ more VMs):
+1. Add entry to `agents` dict in `proxmox_vm/defaults/main.yml`
+2. Add to `agent_vms` inventory group
+3. Run `proxmox_vm` role tag + agent stack playbooks
 
-**Add more hypervisors**:
-- Additional Dell servers
-- Same libvirt/KVM setup
-- Join to same network
-
-**Vertical scaling** (per VM):
-- Increase vCPUs: 4 → 8
-- Increase RAM: 16GB → 32GB
-- Increase disk: 250GB → 500GB
+**Add Proxmox nodes**:
+- Install PVE, add to inventory under `proxmox_nodes`
+- Run `proxmox_base` → `pvecm add` → `proxmox_storage`
 
 **Local LLM inference**:
-- Add dedicated GPU server
-- Run Ollama for local inference
-- Reduce API costs
-
-### Resource Planning
-
-**Per agent VM**:
-- Light workload: 8GB RAM, 2 vCPUs
-- Medium workload: 16GB RAM, 4 vCPUs
-- Heavy workload: 32GB RAM, 8 vCPUs
-
-**Growth scenarios**:
-1. **10 agents**: Fits comfortably (160GB RAM)
-2. **15 agents**: Still feasible (240GB RAM)
-3. **20 agents**: Approaching limit (320GB RAM)
-4. **25+ agents**: Need additional hardware
+- Add GPU server running Ollama
+- Agents already configured to use Ollama as inference option
 
 ---
 
-## Future Architecture
-
-### Phase 2: Local Inference
-
-```
-Current: Agent VMs → Cloud APIs (Anthropic, OpenAI, Google)
-
-Future:
-┌─────────────┐
-│  Agent VMs  │
-└──────┬──────┘
-       │
-       ├──► Cloud APIs (fallback, high-quality)
-       │
-       └──► Ollama Server (local, fast, private)
-            ├─ RTX 4090 (24GB VRAM)
-            ├─ Llama 3 70B (quantized)
-            └─ Mixtral 8x7B
-```
-
-**Benefits**:
-- Lower costs (no per-token charges)
-- Faster response (local network)
-- Data privacy (no external calls)
-
-**Requirements**:
-- Dedicated GPU server
-- 48GB+ VRAM for large models
-- High-speed storage (NVMe)
-
-### Phase 3: Expanded Team
-
-```
-Current: 1 PM + 7 Developers
-
-Future:
-├─ Product Team (3)
-│  ├─ Athena (PM)
-│  ├─ Demeter (Product Designer)
-│  └─ Hestia (UX Researcher)
-│
-├─ Development Team (10)
-│  ├─ Apollo, Artemis, Hermes, Perseus,
-│  ├─ Prometheus, Ares, Poseidon (existing)
-│  └─ Dionysus, Hephaestus, Heracles (new)
-│
-├─ QA Team (3)
-│  ├─ Nike (Test Automation)
-│  ├─ Nemesis (Security Testing)
-│  └─ Tyche (Performance Testing)
-│
-└─ DevOps Team (2)
-   ├─ Helios (Infrastructure)
-   └─ Selene (Monitoring)
-```
-
-**Total**: 18 agents (~300GB RAM)
-
----
-
-**Last Updated**: 2026-01-30
+**Last Updated**: 2026-02-28
 **Maintainer**: jeff@infiquetra.com

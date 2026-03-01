@@ -1,0 +1,9 @@
+---
+# Run GitHub SSH key setup on all agent VMs
+# After this runs, collect public keys from the debug output and add to GitHub
+- name: Configure GitHub SSH auth for agent VMs
+  hosts: agent_vms
+  gather_facts: yes
+  roles:
+    - role: agent_provision
+      tasks_from: github_auth

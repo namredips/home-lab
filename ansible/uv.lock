@@ -357,7 +357,9 @@ dependencies = [
     { name = "ansible" },
     { name = "jsonpatch" },
     { name = "kubernetes" },
+    { name = "proxmoxer" },
     { name = "pyaml" },
+    { name = "requests" },
 ]
 
 [package.metadata]
@@ -365,7 +367,9 @@ requires-dist = [
     { name = "ansible", specifier = ">=13.3.0" },
     { name = "jsonpatch" },
     { name = "kubernetes" },
+    { name = "proxmoxer", specifier = ">=2.0.1" },
     { name = "pyaml" },
+    { name = "requests", specifier = ">=2.31.0" },
 ]
 
 [[package]]
@@ -375,6 +379,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/65/ee/299d360cdc32edc7d2cf530f3accf79c4fca01e96ffc950d8a52213bd8e4/packaging-26.0.tar.gz", hash = "sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4", size = 143416, upload-time = "2026-01-21T20:50:39.064Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529", size = 74366, upload-time = "2026-01-21T20:50:37.788Z" },
+]
+
+[[package]]
+name = "proxmoxer"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6a/54/dc2919eed681ca31220a9021e35935a3995335069b520279b4d55b9df822/proxmoxer-2.2.0.tar.gz", hash = "sha256:3ed63a58e5c0822841afdb3801f9d913a4996955c1c54f7319b5842ba2615006", size = 29666, upload-time = "2024-12-15T02:08:36.351Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2c/9a/0c3570e2ccce07d304c8a25f7238accc5174c234f5eddb3b666e20777898/proxmoxer-2.2.0-py3-none-any.whl", hash = "sha256:7e4431fd38e1a9321eedf6d860ddc373fc2b29ce1845fa8b072d7580d99f6b90", size = 19217, upload-time = "2024-12-15T02:08:34.047Z" },
 ]
 
 [[package]]
