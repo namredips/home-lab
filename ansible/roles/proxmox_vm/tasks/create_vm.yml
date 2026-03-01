@@ -1,21 +1,22 @@
 ---
 # Called per-agent with vars: agent_name, agent (dict with vmid, mac, ip, etc.)
 
+# Check from target node — qm status only sees VMs local to this node
 - name: Check if VM {{ agent.vmid }} ({{ agent_name }}) already exists
   ansible.builtin.command: qm status {{ agent.vmid }}
   register: vm_check
   changed_when: false
   failed_when: false
 
-# Template (VM 9000) exists only on master. Delegate clone to master and use
-# --target to place the new VM on the correct node.
-- name: Clone template to create VM {{ agent.vmid }} ({{ agent_name }})
+# Clone and configure on master (template VM 9000 is local to master).
+# For non-master targets, qm clone without --target creates the VM on master.
+# We migrate it after configuration.
+- name: Clone template to create VM {{ agent.vmid }} ({{ agent_name }}) on master
   ansible.builtin.command: >
     qm clone {{ template_vmid }} {{ agent.vmid }}
     --name {{ agent_name }}
     --full true
     --storage {{ vm_storage }}
-    --target {{ inventory_hostname_short }}
   delegate_to: "{{ groups['proxmox_master'][0] }}"
   when: vm_check.rc != 0
 
@@ -28,10 +29,12 @@
     --net0 virtio={{ agent.mac }},bridge=vmbr0
     --onboot 1
     --agent enabled=1
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
   when: vm_check.rc != 0
 
 - name: Resize disk to {{ agent.disk_gb }}G
   ansible.builtin.command: qm disk resize {{ agent.vmid }} scsi0 {{ agent.disk_gb }}G
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
   when: vm_check.rc != 0
 
 - name: Set cloud-init config
@@ -43,7 +46,19 @@
     --ipconfig0 ip=dhcp
     --nameserver 10.220.1.1
     --searchdomain infiquetra.com
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
   when: vm_check.rc != 0
+
+# Migrate to target node when it differs from master (local storage requires this).
+# --with-local-disks streams the disk over SSH to the destination node's nvme-fast.
+- name: Migrate VM {{ agent.vmid }} to {{ inventory_hostname_short }}
+  ansible.builtin.command: >
+    qm migrate {{ agent.vmid }} {{ inventory_hostname_short }}
+    --with-local-disks 1
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  when:
+    - vm_check.rc != 0
+    - inventory_hostname not in groups['proxmox_master']
 
 - name: Start VM {{ agent.vmid }} ({{ agent_name }})
   ansible.builtin.command: qm start {{ agent.vmid }}
