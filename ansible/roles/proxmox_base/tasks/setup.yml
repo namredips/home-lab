@@ -1,0 +1,77 @@
+---
+- name: Remove stale SSH known_hosts entry for this host
+  ansible.builtin.known_hosts:
+    name: "{{ ansible_host }}"
+    state: absent
+  delegate_to: localhost
+  become: false
+
+- name: Disable Proxmox enterprise subscription repo
+  ansible.builtin.replace:
+    path: /etc/apt/sources.list.d/pve-enterprise.sources
+    regexp: '^(Types: deb)'
+    replace: '# \1'
+  ignore_errors: true
+
+- name: Add Proxmox no-subscription repo (DEB822 format)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/pve-no-subscription.sources
+    content: |
+      Types: deb
+      URIs: {{ proxmox_no_sub_repo_url }}
+      Suites: {{ proxmox_no_sub_repo_suite }}
+      Components: pve-no-subscription
+      Signed-By: /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg
+    mode: '0644'
+
+- name: Disable Ceph enterprise repo if it exists
+  ansible.builtin.replace:
+    path: /etc/apt/sources.list.d/ceph.list
+    regexp: '^(deb)'
+    replace: '# \1'
+  ignore_errors: true
+
+- name: Run apt update and dist-upgrade
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: dist
+    autoremove: true
+
+- name: Check if ansible@pam user already exists
+  ansible.builtin.command: pveum user list --output-format json
+  register: pveum_users
+  changed_when: false
+
+- name: Create ansible@pam user
+  ansible.builtin.command: pveum user add {{ proxmox_api_user }} --comment "Ansible automation user"
+  when: proxmox_api_user not in pveum_users.stdout
+
+- name: Grant PVEAdmin role to ansible@pam
+  ansible.builtin.command: pveum acl modify / --users {{ proxmox_api_user }} --roles {{ proxmox_api_role }}
+  when: proxmox_api_user not in pveum_users.stdout
+
+- name: Check if API token already exists
+  ansible.builtin.command: pveum user token list {{ proxmox_api_user }} --output-format json
+  register: pveum_tokens
+  changed_when: false
+  ignore_errors: true
+
+- name: Create API token for ansible@pam
+  ansible.builtin.command: >
+    pveum user token add {{ proxmox_api_user }} {{ proxmox_api_token_id }}
+    --privsep 0 --output-format json
+  register: token_create
+  when: proxmox_api_token_id not in (pveum_tokens.stdout | default(''))
+
+- name: Display API token (save this to vault manually)
+  ansible.builtin.debug:
+    msg: |
+      TOKEN SECRET (add to vault as proxmox_api_token_secret):
+      {{ (token_create.stdout | from_json).value | default('token already exists') }}
+  when: token_create.changed | default(false)
+
+- name: Verify vmbr0 bridge exists
+  ansible.builtin.command: ip link show vmbr0
+  register: vmbr0_check
+  changed_when: false
+  failed_when: vmbr0_check.rc != 0

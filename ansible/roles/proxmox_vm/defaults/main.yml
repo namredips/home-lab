@@ -1,0 +1,112 @@
+---
+reset: false
+
+template_vmid: 9000
+vm_storage: "nvme-fast"
+vm_ssh_user: agent
+# Password: openclaw
+vm_user_password: "openclaw"
+vm_ssh_authorized_keys: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa.pub') }}"
+
+# Agent VM definitions
+# VM distribution:
+#   r820  (377G RAM, 64 vCPU): Zeus(100), Athena(101), Apollo(102)
+#   r420  (70G  RAM, 24 vCPU): Artemis(103), Hermes(104)
+#   r720xd(94G  RAM, 24 vCPU): Perseus(105), Prometheus(106)
+#   r8202 (51G  RAM, 32 vCPU): Ares(107)
+agents:
+  zeus:
+    vmid: 100
+    host: r820.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.50
+    mac: "52:54:00:80:70:b5"
+    email: zeus@infiquetra.com
+    role: "PM, orchestration"
+    trait: "Leadership & authority"
+
+  athena:
+    vmid: 101
+    host: r820.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.51
+    mac: "52:54:00:78:c4:0f"
+    email: athena@infiquetra.com
+    role: "Senior Developer (Architecture)"
+    trait: "Wisdom & strategy"
+
+  apollo:
+    vmid: 102
+    host: r820.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.52
+    mac: "52:54:00:64:b0:5e"
+    email: apollo@infiquetra.com
+    role: "Developer (Code Quality)"
+    trait: "Light, truth, reason"
+
+  artemis:
+    vmid: 103
+    host: r420.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.53
+    mac: "52:54:00:80:1a:26"
+    email: artemis@infiquetra.com
+    role: "Developer (Testing & Precision)"
+    trait: "Precision, focus"
+
+  hermes:
+    vmid: 104
+    host: r420.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.54
+    mac: "52:54:00:05:26:d8"
+    email: hermes@infiquetra.com
+    role: "Developer (Integrations)"
+    trait: "Speed, communication"
+
+  perseus:
+    vmid: 105
+    host: r720xd.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.55
+    mac: "52:54:00:58:86:1c"
+    email: perseus@infiquetra.com
+    role: "Developer (Complex Problems)"
+    trait: "Heroic problem-solver"
+
+  prometheus:
+    vmid: 106
+    host: r720xd.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.56
+    mac: "52:54:00:7c:57:d6"
+    email: prometheus@infiquetra.com
+    role: "Developer (Innovation)"
+    trait: "Innovation, foresight"
+
+  ares:
+    vmid: 107
+    host: r8202.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 250
+    ip: 10.220.1.57
+    mac: "52:54:00:ac:09:45"
+    email: ares@infiquetra.com
+    role: "Developer (Performance)"
+    trait: "Strength, determination"

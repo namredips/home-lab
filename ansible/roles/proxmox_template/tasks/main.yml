@@ -1,0 +1,10 @@
+---
+- name: Run proxmox_template setup
+  ansible.builtin.import_tasks: setup.yml
+  when: not reset | bool
+  tags: proxmox_template
+
+- name: Run proxmox_template reset
+  ansible.builtin.import_tasks: reset.yml
+  when: reset | bool
+  tags: proxmox_template

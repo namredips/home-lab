@@ -1,0 +1,25 @@
+---
+# WARNING: This destroys the cluster. Run reset=true only when tearing down.
+- name: Remove node from cluster (nodes only)
+  ansible.builtin.command: pvecm delnode {{ inventory_hostname | regex_replace('\..*$', '') }}
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  ignore_errors: true
+  when: inventory_hostname in groups['proxmox_nodes']
+
+- name: Stop corosync and pve-cluster
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+  loop:
+    - pve-cluster
+    - corosync
+  ignore_errors: true
+
+- name: Remove corosync config
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/corosync/corosync.conf
+    - /etc/pve/corosync.conf
+  ignore_errors: true

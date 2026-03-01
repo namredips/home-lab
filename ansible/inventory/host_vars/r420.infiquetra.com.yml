@@ -1,8 +1,21 @@
 ---
+# r420 — 2x E5-2420v2, 70G RAM, 24 vCPUs
+# Boot: sda (931G, PVE)  NVMe: nvme0n1 (931G)  SAS: sdb, sdc, sdd (3x 931G)
 zfs_pools:
-  - name: "local_zfs_pv"
+  - name: "nvme-fast"
     mode: ""
     devices:
+      - nvme0n1
+    options: "-o ashift=12"
+    proxmox_storage_type: zfspool
+    proxmox_content: "images,rootdir"
+
+  - name: "sas-data"
+    mode: "raidz1"
+    devices:
+      - sdb
       - sdc
       - sdd
-    options: ""
+    options: "-o ashift=12"
+    proxmox_storage_type: zfspool
+    proxmox_content: "backup,iso,vztmpl,snippets"

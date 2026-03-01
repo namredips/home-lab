@@ -1,0 +1,17 @@
+---
+- name: Remove ansible API token
+  ansible.builtin.command: pveum user token remove {{ proxmox_api_user }} {{ proxmox_api_token_id }}
+  ignore_errors: true
+
+- name: Remove ansible@pam ACL
+  ansible.builtin.command: pveum acl modify / --users {{ proxmox_api_user }} --roles {{ proxmox_api_role }} --delete
+  ignore_errors: true
+
+- name: Remove ansible@pam user
+  ansible.builtin.command: pveum user delete {{ proxmox_api_user }}
+  ignore_errors: true
+
+- name: Remove no-subscription repo
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/pve-no-subscription.sources
+    state: absent

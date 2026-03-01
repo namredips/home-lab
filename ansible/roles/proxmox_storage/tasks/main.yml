@@ -1,0 +1,10 @@
+---
+- name: Run proxmox_storage setup
+  ansible.builtin.import_tasks: setup.yml
+  when: not reset | bool
+  tags: proxmox_storage
+
+- name: Run proxmox_storage reset
+  ansible.builtin.import_tasks: reset.yml
+  when: reset | bool
+  tags: proxmox_storage

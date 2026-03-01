@@ -14,9 +14,9 @@ usage() {
 
 # Default inventory file, playbook file, and Vault password file
 inventory="inventory/hosts.yml"
-playbook="k8_cluster.yml"
+playbook="proxmox_cluster.yml"
 vault_password_file="~/.vault_pass.txt"
-user="jefcox"
+user="root"
 
 # Parse command-line arguments
 while getopts "r:u:v:t:i:p:" opt; do

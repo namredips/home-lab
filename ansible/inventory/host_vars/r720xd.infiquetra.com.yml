@@ -1,9 +1,37 @@
 ---
+# r720xd — 2x E5-2620, 94G RAM, 24 vCPUs
+# Boot: sda (2.7T, PVE)  NVMe: nvme0n1 (931G)
+# SAS 1.8T: sdb, sdc, sde, sdf, sdh, sdi  SAS 2.7T: sdd, sdg, sdj, sdk, sdl
 zfs_pools:
-  - name: "local_zfs_pv"
-    mode: "raidz1"
+  - name: "nvme-fast"
+    mode: ""
+    devices:
+      - nvme0n1
+    options: "-o ashift=12"
+    proxmox_storage_type: zfspool
+    proxmox_content: "images,rootdir"
+
+  - name: "sas-data"
+    # raidz2 across two vdevs (mixed sizes kept separate for predictable usable space)
+    mode: "raidz2"
     devices:
       - sdb
       - sdc
       - sde
-    options: ""
+      - sdf
+      - sdh
+      - sdi
+      - raidz2
+      - sdd
+      - sdg
+      - sdj
+      - sdk
+      - sdl
+    options: "-o ashift=12"
+    proxmox_storage_type: zfspool
+    proxmox_content: "backup,iso,vztmpl,snippets,images"
+    # Note: zpool create sas-data raidz2 sdb sdc sde sdf sdh sdi raidz2 sdd sdg sdj sdk sdl
+    custom_create_cmd: >-
+      zpool create -o ashift=12 sas-data
+      raidz2 sdb sdc sde sdf sdh sdi
+      raidz2 sdd sdg sdj sdk sdl

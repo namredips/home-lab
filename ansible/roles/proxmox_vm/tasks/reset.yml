@@ -1,0 +1,16 @@
+---
+- name: Build list of agents for this host
+  ansible.builtin.set_fact:
+    host_agents: >-
+      {{
+        agents | dict2items
+        | selectattr('value.host', 'equalto', inventory_hostname)
+        | list
+      }}
+
+- name: Stop and destroy VMs assigned to this host
+  ansible.builtin.command: qm destroy {{ item.value.vmid }} --purge --destroy-unreferenced-disks 1
+  loop: "{{ host_agents }}"
+  loop_control:
+    label: "{{ item.key }} (vmid {{ item.value.vmid }})"
+  ignore_errors: true

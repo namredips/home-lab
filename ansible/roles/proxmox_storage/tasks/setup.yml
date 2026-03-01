@@ -1,0 +1,77 @@
+---
+- name: Ensure zfsutils-linux is installed
+  ansible.builtin.apt:
+    name: zfsutils-linux
+    state: present
+    update_cache: true
+
+- name: Check if each ZFS pool already exists
+  ansible.builtin.command: zpool list {{ item.name }}
+  register: zpool_checks
+  ignore_errors: true
+  changed_when: false
+  no_log: true
+  loop: "{{ zfs_pools | default([]) }}"
+
+- name: Create ZFS pools (standard single-vdev or simple RAID)
+  ansible.builtin.command: >
+    zpool create {{ item.item.options | default('') }}
+    {{ item.item.name }}
+    {{ item.item.mode | default('') }}
+    {{ item.item.devices | join(' ') }}
+  when:
+    - item.rc != 0
+    - item.item.custom_create_cmd is not defined
+  loop: "{{ zpool_checks.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Create ZFS pools (custom command for multi-vdev configs)
+  ansible.builtin.command: "{{ item.item.custom_create_cmd }}"
+  when:
+    - item.rc != 0
+    - item.item.custom_create_cmd is defined
+  loop: "{{ zpool_checks.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Set ZFS compression=lz4 on each pool
+  ansible.builtin.command: zfs set compression=lz4 {{ item.name }}
+  loop: "{{ zfs_pools | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Set ZFS atime=off on each pool
+  ansible.builtin.command: zfs set atime=off {{ item.name }}
+  loop: "{{ zfs_pools | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Check which pools are already registered in Proxmox
+  ansible.builtin.command: pvesm list {{ item.name }}
+  register: pvesm_checks
+  ignore_errors: true
+  changed_when: false
+  no_log: true
+  loop: "{{ zfs_pools | default([]) }}"
+
+- name: Register ZFS pools with Proxmox storage
+  ansible.builtin.command: >
+    pvesm add {{ item.item.proxmox_storage_type }}
+    {{ item.item.name }}
+    --pool {{ item.item.name }}
+    --content {{ item.item.proxmox_content }}
+    --sparse 1
+  when: item.rc != 0
+  loop: "{{ pvesm_checks.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Show current storage status
+  ansible.builtin.command: pvesm status
+  register: pvesm_status
+  changed_when: false
+
+- name: Display storage status
+  ansible.builtin.debug:
+    msg: "{{ pvesm_status.stdout_lines }}"

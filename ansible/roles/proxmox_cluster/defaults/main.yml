@@ -1,0 +1,4 @@
+---
+reset: false
+proxmox_cluster_name: "olympus"
+proxmox_master_ip: "10.220.1.7"

@@ -1,0 +1,66 @@
+---
+# Called per-agent with vars: agent_name, agent (dict with vmid, mac, ip, etc.)
+
+- name: Check if VM {{ agent.vmid }} ({{ agent_name }}) already exists
+  ansible.builtin.command: qm status {{ agent.vmid }}
+  register: vm_check
+  changed_when: false
+  failed_when: false
+
+- name: Clone template to create VM {{ agent.vmid }} ({{ agent_name }})
+  ansible.builtin.command: >
+    qm clone {{ template_vmid }} {{ agent.vmid }}
+    --name {{ agent_name }}
+    --full true
+    --storage {{ vm_storage }}
+  when: vm_check.rc != 0
+
+- name: Configure VM resources
+  ansible.builtin.command: >
+    qm set {{ agent.vmid }}
+    --memory {{ agent.memory_mb }}
+    --cores {{ agent.vcpus }}
+    --cpu host
+    --net0 virtio={{ agent.mac }},bridge=vmbr0
+    --onboot 1
+    --agent enabled=1
+  when: vm_check.rc != 0
+
+- name: Resize disk to {{ agent.disk_gb }}G
+  ansible.builtin.command: qm disk resize {{ agent.vmid }} scsi0 {{ agent.disk_gb }}G
+  when: vm_check.rc != 0
+
+- name: Set cloud-init config
+  ansible.builtin.command: >
+    qm set {{ agent.vmid }}
+    --ciuser {{ vm_ssh_user }}
+    --cipassword {{ vm_user_password }}
+    --sshkeys /root/.ssh/authorized_keys
+    --ipconfig0 ip=dhcp
+    --nameserver 10.220.1.1
+    --searchdomain infiquetra.com
+  when: vm_check.rc != 0
+
+- name: Start VM {{ agent.vmid }} ({{ agent_name }})
+  ansible.builtin.command: qm start {{ agent.vmid }}
+  when: vm_check.rc != 0
+
+- name: Wait for SSH on {{ agent_name }} ({{ agent.ip }})
+  ansible.builtin.wait_for:
+    host: "{{ agent.ip }}"
+    port: 22
+    delay: 15
+    timeout: 300
+    state: started
+  delegate_to: localhost
+  become: false
+  when: vm_check.rc != 0
+
+- name: Show VM {{ agent.vmid }} status
+  ansible.builtin.command: qm status {{ agent.vmid }}
+  register: vm_status
+  changed_when: false
+
+- name: Display VM status
+  ansible.builtin.debug:
+    msg: "{{ agent_name }} ({{ agent.vmid }}): {{ vm_status.stdout }}"

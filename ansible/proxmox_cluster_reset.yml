@@ -1,0 +1,69 @@
+---
+# Proxmox VE teardown playbook
+# WARNING: This is destructive — it destroys VMs, storage pools, and the cluster.
+#
+# Usage (full teardown):
+#   ansible-playbook -i inventory/hosts.yml proxmox_cluster_reset.yml -e reset=true
+#
+# Selective reset (e.g., VMs only):
+#   ansible-playbook -i inventory/hosts.yml proxmox_cluster_reset.yml -e reset=true --tags proxmox_vm
+
+# Step 1: Destroy agent VMs first
+- name: Destroy agent VMs
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: proxmox_vm
+  roles:
+    - role: proxmox_vm
+      vars:
+        reset: true
+
+# Step 2: Remove template VM from master
+- name: Remove VM template
+  hosts: proxmox_master
+  gather_facts: false
+  tags: proxmox_template
+  roles:
+    - role: proxmox_template
+      vars:
+        reset: true
+
+# Step 3: Destroy ZFS pools
+- name: Destroy ZFS storage pools
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: proxmox_storage
+  roles:
+    - role: proxmox_storage
+      vars:
+        reset: true
+
+# Step 4: Disband cluster — nodes leave first, then master
+- name: Remove nodes from cluster
+  hosts: proxmox_nodes
+  gather_facts: false
+  serial: 1
+  tags: proxmox_cluster
+  roles:
+    - role: proxmox_cluster
+      vars:
+        reset: true
+
+- name: Disband cluster on master
+  hosts: proxmox_master
+  gather_facts: false
+  tags: proxmox_cluster
+  roles:
+    - role: proxmox_cluster
+      vars:
+        reset: true
+
+# Step 5: Remove ansible user and repos
+- name: Reset Proxmox base config
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: proxmox_base
+  roles:
+    - role: proxmox_base
+      vars:
+        reset: true

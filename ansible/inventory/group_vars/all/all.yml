@@ -1,5 +1,20 @@
 ---
 reset: False
+
+# Proxmox cluster configuration
+proxmox_cluster_name: "olympus"
+proxmox_master_ip: "10.220.1.7"
+proxmox_api_user: "ansible@pam"
+proxmox_api_token_id: "ansible-token"
+# proxmox_api_token_secret is stored in vault (ansible-vault)
+
+# Cloud image for VM templates
+cloud_image_url: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+cloud_image_filename: "ubuntu-24.04-server-cloudimg-amd64.img"
+template_vmid: 9000
+template_storage: "nvme-fast"
+
+# Legacy K8s vars (kept for reference, not used in Proxmox playbooks)
 # hostgroup whose members will form high-availability microk8s cluster
 microk8s_cluster: "cluster"
 

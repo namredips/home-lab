@@ -1,10 +1,26 @@
 ---
+# r820 — 4x E5-4650, 377G RAM, 64 vCPUs
+# Boot: sda (2.2T, PVE)  NVMe: nvme0n1 (931G)  SAS: sdb-sdi (8x 931G)
 zfs_pools:
-  - name: "local_zfs_pv"
-    mode: "raidz1"
+  - name: "nvme-fast"
+    mode: ""
     devices:
+      - nvme0n1
+    options: "-o ashift=12"
+    proxmox_storage_type: zfspool
+    proxmox_content: "images,rootdir"
+
+  - name: "sas-data"
+    mode: "raidz2"
+    devices:
+      - sdb
+      - sdc
+      - sdd
+      - sde
       - sdf
       - sdg
       - sdh
       - sdi
-    options: ""
+    options: "-o ashift=12"
+    proxmox_storage_type: zfspool
+    proxmox_content: "backup,iso,vztmpl,snippets"

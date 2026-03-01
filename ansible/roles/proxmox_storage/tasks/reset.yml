@@ -1,0 +1,14 @@
+---
+- name: Unregister pools from Proxmox storage
+  ansible.builtin.command: pvesm remove {{ item.name }}
+  loop: "{{ zfs_pools | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  ignore_errors: true
+
+- name: Export and destroy ZFS pools
+  ansible.builtin.command: zpool destroy -f {{ item.name }}
+  loop: "{{ zfs_pools | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  ignore_errors: true

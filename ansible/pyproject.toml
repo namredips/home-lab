@@ -8,4 +8,6 @@ dependencies = [
     "pyaml",
     "jsonpatch",
     "kubernetes",
+    "proxmoxer>=2.0.1",
+    "requests>=2.31.0",
 ]

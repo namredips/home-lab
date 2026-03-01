@@ -1,0 +1,23 @@
+---
+# Filter agents assigned to this Proxmox host
+- name: Build list of agents for this host
+  ansible.builtin.set_fact:
+    host_agents: >-
+      {{
+        agents | dict2items
+        | selectattr('value.host', 'equalto', inventory_hostname)
+        | list
+      }}
+
+- name: Show agents assigned to this host
+  ansible.builtin.debug:
+    msg: "Creating VMs on {{ inventory_hostname }}: {{ host_agents | map(attribute='key') | list }}"
+
+- name: Create VMs for each assigned agent
+  ansible.builtin.include_tasks: create_vm.yml
+  vars:
+    agent_name: "{{ item.key }}"
+    agent: "{{ item.value }}"
+  loop: "{{ host_agents }}"
+  loop_control:
+    label: "{{ item.key }} (vmid {{ item.value.vmid }})"

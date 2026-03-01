@@ -1,0 +1,61 @@
+---
+# Proxmox VE cluster setup playbook
+# Run phases individually with tags or all at once
+#
+# Usage:
+#   Full run:
+#     ansible-playbook -i inventory/hosts.yml proxmox_cluster.yml
+#
+#   Single role:
+#     ./run_ansible_role.sh -r proxmox_base -p proxmox_cluster.yml
+#
+#   Install collection deps first:
+#     ansible-galaxy collection install -r requirements.yml
+
+# Phase 1: Base Proxmox configuration on all hosts
+- name: Configure Proxmox base on all hosts
+  hosts: proxmox_hosts
+  gather_facts: true
+  tags: proxmox_base
+  roles:
+    - proxmox_base
+
+# Phase 2: Form cluster — master first, then nodes one at a time
+- name: Create cluster on master
+  hosts: proxmox_master
+  gather_facts: false
+  tags: proxmox_cluster
+  roles:
+    - proxmox_cluster
+
+- name: Join nodes to cluster (serial to preserve quorum)
+  hosts: proxmox_nodes
+  gather_facts: false
+  serial: 1
+  tags: proxmox_cluster
+  roles:
+    - proxmox_cluster
+
+# Phase 3: Configure ZFS storage pools on all hosts
+- name: Create and register ZFS storage pools
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: proxmox_storage
+  roles:
+    - proxmox_storage
+
+# Phase 4: Create Ubuntu 24.04 template VM on master (run once)
+- name: Create cloud image template
+  hosts: proxmox_master
+  gather_facts: false
+  tags: proxmox_template
+  roles:
+    - proxmox_template
+
+# Phase 5: Provision agent VMs on each Proxmox host
+- name: Provision agent VMs
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: proxmox_vm
+  roles:
+    - proxmox_vm

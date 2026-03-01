@@ -1,0 +1,47 @@
+---
+# Run on master: create cluster if it doesn't already exist
+- name: Check if already in a cluster (master)
+  ansible.builtin.command: pvecm status
+  register: pvecm_status
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname in groups['proxmox_master']
+
+- name: Create Proxmox cluster on master
+  ansible.builtin.command: pvecm create {{ proxmox_cluster_name }}
+  when:
+    - inventory_hostname in groups['proxmox_master']
+    - "'Cluster information' not in pvecm_status.stdout"
+    - pvecm_status.rc != 0
+
+# Run on nodes: join cluster one at a time
+- name: Check if node is already in cluster
+  ansible.builtin.command: pvecm status
+  register: node_cluster_status
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname in groups['proxmox_nodes']
+
+- name: Accept master SSH host key
+  ansible.builtin.shell: |
+    ssh-keyscan -H {{ proxmox_master_ip }} >> /root/.ssh/known_hosts
+  args:
+    executable: /bin/bash
+  when:
+    - inventory_hostname in groups['proxmox_nodes']
+    - node_cluster_status.rc != 0
+
+- name: Join node to Proxmox cluster
+  ansible.builtin.command: pvecm add {{ proxmox_master_ip }} --use_ssh
+  when:
+    - inventory_hostname in groups['proxmox_nodes']
+    - node_cluster_status.rc != 0
+
+- name: Verify cluster membership
+  ansible.builtin.command: pvecm status
+  register: final_status
+  changed_when: false
+
+- name: Show cluster status
+  ansible.builtin.debug:
+    msg: "{{ final_status.stdout_lines }}"

@@ -1,0 +1,11 @@
+---
+# r8202 — 2x E5-4650, 51G RAM, 32 vCPUs
+# Boot: sda (1.1T, PVE)  NVMe: nvme0n1 (931G)  No additional data disks
+zfs_pools:
+  - name: "nvme-fast"
+    mode: ""
+    devices:
+      - nvme0n1
+    options: "-o ashift=12"
+    proxmox_storage_type: zfspool
+    proxmox_content: "images,rootdir"

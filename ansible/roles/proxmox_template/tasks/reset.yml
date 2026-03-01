@@ -1,0 +1,10 @@
+---
+- name: Destroy template VM
+  ansible.builtin.command: qm destroy {{ template_vmid }} --purge
+  ignore_errors: true
+
+- name: Remove downloaded cloud image
+  ansible.builtin.file:
+    path: "{{ cloud_image_dest }}/{{ cloud_image_filename }}"
+    state: absent
+  ignore_errors: true
