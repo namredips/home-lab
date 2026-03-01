@@ -28,8 +28,7 @@
     --cores {{ template_cores }}
     --net0 virtio,bridge=vmbr0
     --ostype l26
-    --machine q35
-    --bios ovmf
+    --scsihw virtio-scsi-pci
   when: template_check.rc != 0
 
 - name: Import cloud image as primary disk
