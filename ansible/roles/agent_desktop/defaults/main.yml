@@ -6,3 +6,4 @@ desktop_package: ubuntu-desktop-minimal
 
 # XRDP configuration
 xrdp_port: 3389
+xrdp_user: agent

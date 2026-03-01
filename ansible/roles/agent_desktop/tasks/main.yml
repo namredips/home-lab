@@ -39,6 +39,24 @@
     mode: '0644'
   become: yes
 
+- name: Disable Wayland in GDM3 so xrdp can serve X11 sessions
+  lineinfile:
+    path: /etc/gdm3/custom.conf
+    regexp: '^#?WaylandEnable='
+    line: 'WaylandEnable=false'
+    insertafter: '^\[daemon\]'
+  become: yes
+  notify: restart xrdp
+
+- name: Create .xsession for agent user to launch GNOME under xrdp
+  copy:
+    content: "exec gnome-session\n"
+    dest: "/home/{{ xrdp_user }}/.xsession"
+    owner: "{{ xrdp_user }}"
+    group: "{{ xrdp_user }}"
+    mode: '0644'
+  become: yes
+
 - name: Enable and start XRDP service
   systemd:
     name: xrdp
