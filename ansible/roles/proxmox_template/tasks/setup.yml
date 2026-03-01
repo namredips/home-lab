@@ -43,12 +43,12 @@
     --ide2 {{ template_storage }}:cloudinit
   when: template_check.rc != 0
 
-- name: Configure boot order and serial console
+- name: Configure boot order, display, and serial console
   ansible.builtin.command: >
     qm set {{ template_vmid }}
     --boot order=scsi0
     --serial0 socket
-    --vga serial0
+    --vga qxl
     --agent enabled=1
   when: template_check.rc != 0
 

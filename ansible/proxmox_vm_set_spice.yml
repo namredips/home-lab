@@ -1,0 +1,56 @@
+---
+# Set SPICE/QXL display on all agent VMs.
+# Changes --vga from serial0 to qxl so VMs are accessible via SPICE viewer.
+# Serial console (--serial0 socket) is kept for emergency access.
+# Takes effect on next VM restart; does not require a reboot to apply the config.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml proxmox_vm_set_spice.yml \
+#     --vault-password-file ~/.vault_pass.txt
+
+- name: Set SPICE display on agent VMs
+  hosts: proxmox_hosts
+  gather_facts: false
+  vars:
+    agents:
+      zeus:      { vmid: 100, host: r820.infiquetra.com }
+      athena:    { vmid: 101, host: r820.infiquetra.com }
+      apollo:    { vmid: 102, host: r820.infiquetra.com }
+      artemis:   { vmid: 103, host: r420.infiquetra.com }
+      hermes:    { vmid: 104, host: r420.infiquetra.com }
+      perseus:   { vmid: 105, host: r720xd.infiquetra.com }
+      prometheus: { vmid: 106, host: r720xd.infiquetra.com }
+      ares:      { vmid: 107, host: r8202.infiquetra.com }
+
+  tasks:
+    - name: Build list of VMs for this host
+      ansible.builtin.set_fact:
+        host_vms: >-
+          {{
+            agents | dict2items
+            | selectattr('value.host', 'equalto', inventory_hostname)
+            | list
+          }}
+
+    - name: Set VGA to QXL for SPICE access
+      ansible.builtin.command: qm set {{ item.value.vmid }} --vga qxl
+      loop: "{{ host_vms }}"
+      loop_control:
+        label: "{{ item.key }} (vmid {{ item.value.vmid }})"
+
+    - name: Verify display config
+      ansible.builtin.command: qm config {{ item.value.vmid }}
+      register: vm_configs
+      loop: "{{ host_vms }}"
+      loop_control:
+        label: "{{ item.key }} (vmid {{ item.value.vmid }})"
+      changed_when: false
+
+    - name: Show VGA setting for each VM
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.item.key }} ({{ item.item.value.vmid }}):
+          {{ item.stdout_lines | select('match', '^vga:') | list | first | default('vga: not found') }}
+      loop: "{{ vm_configs.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
