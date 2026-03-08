@@ -1,0 +1,193 @@
+---
+# Exhaustive hardware inventory playbook for all Proxmox hosts.
+# Collects system identity, CPU, memory, storage, PCIe, network, and ZFS data.
+# Outputs per-host JSON to docs/inventory/ and prints a summary.
+#
+# Usage:
+#   cd ansible
+#   uv run ansible-playbook -i inventory/hosts.yml hardware_inventory.yml \
+#     --vault-password-file ~/.vault_pass.txt
+
+- name: Hardware Inventory — Proxmox Hosts
+  hosts: proxmox_hosts
+  gather_facts: false
+
+  vars:
+    inventory_output_dir: "{{ playbook_dir }}/../docs/inventory"
+
+  tasks:
+    # ── 1. System Identity ────────────────────────────────────────────────────
+    - name: Get system identity (dmidecode -t system)
+      ansible.builtin.command: dmidecode -t system
+      register: dmi_system
+      changed_when: false
+
+    - name: Get BIOS info (dmidecode -t bios)
+      ansible.builtin.command: dmidecode -t bios
+      register: dmi_bios
+      changed_when: false
+
+    # ── 2. CPU Details ────────────────────────────────────────────────────────
+    - name: Get node status from Proxmox API (CPU + memory summary)
+      ansible.builtin.command: >
+        pvesh get /nodes/{{ inventory_hostname | split('.') | first }}/status
+        --output-format json
+      register: pvesh_node_status
+      changed_when: false
+
+    - name: Get lscpu output
+      ansible.builtin.command: lscpu
+      register: lscpu_out
+      changed_when: false
+
+    # ── 3. Memory Layout ─────────────────────────────────────────────────────
+    - name: Get memory DIMM details (dmidecode -t memory)
+      ansible.builtin.command: dmidecode -t memory
+      register: dmi_memory
+      changed_when: false
+
+    # ── 4. Storage Devices ────────────────────────────────────────────────────
+    - name: Get disk list from Proxmox API
+      ansible.builtin.command: >
+        pvesh get /nodes/{{ inventory_hostname | split('.') | first }}/disks/list
+        --output-format json
+      register: pvesh_disks
+      changed_when: false
+
+    - name: Get list of block devices for smartctl scan
+      ansible.builtin.shell: >
+        lsblk -d -o NAME,TYPE --noheadings | awk '$2=="disk"{print $1}'
+      register: block_devices
+      changed_when: false
+
+    - name: Run smartctl -i on each block device
+      ansible.builtin.command: smartctl -i /dev/{{ item }}
+      register: smartctl_results
+      changed_when: false
+      failed_when: false
+      loop: "{{ block_devices.stdout_lines }}"
+
+    # ── 5. PCIe Devices (includes storage controllers, GPUs, NICs) ────────────
+    - name: Get PCIe hardware list from Proxmox API
+      ansible.builtin.command: >
+        pvesh get /nodes/{{ inventory_hostname | split('.') | first }}/hardware/pci
+        --output-format json
+      register: pvesh_pci
+      changed_when: false
+
+    - name: Get lspci verbose output (for supplemental NIC/GPU detail)
+      ansible.builtin.command: lspci -vmm
+      register: lspci_out
+      changed_when: false
+
+    # ── 6. Network ────────────────────────────────────────────────────────────
+    - name: Get network interfaces from Proxmox API
+      ansible.builtin.command: >
+        pvesh get /nodes/{{ inventory_hostname | split('.') | first }}/network
+        --output-format json
+      register: pvesh_network
+      changed_when: false
+
+    - name: Get ethtool speed for physical interfaces
+      ansible.builtin.shell: |
+        for iface in $(ls /sys/class/net/ | grep -E '^(eth|eno|enp|ens)'); do
+          speed=$(cat /sys/class/net/$iface/speed 2>/dev/null || echo "unknown")
+          duplex=$(cat /sys/class/net/$iface/duplex 2>/dev/null || echo "unknown")
+          echo "$iface speed=$speed duplex=$duplex"
+        done
+      register: iface_speeds
+      changed_when: false
+
+    # ── 7. ZFS Pools ─────────────────────────────────────────────────────────
+    - name: Get ZFS pool status
+      ansible.builtin.command: zpool status -v
+      register: zpool_status
+      changed_when: false
+      failed_when: false
+
+    - name: Get ZFS pool list with usage
+      ansible.builtin.command: zpool list -v
+      register: zpool_list
+      changed_when: false
+      failed_when: false
+
+    - name: Get ZFS dataset list
+      ansible.builtin.command: zfs list -o name,used,avail,refer,mountpoint
+      register: zfs_list
+      changed_when: false
+      failed_when: false
+
+    # ── 8. Assemble per-host fact bundle ─────────────────────────────────────
+    - name: Build smartctl map (device → output)
+      ansible.builtin.set_fact:
+        smartctl_map: >-
+          {{
+            smartctl_map | default({}) | combine({
+              item.item: item.stdout
+            })
+          }}
+      loop: "{{ smartctl_results.results }}"
+
+    - name: Assemble inventory fact bundle
+      ansible.builtin.set_fact:
+        hw_inventory:
+          host: "{{ inventory_hostname }}"
+          collected_at: "{{ ansible_date_time.iso8601 | default(lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ')) }}"
+          system:
+            dmidecode: "{{ dmi_system.stdout }}"
+            bios: "{{ dmi_bios.stdout }}"
+          cpu:
+            pvesh_status: "{{ pvesh_node_status.stdout | from_json }}"
+            lscpu: "{{ lscpu_out.stdout }}"
+          memory:
+            dmidecode: "{{ dmi_memory.stdout }}"
+          storage:
+            pvesh_disks: "{{ pvesh_disks.stdout | from_json }}"
+            smartctl: "{{ smartctl_map }}"
+          pcie:
+            pvesh_pci: "{{ pvesh_pci.stdout | from_json }}"
+            lspci: "{{ lspci_out.stdout }}"
+          network:
+            pvesh_network: "{{ pvesh_network.stdout | from_json }}"
+            iface_speeds: "{{ iface_speeds.stdout }}"
+          zfs:
+            status: "{{ zpool_status.stdout }}"
+            list: "{{ zpool_list.stdout }}"
+            datasets: "{{ zfs_list.stdout }}"
+
+    # ── 9. Write per-host JSON to docs/inventory/ ─────────────────────────────
+    - name: Ensure local inventory output directory exists
+      ansible.builtin.file:
+        path: "{{ inventory_output_dir }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      run_once: false
+
+    - name: Write per-host JSON inventory file
+      ansible.builtin.copy:
+        content: "{{ hw_inventory | to_nice_json }}"
+        dest: "{{ inventory_output_dir }}/{{ inventory_hostname }}.json"
+        mode: "0644"
+      delegate_to: localhost
+
+    # ── 10. Print summary to console ─────────────────────────────────────────
+    - name: Print summary for this host
+      ansible.builtin.debug:
+        msg: |
+          ════════════════════════════════════════════════
+          Host: {{ inventory_hostname }}
+          ════════════════════════════════════════════════
+          System:
+          {{ dmi_system.stdout | regex_search('Manufacturer.*\n.*Product Name.*\n.*Serial Number.*', multiline=True) | default('(parse from JSON file)') }}
+
+          CPU cores: {{ (pvesh_node_status.stdout | from_json).cpuinfo.cpus | default('?') }}
+          CPU model: {{ (pvesh_node_status.stdout | from_json).cpuinfo.model | default('?') }}
+          Memory total: {{ ((pvesh_node_status.stdout | from_json).memory.total / 1073741824) | round(1) }} GB
+
+          Disks found: {{ (pvesh_disks.stdout | from_json) | length }}
+          PCIe devices: {{ (pvesh_pci.stdout | from_json) | length }}
+
+          ZFS pools:
+          {{ zpool_list.stdout | default('none') }}
+          ════════════════════════════════════════════════
