@@ -1,7 +1,7 @@
 # Hardware Inventory — Home Lab Proxmox Cluster
 
 **Collected**: 2026-03-08
-**Method**: Ansible playbook (`ansible/hardware_inventory.yml`) — pvesh API + dmidecode + smartctl
+**Method**: Ansible playbook (`ansible/hardware_inventory.yml`) — pvesh API + dmidecode + smartctl; physical drive details via `smartctl -d megaraid,N` passthrough
 **Hosts surveyed**: r420, r8202, r820 (r720xd **offline/unreachable** at time of collection)
 
 ---
@@ -186,32 +186,75 @@ Per CLAUDE.md architecture table (populated manually):
 
 ## Drive Inventory
 
-### NVMe Drives (all healthy, all transferable to R640)
+### NVMe Drives (M.2 2280, all healthy)
 
-| Host | Device | Model | Serial | Capacity | SMART |
-|------|--------|-------|--------|----------|-------|
-| r420 | /dev/nvme0n1 | WD_BLACK SN770 1TB | 22084G803381 | 931.5 GB | PASSED |
-| r8202 | /dev/nvme0n1 | WD_BLACK SN750 SE 1TB | 22015G801810 | 931.5 GB | PASSED |
-| r820 | /dev/nvme0n1 | WD_BLACK SN750 SE 1TB | 22015G801833 | 931.5 GB | PASSED |
+| Host | Model | Serial | Capacity | SMART |
+|------|-------|--------|----------|-------|
+| r420 | WD_BLACK SN770 1TB | 22084G803381 | 931.5 GB | PASSED |
+| r8202 | WD_BLACK SN750 SE 1TB | 22015G801810 | 931.5 GB | PASSED |
+| r820 | WD_BLACK SN750 SE 1TB | 22015G801833 | 931.5 GB | PASSED |
 
-### SAS/SATA Drives — Behind PERC Controllers
+### Physical Drives Behind PERC — r420
 
-> **Limitation**: All SAS drives are presented via Dell PERC H710/H710P controllers. Smartctl cannot query them directly without MegaRAID CLI (`perccli` or `megacli`). The sizes below are logical volume sizes exposed to the OS, not individual physical drive capacities.
+Queried via `smartctl -d megaraid,N`. All **3.5" SATA desktop drives** (consumer BarraCuda — unusual in a server).
 
-| Host | Logical Device | Exposed Size | Actual use | Notes |
-|------|---------------|-------------|------------|-------|
-| r420 | /dev/sda | 999.7 GB | ZFS sas-data spare/boot? | Via PERC H710P |
-| r420 | /dev/sdb–sdd | 999.7 GB each | sas-data raidz1 (3 drives) | 3× 1TB SAS HDDs (actual model unknown) |
-| r8202 | /dev/sda | 1169.3 GB | Likely OS RAID-1 | Via PERC H710 |
-| r820 | /dev/sda | 2397.7 GB | Likely OS RAID-1 (2× large HDD) | Via PERC H710P |
-| r820 | /dev/sdb–sdi | 999.7 GB each | sas-data raidz2 (8 drives) | 8× ~1TB SAS HDDs (actual model unknown) |
+| Slot | Model | Serial | Capacity | RPM | Form Factor | SMART |
+|------|-------|--------|----------|-----|-------------|-------|
+| 0 | Seagate ST1000DM010-2EP102 | Z9AB6ER5 | 1.00 TB | 7200 | **3.5 inches** | PASSED |
+| 1 | Seagate ST1000DM010-2EP102 | Z9AB6ERL | 1.00 TB | 7200 | **3.5 inches** | PASSED |
+| 2 | Seagate ST1000DM010-2EP102 | Z9AB6XY3 | 1.00 TB | 7200 | **3.5 inches** | PASSED |
+| 3 | Seagate ST1000DM010-2EP102 | Z9AB6VFT | 1.00 TB | 7200 | **3.5 inches** | PASSED |
 
-### USB Drives
+ZFS use: sdb/sdc/sdd → `sas-data` raidz1; sda → likely OS/boot VD.
 
-| Host | Device | Model | Size | Purpose |
-|------|--------|-------|------|---------|
-| r8202 | /dev/sdb | SanDisk 3.2Gen1 | 61.5 GB | Boot/diagnostics |
-| r820 | /dev/sdj | SanDisk 3.2Gen1 | 61.5 GB | Boot/diagnostics |
+### Physical Drives Behind PERC — r8202
+
+All **2.5" enterprise SAS drives**, 15K RPM. Very high runtime hours.
+
+| Slot | Vendor | Model | Capacity | RPM | Form Factor | Runtime | Grown Defects | Non-Med Errors |
+|------|--------|-------|----------|-----|-------------|---------|---------------|----------------|
+| 0 | Seagate | ST9146853SS | 146 GB | 15K | **2.5 inches** | 56,312 hrs (~6.4 yr) | 0 | 10 |
+| 1 | Seagate | ST9146853SS | 146 GB | 15K | **2.5 inches** | (not queried) | — | — |
+| 2 | Toshiba | MK1401GRRB | 146 GB | 15K | **2.5 inches** | (not queried) | — | — |
+| 3 | Toshiba | MK1401GRRB | 146 GB | 15K | **2.5 inches** | (not queried) | — | — |
+| 4 | HP | EH0300FBQDD | 300 GB | 15K | **2.5 inches** | (not queried) | — | — |
+| 5 | HP | EH0300FBQDD | 300 GB | 15K | **2.5 inches** | (not queried) | — | — |
+| 6 | HP | EH0300FBQDD | 300 GB | 15K | **2.5 inches** | (not queried) | — | — |
+| 7 | HP | EH0300FBQDD | 300 GB | 15K | **2.5 inches** | (not queried) | — | — |
+
+ZFS use: none. PERC presents them as single large logical volume (sda, 1169 GB), likely RAID-5 or RAID-6.
+
+> Note: 10 non-medium errors on slot 0 indicates minor error log entries — not critical, but worth monitoring.
+
+### Physical Drives Behind PERC — r820
+
+Mix of 4× SAS HDDs and 8× SATA SSDs. **All 2.5" SFF.**
+
+| Slot | Vendor / Model | Capacity | Type | RPM | Form Factor | SMART | Hours |
+|------|---------------|----------|------|-----|-------------|-------|-------|
+| 0 | Hitachi HUC10606 CLAR600 | 600 GB | SAS HDD | 10K | **2.5 inches** | Health: OK, 0 defects | 371 hrs |
+| 1 | Hitachi HUC10606 CLAR600 | 600 GB | SAS HDD | 10K | **2.5 inches** | Health: OK | — |
+| 2 | Hitachi HUC10606 CLAR600 | 600 GB | SAS HDD | 10K | **2.5 inches** | Health: OK | — |
+| 3 | Hitachi HUC10606 CLAR600 | 600 GB | SAS HDD | 10K | **2.5 inches** | Health: OK | — |
+| 8 | Crucial CT1000MX500SSD1 | 1.00 TB | SATA SSD | SSD | **2.5 inches** | PASSED | — |
+| 9 | Crucial CT1000MX500SSD1 | 1.00 TB | SATA SSD | SSD | **2.5 inches** | PASSED | — |
+| 10 | Crucial CT1000MX500SSD1 | 1.00 TB | SATA SSD | SSD | **2.5 inches** | PASSED | — |
+| 11 | Crucial CT1000MX500SSD1 | 1.00 TB | SATA SSD | SSD | **2.5 inches** | PASSED | — |
+| 12 | Crucial CT1000MX500SSD1 | 1.00 TB | SATA SSD | SSD | **2.5 inches** | PASSED | — |
+| 13 | Crucial CT1000MX500SSD1 | 1.00 TB | SATA SSD | SSD | **2.5 inches** | PASSED | — |
+| 14 | WD WDBNCE0010PNC (Blue SN) | 1.00 TB | SATA SSD | SSD | **2.5 inches** | PASSED | — |
+| 15 | WD WDBNCE0010PNC (Blue SN) | 1.00 TB | SATA SSD | SSD | **2.5 inches** | PASSED | — |
+
+ZFS use: sdb–sdi (slots 8–15, the 8 SSDs) → `sas-data` raidz2; sda (4 Hitachi HDDs as RAID-0 stripe = ~2400 GB logical) → not in ZFS.
+
+> The Hitachi drives are enterprise SAS HDDs with only ~370 hours of use — essentially new drives despite living in old hardware.
+
+### USB Drives (boot media, not transferable)
+
+| Host | Model | Size |
+|------|-------|------|
+| r8202 | SanDisk 3.2Gen1 | 61.5 GB |
+| r820 | SanDisk 3.2Gen1 | 61.5 GB |
 
 ---
 
@@ -219,29 +262,32 @@ Per CLAUDE.md architecture table (populated manually):
 
 Target: 3× Dell PowerEdge R640 (2× Xeon Gold 6140, 128 GB DDR4 each)
 
-| Component | Current Servers | R640 Compatible? | Notes |
-|-----------|----------------|-----------------|-------|
-| **DDR3 RAM** | All current servers | **NO** | R640 requires DDR4. All current DDR3 is scrap/sell. |
-| **3.5" SAS HDDs** | r420, r820, r720xd (likely 3.5") | **NO** | R640 is 2.5" SFF only (10 or 24 bay depending on config). 3.5" LFF drives do not fit. |
-| **2.5" SAS HDDs** | Unknown (behind PERC, can't confirm form factor) | **MAYBE** | If any drives are 2.5" SAS, they can move to R640. Needs physical verification or perccli to confirm. |
-| **NVMe M.2 (WD Black)** | 3× WD Black 1TB NVMe (r420, r8202, r820) | **YES (with adapter)** | R640 supports M.2 via BOSS card or PCIe adapter. All 3 drives are healthy. |
-| **BCM5720 1GbE NICs** | All servers (2× per host = 4× ports) | **YES** | Standard PCIe Gen3. However R640 likely already has 4× 1GbE onboard — these are redundant unless you need 10GbE. |
-| **PERC H710/H710P** | All servers | **NO / DON'T** | R640 has its own PERC controller. These are redundant and won't be needed. |
-| **Matrox G200eR2** | All servers (iDRAC GPU) | **N/A** | Soldered to motherboard, not a discrete card. iDRAC is separate on R640. |
-| **Intel SATA AHCI** | All servers (on-board) | **N/A** | On-board chipset controller, not transferable. |
-| **WD Black SN770/SN750 SE NVMe** | 3 drives | **YES (M.2 2280)** | M.2 2280 form factor, PCIe Gen3/Gen4. Will need M.2 to U.2 carrier or PCIe adapter card for R640. |
+| Component | Host(s) | Qty | R640 Compatible? | Notes |
+|-----------|---------|-----|-----------------|-------|
+| **DDR3 ECC RAM** | All | ~540 GB total | **NO** | R640 requires DDR4. All DDR3 scrap/sell. |
+| **3.5" SATA HDDs** (Seagate ST1000DM010) | r420 | 4× 1TB | **NO** | R640 is 2.5" SFF only. 3.5" desktop drives don't fit and are consumer grade anyway. |
+| **2.5" SAS HDDs** (Hitachi HUC10606) | r820 | 4× 600GB | **YES** | 2.5" SFF SAS, 10K RPM. Will fit R640 bays. Only 371 hrs of use — essentially new. |
+| **2.5" SATA SSDs** (Crucial MX500 1TB) | r820 | 6× 1TB | **YES** | 2.5" SFF SATA. Fit R640 bays natively. All SMART PASSED. |
+| **2.5" SATA SSDs** (WD Blue SN 1TB) | r820 | 2× 1TB | **YES** | 2.5" SFF SATA. Fit R640 bays natively. All SMART PASSED. |
+| **2.5" SAS HDDs** (Seagate/Toshiba/HP) | r8202 | 8× 146–300GB | **YES (but low value)** | 2.5" SFF, physically fit. But 146 GB and 300 GB is tiny — and slot 0 has 56K hours. Probably not worth moving. |
+| **NVMe M.2 2280** (WD Black 1TB) | r420, r8202, r820 | 3× 1TB | **YES (with adapter)** | M.2 2280. R640 needs PCIe M.2 adapter card. All healthy. |
+| **BCM5720 1GbE NICs** | All | 2× per host | **Redundant** | R640 has onboard 1GbE. Only useful if you need more than 4 ports per node. |
+| **PERC H710/H710P** | All | 1× per host | **NO** | R640 has its own PERC. Skip. |
+| **Matrox G200eR2** | All | — | **N/A** | Soldered BMC chip. Not a removable card. |
 
 ### Key Takeaways for R640 Migration
 
-1. **RAM stays behind** — DDR3 is incompatible with R640's DDR4 slots. Plan to populate R640 with its own DDR4.
+1. **r420's drives are worthless for R640** — 3.5" consumer Seagate desktop drives. Cannot physically fit in R640. Repurpose r420 as NAS/archive or sell.
 
-2. **NVMe drives are the most transferable asset** — 3× WD Black 1TB drives are healthy and can be repurposed in R640s as fast storage (nvme-fast pool equivalent). You'll need M.2 adapters since R640 doesn't have native M.2 slots.
+2. **r820 is the drive goldmine** — All 12 drives are 2.5" SFF and can move to R640:
+   - 4× Hitachi 600GB 10K SAS HDDs (basically new, 371 hrs) → strong candidates for R640 boot or data drives
+   - 8× 1TB SATA SSDs (Crucial + WD) → excellent for ZFS storage in R640
 
-3. **SAS HDD form factor is the critical unknown** — The PERC controller hides whether drives are 2.5" or 3.5". Run `perccli /c0 /eall /sall show` on each host to get physical drive info. If they're 3.5" LFF, they cannot go into R640. If 2.5" SFF, they can.
+3. **3 WD Black NVMe drives** — all healthy, move to R640 as the fast `nvme-fast` pool equivalent. Need PCIe M.2 adapter cards (~$15 each).
 
-4. **NICs are low-value transfers** — BCM5720 is 1GbE only. R640 likely has onboard 1GbE. If you want 10GbE for the R640 cluster, plan to buy dedicated 10GbE NICs (e.g., Intel X710 or Mellanox ConnectX-3/4) rather than reusing these.
+4. **r8202's drives fit but aren't worth it** — 2.5" physically fits but the drives are 146–300 GB with up to 56K runtime hours. Skip unless desperate for SAS spindles.
 
-5. **PERC controllers are not worth transferring** — R640 will have its own PERC. Skip these.
+5. **No DDR3 transfers anywhere** — all current RAM is DDR3. Budget for DDR4 for R640s.
 
 ---
 
@@ -260,10 +306,10 @@ Target: 3× Dell PowerEdge R640 (2× Xeon Gold 6140, 128 GB DDR4 each)
 | **r720xd** | Unknown status (offline). Needs investigation. If healthy, assess similarly to r420/r8202 based on actual specs. |
 
 ### Priority Actions Before R640 Arrival
-1. **Identify SAS drive form factor** — run `perccli` on r420 and r820 to determine if drives are 2.5" (movable) or 3.5" (cannot be used in R640).
-2. **Procure M.2 adapters** — 3× PCIe adapters (M.2 NVMe to PCIe x4) for the WD Black drives.
-3. **Bring r720xd back online** — run inventory playbook against it to complete the full picture.
-4. **Plan DDR4 RAM** — R640 arrives with 128 GB DDR4 per node; decide if that's sufficient or purchase additional DIMMs.
+1. **Procure 3× M.2 PCIe adapter cards** — for the WD Black NVMe drives (M.2 2280 NVMe → PCIe x4 riser).
+2. **Bring r720xd back online** — run inventory playbook against it to complete the full picture.
+3. **Plan DDR4 RAM** — R640 arrives with 128 GB DDR4 per node; decide if that's sufficient or purchase additional DIMMs.
+4. **Decide r420 fate** — its 3.5" desktop drives and old LGA 1356 platform have little reuse value once R640s arrive. Best candidate to retire.
 
 ---
 
@@ -289,6 +335,7 @@ uv run ansible-playbook -i inventory/hosts.yml hardware_inventory.yml \
 ## Gaps and Follow-ups
 
 - [ ] **r720xd** — offline, needs re-run once host is reachable
-- [ ] **Physical SAS drive models** — need `perccli /c0 /eall /sall show all` on r420, r8202, r820
+- [ ] **r8202 per-drive runtime/health** — only slot 0 health queried in detail; run full scan across slots 1–7
 - [ ] **NIC speeds** — `iface_speeds` collection returned empty (interfaces may use different naming on Proxmox); use `ethtool eno1` manually to confirm 1GbE vs 10GbE
 - [ ] **R640 bay count** — confirm whether R640 units are 10-bay or 24-bay 2.5" SFF configurations
+- [x] ~~Physical drive form factors~~ — resolved via `smartctl -d megaraid,N` passthrough (see Drive Inventory above)
