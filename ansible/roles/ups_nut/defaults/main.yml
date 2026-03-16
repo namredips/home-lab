@@ -31,3 +31,7 @@ nut_device_port: auto
 # Shutdown thresholds — upsmon triggers SHUTDOWNCMD when either condition is met
 nut_battery_min_percent: 20    # shut down at or below 20% battery
 nut_battery_min_runtime: 300   # shut down at or below 5 minutes remaining
+
+# Set to false when the UPS protects equipment other than these servers (e.g. networking gear).
+# Monitoring and alerting still work — only the automated host shutdown is suppressed.
+nut_enable_shutdown: true

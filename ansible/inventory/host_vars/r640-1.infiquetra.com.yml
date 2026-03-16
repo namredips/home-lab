@@ -6,8 +6,11 @@
 # Ceph NIC: nic0 (Solarflare sfc, autoneg works at 10G)
 # UPS NUT: NUT server — USB cable from UPS connects to this host
 
-# NUT — this host is the NUT server (USB-connected to UPS)
+# NUT — this host is the NUT server (USB-connected to Tripp Lite SMART1500LCD)
+# The Tripp Lite protects networking gear (UDM, switches) — not servers.
+# Shutdown is suppressed: losing the networking UPS does not justify halting servers.
 nut_mode: netserver
+nut_enable_shutdown: false
 
 ceph_nic: "nic0"
 ceph_ip: "10.220.2.8"
