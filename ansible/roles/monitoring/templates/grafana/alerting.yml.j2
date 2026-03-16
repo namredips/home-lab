@@ -189,15 +189,15 @@ groups:
         labels:
           severity: warning
 
-      - uid: pbs-backup-stale
-        title: "PBS Backup Stale"
+      - uid: pbs-unreachable
+        title: "PBS Unreachable"
         condition: B
         data:
           - refId: A
             relativeTimeRange: {from: 300, to: 0}
             datasourceUid: prometheus
             model:
-              expr: "(time() - pbs_snapshot_vm_last_timestamp) / 3600 > 48"
+              expr: "pbs_up == 0"
               instant: true
               refId: A
           - refId: B
@@ -214,9 +214,9 @@ groups:
               type: threshold
         noDataState: OK
         execErrState: Alerting
-        for: 10m
+        for: 5m
         annotations:
-          summary: "PBS backup stale for {{ "{{" }} $labels.vm {{ "}}" }}: {{ "{{" }} $value | printf '%.0f' {{ "}}" }}h since last backup"
+          summary: "PBS exporter cannot reach PBS server — backups may be failing"
         labels:
           severity: warning
 

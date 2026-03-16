@@ -1,0 +1,112 @@
+groups:
+  - name: olympus_recording_rules
+    interval: 30s
+    rules:
+
+      # ── Host / VM CPU ──────────────────────────────────────────────────────
+      - record: instance:node_cpu_utilization:ratio
+        expr: >
+          1 - avg by(instance, job) (
+            rate(node_cpu_seconds_total{mode="idle"}[5m])
+          )
+
+      # ── Host / VM Memory ───────────────────────────────────────────────────
+      - record: instance:node_memory_utilization:ratio
+        expr: >
+          1 - (
+            node_memory_MemAvailable_bytes
+            / node_memory_MemTotal_bytes
+          )
+
+      # ── Host / VM Root Filesystem ──────────────────────────────────────────
+      - record: instance:node_rootfs_utilization:ratio
+        expr: >
+          1 - (
+            node_filesystem_avail_bytes{mountpoint="/", fstype!="rootfs"}
+            / node_filesystem_size_bytes{mountpoint="/", fstype!="rootfs"}
+          )
+
+      # ── Host / VM Network ──────────────────────────────────────────────────
+      - record: instance:node_network_receive_bytes:rate5m
+        expr: >
+          sum without(device) (
+            rate(node_network_receive_bytes_total{
+              device!~"lo|veth.*|docker.*|br-.*"
+            }[5m])
+          )
+
+      - record: instance:node_network_transmit_bytes:rate5m
+        expr: >
+          sum without(device) (
+            rate(node_network_transmit_bytes_total{
+              device!~"lo|veth.*|docker.*|br-.*"
+            }[5m])
+          )
+
+      # ── Ceph Storage ───────────────────────────────────────────────────────
+      - record: ceph:osd_up_count
+        expr: count(ceph_osd_up == 1)
+
+      - record: ceph:cluster_utilization:ratio
+        expr: >
+          ceph_cluster_total_used_bytes
+          / ceph_cluster_total_bytes
+
+      - record: ceph:total_iops:rate5m
+        expr: >
+          sum(rate(ceph_osd_op_r[5m]))
+          + sum(rate(ceph_osd_op_w[5m]))
+
+      - record: ceph:total_throughput_bytes:rate5m
+        expr: >
+          sum(rate(ceph_osd_op_r_out_bytes[5m]))
+          + sum(rate(ceph_osd_op_w_in_bytes[5m]))
+
+      # ── IPMI Hardware ──────────────────────────────────────────────────────
+      # server_ip label added by metric_relabel_configs in prometheus.yml
+      - record: instance:ipmi_inlet_temp_celsius
+        expr: >
+          max by(server_ip) (
+            ipmi_temperature_celsius{job="ipmi", name=~".*[Ii]nlet.*"}
+          )
+
+      - record: instance:ipmi_cpu_temp_celsius
+        expr: >
+          max by(server_ip) (
+            ipmi_temperature_celsius{job="ipmi", name=~".*CPU.*"}
+          )
+
+      - record: instance:ipmi_power_watts
+        expr: >
+          ipmi_dcmi_power_consumption_watts{job="ipmi"}
+
+      # ── Service Availability ───────────────────────────────────────────────
+      - record: job:up_ratio
+        expr: avg by(job) (up)
+
+      # ── OpenClaw / Ollama service state ────────────────────────────────────
+      - record: instance:openclaw_active
+        expr: >
+          node_systemd_unit_state{
+            job="agent_vms",
+            name="openclaw-gateway.service",
+            state="active"
+          }
+
+      - record: instance:ollama_active
+        expr: >
+          node_systemd_unit_state{
+            job="agent_vms",
+            name="ollama.service",
+            state="active"
+          }
+
+      # ── UniFi Network ──────────────────────────────────────────────────────
+      - record: unifi:wan_rx_bytes:rate5m
+        expr: rate(unpoller_usg_wan_rx_bytes_total[5m])
+
+      - record: unifi:wan_tx_bytes:rate5m
+        expr: rate(unpoller_usg_wan_tx_bytes_total[5m])
+
+      - record: unifi:client_count
+        expr: unpoller_site_num_sta

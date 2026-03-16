@@ -8,6 +8,7 @@ services:
       - "9090:9090"
     volumes:
       - {{ monitoring_data_dir }}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - {{ monitoring_data_dir }}/prometheus/rules.yml:/etc/prometheus/rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -15,6 +16,7 @@ services:
       - '--storage.tsdb.retention.time={{ prometheus_retention }}'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
 
   # ── Grafana ───────────────────────────────────────────────────────────────────
   grafana:
@@ -29,6 +31,7 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ALERTING_ENABLED: "false"
       GF_UNIFIED_ALERTING_ENABLED: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/var/lib/grafana/dashboards/olympus-overview.json"
     volumes:
       - grafana_data:/var/lib/grafana
       - {{ monitoring_data_dir }}/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
@@ -119,6 +122,22 @@ services:
       - /var/log:/var/log:ro
     command:
       - '--config.file=/etc/promtail/promtail.yml'
+
+  # ── UniFi Poller ─────────────────────────────────────────────────────────────
+  # Scrapes UniFi Dream Machine Pro and exports metrics to Prometheus.
+  unifi_poller:
+    image: ghcr.io/unpoller/unpoller:latest
+    container_name: unifi_poller
+    restart: unless-stopped
+    ports:
+      - "{{ unifi_poller_port }}:9130"
+    environment:
+      UP_UNIFI_DEFAULT_URL: "https://10.220.1.1"
+      UP_UNIFI_DEFAULT_USER: "{{ vault_unifi_poller_user }}"
+      UP_UNIFI_DEFAULT_PASS: "{{ vault_unifi_poller_password }}"
+      UP_UNIFI_DEFAULT_VERIFY_SSL: "false"
+      UP_PROMETHEUS_HTTP_LISTEN: "0.0.0.0:9130"
+      UP_INFLUXDB_DISABLE: "true"
 
 volumes:
   prometheus_data:

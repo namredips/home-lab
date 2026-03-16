@@ -92,6 +92,13 @@
     mode: '0644'
   become: true
 
+- name: Deploy Prometheus recording rules
+  ansible.builtin.template:
+    src: prometheus_rules.yml.j2
+    dest: "{{ monitoring_data_dir }}/prometheus/rules.yml"
+    mode: '0644'
+  become: true
+
 # ── Grafana provisioning ──────────────────────────────────────────────────────
 - name: Deploy Grafana datasources
   ansible.builtin.template:

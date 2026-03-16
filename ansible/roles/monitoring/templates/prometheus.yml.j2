@@ -2,6 +2,9 @@ global:
   scrape_interval: {{ prometheus_scrape_interval }}
   evaluation_interval: {{ prometheus_scrape_interval }}
 
+rule_files:
+  - /etc/prometheus/rules.yml
+
 scrape_configs:
   # ── Prometheus self ──────────────────────────────────────────────────────────
   - job_name: 'prometheus'
@@ -86,6 +89,14 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: 'ipmi_exporter:{{ ipmi_exporter_port }}'
+    # Map iDRAC IP → server IP so IPMI metrics can be joined with node_exporter metrics
+    metric_relabel_configs:
+{% for host in groups['proxmox_hosts'] %}
+      - source_labels: [instance]
+        regex: '{{ hostvars[host]['idrac_ip'] }}'
+        target_label: server_ip
+        replacement: '{{ hostvars[host]['ansible_host'] }}'
+{% endfor %}
     scrape_interval: 60s
     scrape_timeout: 30s
 
@@ -107,3 +118,23 @@ scrape_configs:
       - source_labels: [__address__]
         regex: '([^:]+):\d+'
         target_label: instance
+
+  # ── Service VMs — node_exporter :9100 ────────────────────────────────────────
+  # RustDesk (200) and PBS (202) — skip OME (Windows) and monitoring (separate job)
+  - job_name: 'service_vms'
+    static_configs:
+      - targets:
+{% for host in groups['service_vms'] %}
+{% if 'ome' not in host and 'monitoring' not in host %}
+          - '{{ hostvars[host]['ansible_host'] }}:{{ node_exporter_port }}'
+{% endif %}
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '([^:]+):\d+'
+        target_label: instance
+
+  # ── UniFi Poller — Dream Machine Pro metrics ─────────────────────────────────
+  - job_name: 'unifi'
+    static_configs:
+      - targets: ['unifi_poller:{{ unifi_poller_port }}']

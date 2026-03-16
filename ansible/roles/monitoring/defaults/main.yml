@@ -25,6 +25,9 @@ promtail_syslog_port: 1514
 # Loki retention
 loki_retention_days: 30
 
+# UniFi Poller
+unifi_poller_port: 9130
+
 # PBS connection
 pbs_host: "10.220.1.62"
 pbs_port: 8007

@@ -45,7 +45,12 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {"asDropdown": false, "icon": "external link", "keepTime": true, "title": "Node Exporter Full", "type": "link", "url": "/d/rYdddlPWk"},
+    {"asDropdown": false, "icon": "external link", "keepTime": true, "title": "Ceph Cluster", "type": "link", "url": "/d/tbO9LAiZK"},
+    {"asDropdown": false, "icon": "external link", "keepTime": true, "title": "Proxmox VE", "type": "link", "url": "/d/Dp7Cd57Zza"},
+    {"asDropdown": false, "icon": "external link", "keepTime": true, "title": "Prometheus Explorer", "type": "link", "url": "/d/prometheus-explorer"}
+  ],
   "panels": [
     {
       "collapsed": false,
@@ -97,7 +102,7 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "ceph_osd_up",
+          "expr": "count(ceph_osd_up == 1)",
           "legendFormat": "OSDs Up",
           "refId": "A"
         }
@@ -253,7 +258,7 @@
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "ipmi_temperature_celsius{job='ipmi',name=~'.*CPU.*|.*Temp.*Inlet.*'}",
+          "expr": "label_replace(max by(server_ip) (ipmi_temperature_celsius{job='ipmi',name=~'.*CPU.*|.*Inlet.*'}), 'instance', '$1', 'server_ip', '(.+)')",
           "format": "table",
           "instant": true,
           "legendFormat": "{{instance}}",
@@ -261,7 +266,7 @@
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "ipmi_dcmi_power_consumption_watts{job='ipmi'}",
+          "expr": "label_replace(ipmi_dcmi_power_consumption_watts{job='ipmi'}, 'instance', '$1', 'server_ip', '(.+)')",
           "format": "table",
           "instant": true,
           "legendFormat": "{{instance}}",
@@ -316,7 +321,7 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{job=~'agent_vms',mode='idle'}[5m])) * 100)",
+          "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{job=~'agent_vms|service_vms',mode='idle'}[5m])) * 100)",
           "format": "table",
           "instant": true,
           "legendFormat": "{{instance}}",
@@ -324,7 +329,7 @@
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "(1 - (node_memory_MemAvailable_bytes{job=~'agent_vms'} / node_memory_MemTotal_bytes{job=~'agent_vms'})) * 100",
+          "expr": "(1 - (node_memory_MemAvailable_bytes{job=~'agent_vms|service_vms'} / node_memory_MemTotal_bytes{job=~'agent_vms|service_vms'})) * 100",
           "format": "table",
           "instant": true,
           "legendFormat": "{{instance}}",
@@ -332,7 +337,7 @@
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "node_time_seconds{job=~'agent_vms'} - node_boot_time_seconds{job=~'agent_vms'}",
+          "expr": "node_time_seconds{job=~'agent_vms|service_vms'} - node_boot_time_seconds{job=~'agent_vms|service_vms'}",
           "format": "table",
           "instant": true,
           "legendFormat": "{{instance}}",
@@ -445,30 +450,29 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "(time() - pbs_snapshot_vm_last_timestamp) / 3600",
+          "expr": "pbs_snapshot_count",
           "format": "table",
           "instant": true,
-          "legendFormat": "{{vm}}",
+          "legendFormat": "{{datastore}}",
           "refId": "A"
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "pbs_datastore_used_bytes / pbs_datastore_total_bytes * 100",
+          "expr": "pbs_used / pbs_size * 100",
           "format": "table",
           "instant": true,
           "legendFormat": "{{datastore}}",
           "refId": "B"
         }
       ],
-      "title": "PBS Backup Age & Datastore Usage",
+      "title": "PBS Snapshot Count & Datastore Usage",
       "transformations": [
         {
           "id": "organize",
           "options": {
             "renameByName": {
-              "vm": "VM",
-              "Value #A": "Age (hours)",
               "datastore": "Datastore",
+              "Value #A": "Snapshots",
               "Value #B": "Datastore Used %"
             }
           }
@@ -479,13 +483,98 @@
     {
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 41},
+      "id": 106,
+      "title": "UniFi Network",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 42},
+      "id": 50,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "rate(unpoller_usg_wan_rx_bytes_total[5m])",
+          "legendFormat": "WAN RX",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "rate(unpoller_usg_wan_tx_bytes_total[5m])",
+          "legendFormat": "WAN TX",
+          "refId": "B"
+        }
+      ],
+      "title": "WAN Bandwidth",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 42},
+      "id": 51,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "unpoller_site_num_sta",
+          "legendFormat": "Clients",
+          "refId": "A"
+        }
+      ],
+      "title": "Active WiFi Clients",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [{"options": {"1": {"color": "green", "index": 0, "text": "UP"}, "0": {"color": "red", "index": 1, "text": "DOWN"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 42},
+      "id": 52,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "up{job='unifi'}",
+          "legendFormat": "UniFi Poller",
+          "refId": "A"
+        }
+      ],
+      "title": "UniFi Poller Status",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 48},
       "id": 105,
       "title": "Recent Logs",
       "type": "row"
     },
     {
       "datasource": {"type": "loki", "uid": "loki"},
-      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 42},
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 49},
       "id": 40,
       "options": {
         "dedupStrategy": "none",
