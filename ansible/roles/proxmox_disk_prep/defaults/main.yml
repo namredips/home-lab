@@ -1,0 +1,13 @@
+---
+reset: false
+
+# Per-host ceph_disks list is defined in inventory/host_vars/<host>.yml
+# Format:
+#   ceph_disks:
+#     - name: nvme0n1
+#       device_class: ssd
+#     - name: sdb
+#       device_class: hdd
+#
+# Boot disk (sda on all hosts) is detected automatically and protected.
+# Only disks explicitly listed in ceph_disks are wiped.

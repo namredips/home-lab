@@ -1,0 +1,8 @@
+---
+- name: Ceph network setup
+  ansible.builtin.include_tasks: setup.yml
+  when: not reset | bool
+
+- name: Ceph network teardown
+  ansible.builtin.include_tasks: reset.yml
+  when: reset | bool

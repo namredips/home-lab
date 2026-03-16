@@ -1,0 +1,39 @@
+---
+reset: false
+
+# Ceph version — matches Proxmox VE 9.x (Debian Trixie)
+ceph_version: "reef"
+
+# Cluster network — dedicated 10GbE on vmbr1
+ceph_cluster_network: "10.220.2.0/24"
+
+# Replication: size=2 → 2 copies, survives 1 OSD failure
+# min_size=1 allows reads/writes with a single copy (degraded but available)
+ceph_pool_size: 2
+ceph_pool_min_size: 1
+
+# Monitor + manager nodes — must be odd count for quorum
+# r420 (master), r640-1, r720xd chosen for hardware diversity
+ceph_monitor_nodes:
+  - r420.infiquetra.com
+  - r640-1.infiquetra.com
+  - r720xd.infiquetra.com
+
+# Ceph pools with Proxmox storage registration
+# ssd_rule targets NVMe/SATA SSD OSDs (R640s) — fast VM disk pool
+# hdd_rule targets SAS HDD OSDs (r420, r720xd, r820) — bulk backup/ISO pool
+ceph_pools:
+  - name: "ceph-fast"
+    crush_rule: "ssd_rule"
+    content: "images,rootdir"
+  - name: "ceph-bulk"
+    crush_rule: "hdd_rule"
+    content: "backup,iso,vztmpl,images"
+
+# Per-host ceph_disks defined in inventory/host_vars/<host>.yml
+# Format:
+#   ceph_disks:
+#     - name: nvme0n1
+#       device_class: ssd
+#     - name: sdb
+#       device_class: hdd

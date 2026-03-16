@@ -1,0 +1,51 @@
+---
+# Tear down Ceph — removes all OSDs, monitors, managers, and pools.
+# DESTRUCTIVE: all data on Ceph pools will be lost.
+# Must pass -e reset=true to confirm.
+
+- name: Confirm reset is intentional
+  ansible.builtin.assert:
+    that: reset | bool
+    fail_msg: "Set -e reset=true to confirm Ceph teardown"
+
+# Remove Proxmox storage registrations (master only)
+- name: Remove ceph-fast Proxmox storage
+  ansible.builtin.command: pvesm remove ceph-fast
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  ignore_errors: true
+  changed_when: true
+
+- name: Remove ceph-bulk Proxmox storage
+  ansible.builtin.command: pvesm remove ceph-bulk
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  ignore_errors: true
+  changed_when: true
+
+# Destroy OSDs on each node
+- name: Stop and destroy all OSDs on this node
+  ansible.builtin.shell: |
+    for osd_id in $(ceph-volume lvm list 2>/dev/null | grep 'osd id' | awk '{print $NF}'); do
+      echo "Removing OSD ${osd_id}"
+      systemctl stop ceph-osd@${osd_id} 2>/dev/null || true
+      pveceph osd destroy ${osd_id} --cleanup 1 2>/dev/null || true
+    done
+  ignore_errors: true
+  changed_when: true
+  failed_when: false
+
+# Remove monitors (on monitor nodes only)
+- name: Remove Ceph monitor
+  ansible.builtin.command: pveceph mon destroy {{ inventory_hostname_short }}
+  when: inventory_hostname in ceph_monitor_nodes
+  ignore_errors: true
+  changed_when: true
+
+# Purge entire Ceph installation (master only, run last)
+- name: Purge Ceph cluster config and packages
+  ansible.builtin.command: pveceph purge --crash 1
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  ignore_errors: true
+  changed_when: true

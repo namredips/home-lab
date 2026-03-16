@@ -1,0 +1,60 @@
+---
+# Bring up 10GbE Ceph network on each Proxmox host.
+# Creates vmbr1 bridge on the dedicated Ceph NIC with static IP on 10.220.2.0/24.
+# Config is written to /etc/network/interfaces (ifupdown2) so it survives reboots.
+#
+# QLogic (qede) NICs need forced 10G speed — SFP28 ports on the USW-Aggregation
+# switch won't auto-negotiate to 10G with SFP+ DAC cables without ethtool override.
+# The post-up line in the interface stanza handles this persistently.
+
+- name: Verify Ceph NIC exists on this host
+  ansible.builtin.command: ip link show {{ ceph_nic }}
+  register: nic_check
+  changed_when: false
+  failed_when: nic_check.rc != 0
+
+- name: Add Ceph NIC and vmbr1 bridge to /etc/network/interfaces
+  ansible.builtin.blockinfile:
+    path: /etc/network/interfaces
+    marker: "# {mark} ANSIBLE MANAGED: Ceph network ({{ ceph_bridge_name }})"
+    block: "{{ lookup('template', 'ceph-iface.j2') }}"
+  register: ifaces_updated
+
+- name: Apply network configuration
+  ansible.builtin.command: ifreload -a
+  when: ifaces_updated.changed
+  changed_when: true
+
+- name: Wait for vmbr1 bridge to come up
+  ansible.builtin.command: ip link show {{ ceph_bridge_name }}
+  register: bridge_up
+  until: "'state UP' in bridge_up.stdout or 'UP' in bridge_up.stdout"
+  retries: 12
+  delay: 5
+  changed_when: false
+
+- name: Show Ceph interface status
+  ansible.builtin.command: ip addr show {{ ceph_bridge_name }}
+  register: iface_status
+  changed_when: false
+
+- name: Display Ceph network info
+  ansible.builtin.debug:
+    msg:
+      - "Host: {{ inventory_hostname }}"
+      - "NIC: {{ ceph_nic }} → Bridge: {{ ceph_bridge_name }} = {{ ceph_ip }}/24"
+      - "{{ iface_status.stdout_lines }}"
+
+- name: Verify connectivity to Ceph peers
+  ansible.builtin.command: ping -c 3 -W 2 {{ item }}
+  loop: "{{ ceph_peers | reject('equalto', ceph_ip) | list }}"
+  register: peer_pings
+  changed_when: false
+  ignore_errors: true
+
+- name: Report Ceph peer connectivity
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }} → {{ item.item }}: {{ 'OK' if item.rc == 0 else 'UNREACHABLE (check NIC/cable/switch)' }}"
+  loop: "{{ peer_pings.results }}"
+  loop_control:
+    label: "{{ item.item }}"

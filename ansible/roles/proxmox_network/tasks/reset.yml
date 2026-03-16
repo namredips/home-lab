@@ -1,0 +1,22 @@
+---
+# Remove Ceph network bridge from this host.
+
+- name: Bring down vmbr1 bridge
+  ansible.builtin.command: ip link set {{ ceph_bridge_name }} down
+  ignore_errors: true
+  changed_when: true
+
+- name: Delete vmbr1 bridge
+  ansible.builtin.command: ip link delete {{ ceph_bridge_name }}
+  ignore_errors: true
+  changed_when: true
+
+- name: Remove Ceph network block from /etc/network/interfaces
+  ansible.builtin.blockinfile:
+    path: /etc/network/interfaces
+    marker: "# {mark} ANSIBLE MANAGED: Ceph network ({{ ceph_bridge_name }})"
+    state: absent
+
+- name: Apply network configuration
+  ansible.builtin.command: ifreload -a
+  changed_when: true

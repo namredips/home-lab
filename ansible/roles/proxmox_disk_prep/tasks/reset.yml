@@ -1,0 +1,7 @@
+---
+# Disk prep reset is a no-op — wiped disks cannot be "un-wiped".
+# Ceph OSD teardown is handled by the proxmox_ceph reset role.
+
+- name: Disk prep has no reset action
+  ansible.builtin.debug:
+    msg: "proxmox_disk_prep reset: nothing to undo (disks remain wiped)"

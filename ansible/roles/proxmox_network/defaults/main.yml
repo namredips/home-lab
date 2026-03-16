@@ -1,0 +1,35 @@
+---
+reset: false
+
+# Ceph cluster network
+ceph_network_cidr: "10.220.2.0/24"
+ceph_bridge_name: "vmbr1"
+
+# All Ceph peer IPs on the cluster network (for connectivity verification)
+ceph_peers:
+  - "10.220.2.7"
+  - "10.220.2.8"
+  - "10.220.2.9"
+  - "10.220.2.10"
+  - "10.220.2.11"
+  - "10.220.2.12"
+
+# Hosts with QLogic qede NICs — require forced 10G speed negotiation
+# because SFP28 (25G) ports on USW-Aggregation don't auto-negotiate to 10G
+# with SFP+ DAC cables without ethtool override
+qede_hosts:
+  - r420.infiquetra.com
+  - r720xd.infiquetra.com
+  - r820.infiquetra.com
+
+# Per-host variables (defined in host_vars):
+#   ceph_nic: "<interface>"   # physical NIC for Ceph traffic
+#   ceph_ip: "10.220.2.X"    # static IP on Ceph network
+#
+# NIC mapping:
+#   r420:    nic2  (qede / QLogic)
+#   r640-1:  nic0  (sfc  / Solarflare)
+#   r640-2:  nic4  (sfc  / Solarflare)
+#   r720xd:  nic5  (qede / QLogic)
+#   r820:    nic4  (qede / QLogic)
+#   r640-3:  nic4  (sfc  / Solarflare)

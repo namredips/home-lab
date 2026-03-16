@@ -1,0 +1,12 @@
+auto {{ ceph_nic }}
+iface {{ ceph_nic }} inet manual
+{% if inventory_hostname in qede_hosts %}
+        post-up ethtool -s {{ ceph_nic }} speed 10000 duplex full autoneg off || true
+{% endif %}
+
+auto {{ ceph_bridge_name }}
+iface {{ ceph_bridge_name }} inet static
+        address {{ ceph_ip }}/24
+        bridge-ports {{ ceph_nic }}
+        bridge-stp off
+        bridge-fd 0

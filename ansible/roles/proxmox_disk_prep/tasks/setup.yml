@@ -1,0 +1,71 @@
+---
+# Wipe disks listed in ceph_disks for this host.
+# Removes stale ZFS labels, partition tables, and filesystem signatures
+# so Ceph can claim the disk cleanly as an OSD.
+#
+# Safety: auto-detects the boot disk and aborts if any listed disk matches it.
+# Only explicitly listed disks (from host_vars ceph_disks) are touched.
+
+- name: Skip if no Ceph disks defined for this host
+  ansible.builtin.meta: end_host
+  when: ceph_disks is not defined or ceph_disks | length == 0
+
+- name: Detect boot disk device
+  ansible.builtin.shell: |
+    # Get the block device backing the root filesystem
+    ROOT=$(findmnt -n -o SOURCE /)
+    # Strip partition suffix (e.g. sda1 → sda, nvme0n1p1 → nvme0n1)
+    echo "$ROOT" | sed 's/p\?[0-9]\+$//' | xargs basename
+  register: root_device
+  changed_when: false
+
+- name: Show boot disk detection
+  ansible.builtin.debug:
+    msg: "Boot disk: /dev/{{ root_device.stdout | trim }} — protected from wiping"
+
+- name: Assert no listed disk is the boot disk
+  ansible.builtin.assert:
+    that: item.name != (root_device.stdout | trim)
+    fail_msg: "SAFETY ABORT: {{ item.name }} is the boot disk — refusing to wipe"
+    success_msg: "{{ item.name }} is safe to wipe"
+  loop: "{{ ceph_disks }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Clear stale ZFS pool labels
+  ansible.builtin.command: zpool labelclear -f /dev/{{ item.name }}
+  loop: "{{ ceph_disks }}"
+  loop_control:
+    label: "{{ item.name }}"
+  failed_when: false
+  changed_when: true
+
+- name: Wipe filesystem signatures (wipefs)
+  ansible.builtin.command: wipefs -a /dev/{{ item.name }}
+  loop: "{{ ceph_disks }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true
+
+- name: Destroy GPT/MBR partition table
+  ansible.builtin.command: sgdisk --zap-all /dev/{{ item.name }}
+  loop: "{{ ceph_disks }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true
+
+- name: Verify disks are clean
+  ansible.builtin.command: blkid /dev/{{ item.name }}
+  loop: "{{ ceph_disks }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: blkid_results
+  changed_when: false
+  failed_when: false
+
+- name: Report disk wipe status
+  ansible.builtin.debug:
+    msg: "{{ item.item.name }}: {{ 'clean — no filesystem detected' if item.stdout == '' else 'WARNING remnants: ' + item.stdout }}"
+  loop: "{{ blkid_results.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"

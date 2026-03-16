@@ -1,0 +1,201 @@
+---
+# Deploy Ceph distributed storage cluster on Proxmox VE.
+#
+# Execution order (all steps are idempotent):
+#   1. Install Ceph packages on all nodes
+#   2. Initialize Ceph cluster (master only, once)
+#   3. Create monitors on 3 designated nodes (odd count for quorum)
+#   4. Create managers on the same 3 nodes
+#   5. Wait for quorum before creating OSDs
+#   6. Create OSDs on each node from its ceph_disks host_var
+#   7. Create CRUSH rules (ssd_rule / hdd_rule) on master
+#   8. Create ceph-fast and ceph-bulk pools, register as Proxmox storage
+
+# ── Step 1: Install Ceph packages ────────────────────────────────────────────
+
+- name: Check if Ceph binaries already installed
+  ansible.builtin.command: which ceph
+  register: ceph_binary
+  changed_when: false
+  failed_when: false
+
+- name: Install Ceph packages via pveceph
+  ansible.builtin.command: pveceph install --version {{ ceph_version }}
+  when: ceph_binary.rc != 0
+  changed_when: true
+
+# ── Step 2: Initialize Ceph cluster (master only) ─────────────────────────────
+
+- name: Check if Ceph cluster already initialized (fsid in ceph.conf)
+  ansible.builtin.shell: grep -q 'fsid' /etc/ceph/ceph.conf 2>/dev/null
+  register: ceph_initialized
+  changed_when: false
+  failed_when: false
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+
+- name: Initialize Ceph cluster on master
+  ansible.builtin.command: >
+    pveceph init
+    --network {{ ceph_cluster_network }}
+    --cluster-network {{ ceph_cluster_network }}
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  when: ceph_initialized.rc != 0
+  changed_when: true
+
+# ── Step 3: Create Ceph monitors ─────────────────────────────────────────────
+
+- name: Check if monitor daemon already running on this node
+  ansible.builtin.command: systemctl is-active ceph-mon@{{ inventory_hostname_short }}
+  register: mon_status
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname in ceph_monitor_nodes
+
+- name: Create Ceph monitor on designated nodes
+  ansible.builtin.command: pveceph mon create
+  when:
+    - inventory_hostname in ceph_monitor_nodes
+    - mon_status.rc is defined
+    - mon_status.rc != 0
+  changed_when: true
+
+# ── Step 4: Create Ceph managers ─────────────────────────────────────────────
+
+- name: Check if manager daemon already running on this node
+  ansible.builtin.command: systemctl is-active ceph-mgr@{{ inventory_hostname_short }}
+  register: mgr_status
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname in ceph_monitor_nodes
+
+- name: Create Ceph manager on designated nodes
+  ansible.builtin.command: pveceph mgr create
+  when:
+    - inventory_hostname in ceph_monitor_nodes
+    - mgr_status.rc is defined
+    - mgr_status.rc != 0
+  changed_when: true
+
+# ── Step 5: Wait for cluster quorum ──────────────────────────────────────────
+
+- name: Wait for Ceph cluster quorum (up to 2 minutes)
+  ansible.builtin.command: ceph quorum_status
+  register: quorum_check
+  until: quorum_check.rc == 0
+  retries: 24
+  delay: 5
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  changed_when: false
+
+# ── Step 6: Create OSDs on each node ─────────────────────────────────────────
+
+- name: Skip OSD creation if no disks defined for this host
+  ansible.builtin.meta: end_host
+  when: ceph_disks is not defined or ceph_disks | length == 0
+
+- name: Check if each disk already has Ceph OSD signatures
+  ansible.builtin.shell: blkid /dev/{{ item.name }} | grep -qi ceph
+  loop: "{{ ceph_disks }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: osd_disk_checks
+  changed_when: false
+  failed_when: false
+
+- name: Create OSD for each unclaimed disk
+  ansible.builtin.command: >
+    pveceph osd create /dev/{{ item.item.name }}
+    --device-class {{ item.item.device_class }}
+  loop: "{{ osd_disk_checks.results }}"
+  loop_control:
+    label: "{{ item.item.name }} ({{ item.item.device_class }})"
+  when: item.rc != 0
+  changed_when: true
+  # rc != 0 from blkid grep means no Ceph signature found — disk is available
+
+# ── Step 7: Create CRUSH rules (master only) ──────────────────────────────────
+
+- name: Get existing CRUSH rules
+  ansible.builtin.command: ceph osd crush rule ls
+  register: crush_rules
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+
+- name: Create SSD CRUSH rule (targets NVMe/SATA SSD OSDs on R640s)
+  ansible.builtin.command: >
+    ceph osd crush rule create-replicated ssd_rule default host ssd
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  when: "'ssd_rule' not in crush_rules.stdout"
+  changed_when: true
+
+- name: Create HDD CRUSH rule (targets SAS HDD OSDs on r420/r720xd/r820)
+  ansible.builtin.command: >
+    ceph osd crush rule create-replicated hdd_rule default host hdd
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  when: "'hdd_rule' not in crush_rules.stdout"
+  changed_when: true
+
+# ── Step 8: Create Ceph pools + register Proxmox storage (master only) ───────
+
+- name: Get existing Ceph pools
+  ansible.builtin.command: ceph osd pool ls
+  register: existing_pools
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+
+- name: Create Ceph pools with Proxmox storage registration
+  ansible.builtin.command: >
+    pveceph pool create {{ item.name }}
+    --size {{ ceph_pool_size }}
+    --min_size {{ ceph_pool_min_size }}
+    --crush_rule {{ item.crush_rule }}
+    --add-storages 1
+  loop: "{{ ceph_pools }}"
+  loop_control:
+    label: "{{ item.name }}"
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  when: item.name not in existing_pools.stdout
+  changed_when: true
+
+- name: Set storage content types for each pool
+  ansible.builtin.command: pvesm set {{ item.name }} --content {{ item.content }}
+  loop: "{{ ceph_pools }}"
+  loop_control:
+    label: "{{ item.name }}"
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  changed_when: true
+
+# ── Verify: Cluster health ────────────────────────────────────────────────────
+
+- name: Check final Ceph cluster status
+  ansible.builtin.command: ceph status
+  register: ceph_status
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+
+- name: Display Ceph cluster status
+  ansible.builtin.debug:
+    msg: "{{ ceph_status.stdout_lines }}"
+  run_once: true
+
+- name: Show OSD tree
+  ansible.builtin.command: ceph osd tree
+  register: osd_tree
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+
+- name: Display OSD tree
+  ansible.builtin.debug:
+    msg: "{{ osd_tree.stdout_lines }}"
+  run_once: true
