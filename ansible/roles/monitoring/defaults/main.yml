@@ -36,4 +36,6 @@ pbs_port: 8007
 nut_exporter_port: 9995
 nut_server_host: "10.220.1.8"
 nut_port: 3493
-nut_ups_name: apc
+# Comma-separated list of UPS names to scrape — must match nut_devices names on r640-1
+# Update this when adding a second UPS: "tripplite,apc"
+nut_ups_names: "tripplite"

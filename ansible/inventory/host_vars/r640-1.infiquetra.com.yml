@@ -6,11 +6,28 @@
 # Ceph NIC: nic0 (Solarflare sfc, autoneg works at 10G)
 # UPS NUT: NUT server — USB cable from UPS connects to this host
 
-# NUT — this host is the NUT server (USB-connected to Tripp Lite SMART1500LCD)
-# The Tripp Lite protects networking gear (UDM, switches) — not servers.
-# Shutdown is suppressed: losing the networking UPS does not justify halting servers.
+# NUT — this host is the NUT server (USB-connected to UPS devices)
+# nut_devices: all physically-connected UPS units (upsd serves these; nut_exporter scrapes them)
+# nut_monitor: only UPS units that power THIS host (none yet — servers have no UPS)
 nut_mode: netserver
-nut_enable_shutdown: false
+nut_devices:
+  - name: tripplite
+    driver: usbhid-ups
+    port: auto
+    desc: "Tripp Lite SMART1500LCD (networking gear)"
+    battery_min_percent: 20
+    battery_min_runtime: 300
+  # When the server UPS arrives, add it here:
+  # - name: apc
+  #   driver: usbhid-ups
+  #   port: auto
+  #   desc: "APC Smart-UPS 3000 (servers)"
+  #   battery_min_percent: 20
+  #   battery_min_runtime: 300
+nut_monitor: []
+  # When r640-1 is on the server UPS, add it here:
+  # - name: apc
+  #   host: localhost
 
 ceph_nic: "nic0"
 ceph_ip: "10.220.2.8"

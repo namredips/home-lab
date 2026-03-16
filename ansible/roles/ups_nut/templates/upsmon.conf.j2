@@ -1,35 +1,36 @@
 # /etc/nut/upsmon.conf — UPS monitor config
 # Managed by Ansible — do not edit manually
+#
+# Only UPS devices that physically power this host appear here.
+# Networking-only UPS units are served by upsd but excluded from upsmon
+# so they cannot trigger a server shutdown.
 
-{% if nut_mode == 'netserver' %}
-# This host owns the USB connection — master role
-# master = this upsmon can issue FSD and runs the full shutdown script
-MONITOR {{ nut_ups_name }}@localhost:{{ nut_port }} 1 {{ nut_monitor_user }} {{ nut_monitor_password }} master
-{% else %}
-# This host monitors the UPS remotely — slave role
-# slave = this upsmon shuts down when master signals FSD
-MONITOR {{ nut_ups_name }}@{{ nut_server_host }}:{{ nut_port }} 1 {{ nut_monitor_user }} {{ nut_monitor_password }} slave
-{% endif %}
+{% for ups in nut_monitor %}
+{% set role = 'master' if ups.host == 'localhost' else 'slave' %}
+MONITOR {{ ups.name }}@{{ ups.host }}:{{ ups.port | default(nut_port) }} 1 {{ nut_monitor_user }} {{ nut_monitor_password }} {{ role }}
+{% endfor %}
 
-{% if nut_enable_shutdown %}
-{% if nut_mode == 'netserver' %}
+# Shut down when all monitored supplies are lost
+MINSUPPLIES {{ nut_monitor | length }}
+
+{% set is_master = nut_monitor | selectattr('host', 'equalto', 'localhost') | list | length > 0 %}
+{% if is_master %}
+# This host owns the USB connection — run the full VM shutdown script before halting
 SHUTDOWNCMD "/usr/local/bin/ups-shutdown.sh"
 {% else %}
+# Client host — pve-guests.service stops local VMs as part of normal shutdown
 SHUTDOWNCMD "/sbin/shutdown -h now"
 {% endif %}
-{% else %}
-# nut_enable_shutdown=false — this UPS does not power these servers, so no host shutdown
-SHUTDOWNCMD "logger -t upsmon 'UPS battery critical — shutdown suppressed (nut_enable_shutdown=false)'"
-{% endif %}
 
-# Thresholds — trigger SHUTDOWNCMD when either condition is met
-MINSUPPLIES 1
+POWERDOWNFLAG /etc/killpower
+
+# Polling
 POLLFREQ 5
 POLLFREQALERT 5
 HOSTSYNC 15
 DEADTIME 15
 
-# Notify on state changes
+# Notifications
 NOTIFYMSG ONLINE    "UPS %s: on line power"
 NOTIFYMSG ONBATT    "UPS %s: on battery"
 NOTIFYMSG LOWBATT   "UPS %s: battery is low"
@@ -50,10 +51,6 @@ NOTIFYFLAG SHUTDOWN SYSLOG+WALL
 NOTIFYFLAG REPLBATT SYSLOG+WALL
 NOTIFYFLAG NOCOMM   SYSLOG+WALL
 
-# Power-down flag — upsd driver reads this on restart to know whether to turn off UPS
-POWERDOWNFLAG /etc/killpower
-
-# Tuning
-RBWARNTIME 43200     # Warn about battery replacement every 12 hours
-NOCOMMWARNTIME 300   # Warn about lost comms after 5 minutes
-FINALDELAY 5         # Wait 5 seconds before final shutdown (lets syslog flush)
+RBWARNTIME 43200
+NOCOMMWARNTIME 300
+FINALDELAY 5

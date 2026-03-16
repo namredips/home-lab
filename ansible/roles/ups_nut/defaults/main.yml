@@ -2,36 +2,50 @@
 reset: false
 
 # NUT mode — override per-host in host_vars
-#   netserver  = this host has the USB connection to the UPS (runs upsd + upsmon)
-#   netclient  = this host monitors the UPS via the NUT server (runs upsmon only)
+#   netserver  = this host has USB cable(s) to UPS device(s); runs upsd
+#   netclient  = this host has no USB connection; only runs upsmon
 nut_mode: netclient
 
-# UPS identifier — used in all NUT config files
-nut_ups_name: tripplite
-
-# NUT server connection details (used by clients to locate the server)
+# NUT server — where upsd is running (clients connect here)
 nut_server_host: "10.220.1.8"  # r640-1
 nut_port: 3493
 
-# Monitor credentials — must match upsd.users on the server
-# Set vault_nut_monitor_password in ansible/inventory/group_vars/all/all.yml
+# Credentials — shared across all UPS devices on this NUT server
+# Set vault_nut_monitor_password and vault_nut_admin_password in group_vars/all/all.yml
 nut_monitor_user: upsmon
 nut_monitor_password: "{{ vault_nut_monitor_password }}"
-
-# Admin credentials for upsd (server only)
-# Set vault_nut_admin_password in ansible/inventory/group_vars/all/all.yml
 nut_admin_user: admin
 nut_admin_password: "{{ vault_nut_admin_password }}"
 
-# UPS driver config (server only)
-# usbhid-ups covers Tripp Lite SMART series via USB HID (same as APC, CyberPower, etc.)
-nut_driver: usbhid-ups
-nut_device_port: auto
+# ── Server: UPS devices to serve via upsd ─────────────────────────────────────
+# Only set on the netserver host (in host_vars).
+# All USB-connected UPS units go here regardless of what they power.
+# nut_exporter scrapes these for Prometheus metrics.
+#
+# Example:
+#   nut_devices:
+#     - name: tripplite          # UPS identifier used in all NUT configs
+#       driver: usbhid-ups       # usbhid-ups covers most USB HID UPS devices
+#       port: auto               # auto-discovers the USB device
+#       battery_min_percent: 20  # override: report LB at or below this %
+#       battery_min_runtime: 300 # override: report LB at or below this seconds
+nut_devices: []
 
-# Shutdown thresholds — upsmon triggers SHUTDOWNCMD when either condition is met
-nut_battery_min_percent: 20    # shut down at or below 20% battery
-nut_battery_min_runtime: 300   # shut down at or below 5 minutes remaining
-
-# Set to false when the UPS protects equipment other than these servers (e.g. networking gear).
-# Monitoring and alerting still work — only the automated host shutdown is suppressed.
-nut_enable_shutdown: true
+# ── All hosts: UPS devices to monitor for shutdown ────────────────────────────
+# Add an entry here ONLY if this host is physically powered by that UPS.
+# Losing any monitored UPS triggers SHUTDOWNCMD on this host.
+# Networking-only UPS units should NOT appear here on server hosts.
+#
+# host: use 'localhost' if this is the netserver host that owns the device,
+#        or the IP/hostname of the netserver otherwise.
+#
+# Example (netserver host that is itself on the UPS):
+#   nut_monitor:
+#     - name: apc
+#       host: localhost
+#
+# Example (netclient host powered by the server UPS):
+#   nut_monitor:
+#     - name: apc
+#       host: "10.220.1.8"
+nut_monitor: []

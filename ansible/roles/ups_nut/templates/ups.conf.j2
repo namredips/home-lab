@@ -1,10 +1,12 @@
 # /etc/nut/ups.conf — UPS driver definitions (NUT server only)
 # Managed by Ansible — do not edit manually
 
-[{{ nut_ups_name }}]
-    driver = {{ nut_driver }}
-    port   = {{ nut_device_port }}
-    desc   = "UPS ({{ nut_ups_name }})"
-    # Force low-battery thresholds — upsmon triggers SHUTDOWNCMD when either is met
-    override.battery.charge.low   = {{ nut_battery_min_percent }}
-    override.battery.runtime.low  = {{ nut_battery_min_runtime }}
+{% for device in nut_devices %}
+[{{ device.name }}]
+    driver = {{ device.driver | default('usbhid-ups') }}
+    port   = {{ device.port | default('auto') }}
+    desc   = "{{ device.desc | default(device.name) }}"
+    override.battery.charge.low  = {{ device.battery_min_percent | default(20) }}
+    override.battery.runtime.low = {{ device.battery_min_runtime | default(300) }}
+
+{% endfor %}

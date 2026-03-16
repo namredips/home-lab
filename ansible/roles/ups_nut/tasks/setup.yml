@@ -30,11 +30,11 @@
   become: true
   notify: Restart nut-monitor
 
-# ── Server-only config (r640-1 — USB-connected to UPS) ────────────────────────
+# ── Server-only config ─────────────────────────────────────────────────────────
 - name: Deploy server configs
   when: nut_mode == 'netserver'
   block:
-    - name: Deploy ups.conf (driver definition)
+    - name: Deploy ups.conf (driver definitions for all USB-connected devices)
       ansible.builtin.template:
         src: ups.conf.j2
         dest: /etc/nut/ups.conf
@@ -81,7 +81,7 @@
         daemon_reload: true
       become: true
 
-# ── upsmon (all hosts) ─────────────────────────────────────────────────────────
+# ── upsmon — only on hosts that are physically powered by a monitored UPS ──────
 - name: Deploy upsmon.conf
   ansible.builtin.template:
     src: upsmon.conf.j2
@@ -91,6 +91,7 @@
     group: nut
   become: true
   notify: Restart nut-monitor
+  when: nut_monitor | length > 0
 
 - name: Enable and start nut-monitor
   ansible.builtin.systemd:
@@ -99,9 +100,20 @@
     state: started
     daemon_reload: true
   become: true
+  when: nut_monitor | length > 0
+
+- name: Disable nut-monitor (host not on any monitored UPS)
+  ansible.builtin.systemd:
+    name: nut-monitor
+    enabled: false
+    state: stopped
+  become: true
+  when: nut_monitor | length == 0
+  ignore_errors: true
 
 - name: Display NUT status
   ansible.builtin.debug:
     msg:
       - "NUT mode: {{ nut_mode }}"
-      - "UPS: {{ nut_ups_name }}@{{ 'localhost' if nut_mode == 'netserver' else nut_server_host }}:{{ nut_port }}"
+      - "Devices served: {{ nut_devices | map(attribute='name') | list | join(', ') if nut_devices else 'none' }}"
+      - "Devices monitored (shutdown): {{ nut_monitor | map(attribute='name') | list | join(', ') if nut_monitor else 'none (shutdown disabled)' }}"
