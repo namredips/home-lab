@@ -1,16 +1,33 @@
 ---
+# ── Proxmox-side teardown (delegated to master) ───────────────────────────────
+- name: Get existing cluster backup jobs
+  ansible.builtin.command: pvesh get /cluster/backup --output-format json
+  register: cluster_backup_jobs
+  changed_when: false
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  ignore_errors: true
+
+- name: Remove backup jobs targeting pbs-backup storage
+  ansible.builtin.command: "pvesh delete /cluster/backup/{{ item.id }}"
+  loop: "{{ cluster_backup_jobs.stdout | from_json }}"
+  when:
+    - cluster_backup_jobs is succeeded
+    - item.storage is defined
+    - item.storage == pbs_pve_storage_name
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  ignore_errors: true
+
+- name: Remove PBS storage from Proxmox
+  ansible.builtin.command: "pvesm remove {{ pbs_pve_storage_name }}"
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  ignore_errors: true
+
+# ── PBS VM teardown ────────────────────────────────────────────────────────────
 - name: Stop proxmox-backup service
   ansible.builtin.systemd:
     name: proxmox-backup
     state: stopped
     enabled: false
-  become: true
-  ignore_errors: true
-
-- name: Unmount backup datastore
-  ansible.posix.mount:
-    path: "{{ pbs_datastore_path }}"
-    state: absent
   become: true
   ignore_errors: true
 
