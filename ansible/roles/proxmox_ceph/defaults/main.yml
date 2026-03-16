@@ -8,9 +8,10 @@ ceph_version: "squid"
 ceph_cluster_network: "10.220.2.0/24"
 
 # Replication: size=2 → 2 copies, survives 1 OSD failure
-# min_size=2 requires both copies present for writes — no degraded writes (safety over availability)
+# min_size=1 allows I/O from surviving copy during recovery (standard for planned maintenance)
+# Trade-off: a second simultaneous failure during recovery could lose data for affected PGs
 ceph_pool_size: 2
-ceph_pool_min_size: 2
+ceph_pool_min_size: 1
 
 # Monitor + manager nodes — must be odd count for quorum
 # r420 (master), r640-1, r720xd chosen for hardware diversity
