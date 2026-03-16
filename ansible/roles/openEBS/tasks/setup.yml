@@ -51,7 +51,9 @@
           - key: kubernetes.io/hostname
             values:
               - r420
-              - r710
+              - r640-1
+              - r640-2
+              - r640-3
               - r720xd
               - r820
 

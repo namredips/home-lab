@@ -18,9 +18,11 @@ openclaw_memory_export: true
 openclaw_workspace_path: /home/agent/.openclaw/workspace
 
 # Stagger backup start times per hypervisor (minutes after hour)
+# Updated for 6-node cluster (r8202/r710 replaced by r640-1/2/3)
 backup_stagger:
   r420.infiquetra.com: 0
-  r710.infiquetra.com: 10
-  r8202.infiquetra.com: 20
-  r720xd.infiquetra.com: 30
-  r820.infiquetra.com: 40
+  r640-1.infiquetra.com: 10
+  r640-2.infiquetra.com: 20
+  r640-3.infiquetra.com: 30
+  r720xd.infiquetra.com: 40
+  r820.infiquetra.com: 50

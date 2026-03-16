@@ -45,7 +45,7 @@
         ip: 10.220.1.56
       ares:
         vmid: 107
-        host: r8202.infiquetra.com
+        host: r720xd.infiquetra.com
         ip: 10.220.1.57
 
   tasks:

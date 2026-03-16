@@ -38,19 +38,19 @@
           - "{{ pvecm_nodes.stdout_lines }}"
 
 # ─── 2. Storage health ───────────────────────────────────────────────────────
-- name: Verify storage pools
-  hosts: proxmox_hosts
+- name: Verify Ceph storage
+  hosts: proxmox_master
   gather_facts: false
   tags: verify_storage
   tasks:
-    - name: Check ZFS pool status
-      ansible.builtin.command: zpool status -x
-      register: zpool_status
+    - name: Check Ceph cluster status
+      ansible.builtin.command: ceph status
+      register: ceph_status
       changed_when: false
 
-    - name: Check ZFS pool list
-      ansible.builtin.command: zpool list
-      register: zpool_list
+    - name: Check Ceph OSD tree
+      ansible.builtin.command: ceph osd tree
+      register: ceph_osd_tree
       changed_when: false
 
     - name: Check Proxmox storage registration
@@ -58,27 +58,27 @@
       register: pvesm_status
       changed_when: false
 
-    - name: Assert all expected pools exist
+    - name: Assert ceph-fast pool is registered
       ansible.builtin.assert:
         that:
-          - "'nvme-fast' in pvesm_status.stdout"
-        fail_msg: "nvme-fast pool not registered in Proxmox on {{ inventory_hostname }}"
-        success_msg: "nvme-fast OK on {{ inventory_hostname }}"
+          - "'ceph-fast' in pvesm_status.stdout"
+        fail_msg: "ceph-fast not registered in Proxmox storage"
+        success_msg: "ceph-fast OK"
 
-    - name: Assert sas-data exists where expected
+    - name: Assert ceph-bulk pool is registered
       ansible.builtin.assert:
         that:
-          - "'sas-data' in pvesm_status.stdout"
-        fail_msg: "sas-data pool not registered on {{ inventory_hostname }}"
-        success_msg: "sas-data OK on {{ inventory_hostname }}"
-      when: inventory_hostname != 'r8202.infiquetra.com'
+          - "'ceph-bulk' in pvesm_status.stdout"
+        fail_msg: "ceph-bulk not registered in Proxmox storage"
+        success_msg: "ceph-bulk OK"
 
     - name: Display storage summary
       ansible.builtin.debug:
         msg:
-          - "Host: {{ inventory_hostname }}"
-          - "ZFS pools: {{ zpool_list.stdout_lines }}"
-          - "ZFS health: {{ zpool_status.stdout }}"
+          - "Ceph status:"
+          - "{{ ceph_status.stdout_lines }}"
+          - "OSD tree:"
+          - "{{ ceph_osd_tree.stdout_lines }}"
           - "Proxmox storage:"
           - "{{ pvesm_status.stdout_lines }}"
 

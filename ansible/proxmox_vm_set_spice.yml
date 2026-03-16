@@ -20,7 +20,7 @@
       hermes:    { vmid: 104, host: r420.infiquetra.com }
       perseus:   { vmid: 105, host: r720xd.infiquetra.com }
       prometheus: { vmid: 106, host: r720xd.infiquetra.com }
-      ares:      { vmid: 107, host: r8202.infiquetra.com }
+      ares:      { vmid: 107, host: r720xd.infiquetra.com }
 
   tasks:
     - name: Build list of VMs for this host
