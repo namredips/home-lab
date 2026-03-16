@@ -1,14 +1,19 @@
 ---
-# r640-2 — 2x E5-26xx, ~128G RAM
-# Boot: sda/sdb (136.7G SAS)
-# NVMe: nvme0n1, nvme1n1 (2x 931.5G WD Black)
-# SATA: sdc, sdd (2x 931.5G Crucial)
-zfs_pools:
-  - name: "nvme-fast"
-    mode: "mirror"
-    devices:
-      - nvme0n1
-      - nvme1n1
-    options: "-o ashift=12"
-    proxmox_storage_type: zfspool
-    proxmox_content: "images,rootdir"
+# r640-2 — 2x E5-26xx, 125G RAM, 72 vCPUs
+# Boot: sda (137G SAS, PVE)
+# Ceph-Fast NVMe: nvme0n1, nvme1n1 (2x 932G WD Black NVMe) → ssd class
+# Ceph-Fast SATA SSD: sdc, sdd (2x 932G Crucial SATA SSD) → ssd class
+# Ceph NIC: nic4 (Solarflare sfc, autoneg works at 10G)
+
+ceph_nic: "nic4"
+ceph_ip: "10.220.2.9"
+
+ceph_disks:
+  - name: nvme0n1
+    device_class: ssd
+  - name: nvme1n1
+    device_class: ssd
+  - name: sdc
+    device_class: ssd
+  - name: sdd
+    device_class: ssd

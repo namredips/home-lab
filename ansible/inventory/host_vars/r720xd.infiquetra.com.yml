@@ -1,38 +1,33 @@
 ---
 # r720xd — 2x E5-2620, 94G RAM, 24 vCPUs
-# Boot: sda (2.7T, PVE)  NVMe: nvme0n1 (931G)
-# SAS 1.8T: sdb, sdc, sde, sdf, sdh, sdi  SAS 2.7T: sdd, sdg, sdj, sdk, sdl
-zfs_pools:
-  - name: "nvme-fast"
-    mode: ""
-    devices:
-      - nvme0n1
-    options: "-o ashift=12"
-    proxmox_storage_type: zfspool
-    proxmox_content: "images,rootdir"
+# Boot: sda (2.7T SAS, PVE)
+# Ceph-Bulk 1.8T SAS: sdb, sdc, sde, sdf, sdh, sdi (6x 1.8T) → hdd class
+# Ceph-Bulk 2.7T SAS: sdd, sdg, sdj, sdk, sdl (5x 2.7T) → hdd class
+# Ceph NIC: nic5 (QLogic qede, requires forced 10G speed)
 
-  - name: "sas-data"
-    # raidz2 across two vdevs (mixed sizes kept separate for predictable usable space)
-    mode: "raidz2"
-    devices:
-      - sdb
-      - sdc
-      - sde
-      - sdf
-      - sdh
-      - sdi
-      - raidz2
-      - sdd
-      - sdg
-      - sdj
-      - sdk
-      - sdl
-    options: "-o ashift=12"
-    proxmox_storage_type: dir
-    proxmox_path: /sas-data
-    proxmox_content: "backup,iso,vztmpl,snippets,images"
-    # Note: zpool create sas-data raidz2 sdb sdc sde sdf sdh sdi raidz2 sdd sdg sdj sdk sdl
-    custom_create_cmd: >-
-      zpool create -o ashift=12 sas-data
-      raidz2 sdb sdc sde sdf sdh sdi
-      raidz2 sdd sdg sdj sdk sdl
+ceph_nic: "nic5"
+ceph_ip: "10.220.2.10"
+
+ceph_disks:
+  - name: sdb
+    device_class: hdd
+  - name: sdc
+    device_class: hdd
+  - name: sdd
+    device_class: hdd
+  - name: sde
+    device_class: hdd
+  - name: sdf
+    device_class: hdd
+  - name: sdg
+    device_class: hdd
+  - name: sdh
+    device_class: hdd
+  - name: sdi
+    device_class: hdd
+  - name: sdj
+    device_class: hdd
+  - name: sdk
+    device_class: hdd
+  - name: sdl
+    device_class: hdd
