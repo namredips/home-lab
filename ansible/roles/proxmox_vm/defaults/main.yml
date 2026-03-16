@@ -13,7 +13,7 @@ vm_ssh_authorized_keys: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa
 #   r820  (377G RAM, 64 vCPU): Zeus(100), Athena(101), Apollo(102)
 #   r420  (70G  RAM, 24 vCPU): Artemis(103), Hermes(104)
 #   r720xd(94G  RAM, 24 vCPU): Perseus(105), Prometheus(106)
-#   r8202 (51G  RAM, 32 vCPU): Ares(107)
+#   r640-3 (~128G RAM, ~32 vCPU): Ares(107)
 agents:
   zeus:
     vmid: 100
@@ -101,7 +101,7 @@ agents:
 
   ares:
     vmid: 107
-    host: r8202.infiquetra.com
+    host: r640-3.infiquetra.com
     vcpus: 4
     memory_mb: 16384
     disk_gb: 250
@@ -110,3 +110,16 @@ agents:
     email: ares@infiquetra.com
     role: "Developer (Performance)"
     trait: "Strength, determination"
+
+# Service VMs — lightweight infrastructure services (not OpenClaw agents)
+# VM IDs 200+ reserved for services
+service_vms:
+  rustdesk:
+    vmid: 200
+    host: r820.infiquetra.com
+    vcpus: 2
+    memory_mb: 2048
+    disk_gb: 20
+    ip: 10.220.1.60
+    mac: "52:54:00:c8:00:3c"
+    description: "RustDesk self-hosted relay/rendezvous server (hbbs + hbbr)"

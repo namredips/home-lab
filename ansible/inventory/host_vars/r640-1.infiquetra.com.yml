@@ -1,0 +1,14 @@
+---
+# r640-1 — 2x E5-26xx, ~128G RAM
+# Boot: sda/sdb (136.7G SAS)
+# NVMe: nvme0n1, nvme1n1 (2x 931.5G WD Black)
+# SATA: sdc, sdd, sde, sdf (4x 931.5G — mix of Crucial/WD)
+zfs_pools:
+  - name: "nvme-fast"
+    mode: "mirror"
+    devices:
+      - nvme0n1
+      - nvme1n1
+    options: "-o ashift=12"
+    proxmox_storage_type: zfspool
+    proxmox_content: "images,rootdir"
