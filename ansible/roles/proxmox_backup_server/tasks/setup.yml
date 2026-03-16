@@ -90,7 +90,7 @@
   ansible.builtin.debug:
     msg:
       - "Proxmox Backup Server: https://{{ ansible_host }}:8007"
-      - "Login: admin@pbs / {{ pbs_admin_password }}"
+      - "Login: root@pam / (Linux root password — set via: sudo passwd root on the PBS VM)"
       - "Next steps:"
       - "  1. Log in and create datastore at {{ pbs_datastore_path }}"
       - "  2. Add PBS storage to Proxmox cluster: Datacenter → Storage → Add → Proxmox Backup Server"
