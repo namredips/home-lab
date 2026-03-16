@@ -54,11 +54,11 @@
   roles:
     - proxmox_backup_server
   post_tasks:
-    # The PBS exporter needs DatastoreAudit at / to list all datastores.
-    # Without this, the API call to /api2/json/admin/datastore returns 403.
-    - name: Grant ansible API token DatastoreAudit at root path
+    # The PBS exporter queries /nodes which requires Admin role.
+    # DatastoreAudit is insufficient — /api2/json/nodes returns 403 without Admin.
+    - name: Grant ansible API token Admin role at root path
       ansible.builtin.command: >
-        proxmox-backup-manager acl update / DatastoreAudit
+        proxmox-backup-manager acl update / Admin
         --auth-id ansible@pbs!ansible-token
       register: pbs_acl_result
       changed_when: pbs_acl_result.rc == 0
