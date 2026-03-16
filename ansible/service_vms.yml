@@ -94,8 +94,8 @@
       ansible.builtin.command: >
         pvesm add pbs {{ pbs_pve_storage_name }}
         --server {{ pbs_host }}
-        --username {{ pbs_api_user }}
-        --token {{ pbs_api_token_id }}={{ pbs_api_token_secret }}
+        --username {{ pbs_api_user }}!{{ pbs_api_token_id }}
+        --password {{ pbs_api_token_secret }}
         --datastore {{ pbs_datastore_name }}
         --fingerprint {{ pbs_fingerprint }}
       when: pbs_pve_storage_name not in pvesm_status.stdout
@@ -115,7 +115,6 @@
         --mode {{ pbs_backup_mode }}
         --compress {{ pbs_backup_compress }}
         --prune-backups keep-daily={{ pbs_prune_keep_daily }},keep-weekly={{ pbs_prune_keep_weekly }},keep-monthly={{ pbs_prune_keep_monthly }}
-        --mailnotification never
       when: pbs_pve_storage_name not in existing_backup_jobs.stdout
 
 # Phase 5 — Install node_exporter on all scrape targets

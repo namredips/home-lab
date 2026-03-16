@@ -83,16 +83,16 @@
   become: true
   when: '"ansible@pbs" not in pbs_user_list.stdout'
 
-- name: Grant DatastoreAdmin ACL to ansible@pbs
+# ACL grants run unconditionally — acl update is idempotent
+- name: Grant DatastoreAdmin ACL to ansible@pbs user
   ansible.builtin.command: >
     proxmox-backup-manager acl update /datastore/{{ pbs_datastore_name }}
     DatastoreAdmin --auth-id ansible@pbs
   become: true
-  when: '"ansible@pbs" not in pbs_user_list.stdout'
 
 # ── Create API token (idempotent) ──────────────────────────────────────────────
 - name: Check if ansible-token exists for ansible@pbs
-  ansible.builtin.command: proxmox-backup-manager user token list ansible@pbs --output-format json
+  ansible.builtin.command: proxmox-backup-manager user list-tokens ansible@pbs --output-format json
   register: pbs_token_list
   changed_when: false
   become: true
@@ -100,11 +100,18 @@
 
 - name: Create ansible-token for ansible@pbs
   ansible.builtin.command: >
-    proxmox-backup-manager user token create ansible@pbs ansible-token
+    proxmox-backup-manager user generate-token ansible@pbs ansible-token
     --comment "Ansible API token"
   register: pbs_token_create
   become: true
   when: '"ansible-token" not in pbs_token_list.stdout'
+
+# Tokens don't inherit user ACLs — grant explicitly
+- name: Grant DatastoreAdmin ACL to ansible@pbs token
+  ansible.builtin.command: >
+    proxmox-backup-manager acl update /datastore/{{ pbs_datastore_name }}
+    DatastoreAdmin --auth-id ansible@pbs!ansible-token
+  become: true
 
 - name: Display API token secret (save to vault as pbs_api_token_secret)
   ansible.builtin.debug:
@@ -125,7 +132,7 @@
 
 - name: Create prune job for ceph-backup datastore
   ansible.builtin.command: >
-    proxmox-backup-manager prune-job create
+    proxmox-backup-manager prune-job create {{ pbs_datastore_name }}-prune
     --store {{ pbs_datastore_name }}
     --schedule "{{ pbs_prune_schedule }}"
     --keep-daily {{ pbs_prune_keep_daily }}
@@ -135,15 +142,18 @@
   when: pbs_datastore_name not in pbs_prune_jobs.stdout
 
 # ── Capture fingerprint ────────────────────────────────────────────────────────
-- name: Get PBS TLS certificate fingerprint
-  ansible.builtin.command: proxmox-backup-manager cert info --output-format json
-  register: pbs_cert_info
+- name: Get PBS TLS certificate fingerprint via openssl
+  ansible.builtin.shell: >
+    echo | openssl s_client -connect localhost:8007 2>/dev/null
+    | openssl x509 -fingerprint -sha256 -noout
+    | sed 's/.*=//'
+    | tr 'A-F' 'a-f'
+  register: pbs_cert_fp
   changed_when: false
-  become: true
 
-- name: Parse fingerprint from cert info
+- name: Set fingerprint fact
   ansible.builtin.set_fact:
-    pbs_fingerprint: "{{ (pbs_cert_info.stdout | from_json).fingerprint }}"
+    pbs_fingerprint: "{{ pbs_cert_fp.stdout | trim }}"
 
 # ── Display summary ────────────────────────────────────────────────────────────
 - name: Display PBS configuration summary

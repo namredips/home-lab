@@ -17,10 +17,10 @@ pbs_backup_compress: "zstd"
 pbs_backup_exclude_vmids: [202]
 
 # Prune schedule — run after backups finish
-pbs_prune_schedule: "daily 03:00"
+pbs_prune_schedule: "03:00"
 pbs_prune_keep_daily: 7
 pbs_prune_keep_weekly: 4
 pbs_prune_keep_monthly: 3
 
 # Garbage collection — weekly Sunday morning
-pbs_gc_schedule: "sun 04:00"
+pbs_gc_schedule: "Sun 04:00"
