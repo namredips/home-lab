@@ -3,7 +3,7 @@ modules:
   # All 6 Dell servers use the same root credentials.
   remote:
     user: root
-    password: "{{ vault_idrac_password }}"
+    pass: "{{ vault_idrac_password }}"
     privilege: ADMINISTRATOR
     timeout: 10000
     collectors:

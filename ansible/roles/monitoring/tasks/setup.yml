@@ -142,7 +142,7 @@
   ansible.builtin.template:
     src: pve_exporter.yml.j2
     dest: "{{ monitoring_data_dir }}/pve_exporter/pve.yml"
-    mode: '0600'
+    mode: '0644'
   become: true
 
 # ── IPMI Exporter ─────────────────────────────────────────────────────────────
@@ -150,7 +150,7 @@
   ansible.builtin.template:
     src: ipmi_remote.yml.j2
     dest: "{{ monitoring_data_dir }}/ipmi/config.yml"
-    mode: '0600'
+    mode: '0644'
   become: true
 
 # ── docker-compose ────────────────────────────────────────────────────────────
