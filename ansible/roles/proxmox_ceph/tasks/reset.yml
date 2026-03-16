@@ -44,7 +44,7 @@
 
 # Purge entire Ceph installation (master only, run last)
 - name: Purge Ceph cluster config and packages
-  ansible.builtin.command: pveceph purge --crash 1
+  ansible.builtin.command: pveceph purge --crash
   run_once: true
   delegate_to: "{{ groups['proxmox_master'][0] }}"
   ignore_errors: true

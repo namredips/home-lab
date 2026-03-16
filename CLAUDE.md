@@ -4,54 +4,65 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Home lab infrastructure repository using Ansible to automate a **Proxmox VE 9.1.1** cluster across 4 Dell servers. Proxmox hosts 8 Ubuntu 24.04 agent VMs that run the OpenClaw AI agent stack.
+Home lab infrastructure repository using Ansible to automate a **Proxmox VE 9.1.1** cluster across 6 Dell servers. Proxmox hosts 8 Ubuntu 24.04 agent VMs (the OpenClaw AI agent stack) and 4 service VMs (RustDesk, Dell OME, PBS, Monitoring).
 
 ## Architecture
 
 ### Infrastructure Components
-- **Hypervisor**: Proxmox VE 9.1.1 (Debian Trixie) on all 4 servers
-- **Cluster name**: `olympus` (4-node Proxmox cluster via corosync/pvecm)
+- **Hypervisor**: Proxmox VE 9.1.1 (Debian Trixie) on all 6 servers
+- **Cluster name**: `olympus` (6-node Proxmox cluster via corosync/pvecm)
 - **Master node**: r420.infiquetra.com (10.220.1.7)
-- **Storage**: ZFS pools per host (`nvme-fast` for VM disks, `sas-data` for bulk)
+- **Storage**: Ceph distributed storage — `ceph-fast` (NVMe/SSD on R640s) for VM disks, `ceph-bulk` (SAS HDDs) for backups/ISO
+- **Ceph network**: Dedicated 10GbE on 10.220.2.0/24 (vmbr1 bridge per host)
 - **VM template**: Ubuntu 24.04 cloud image, VM ID 9000, lives on r420
 - **Agent VMs**: 8 VMs (IDs 100–107) distributed across hosts
+- **Service VMs**: 4 VMs (IDs 200–203): RustDesk, Dell OME, PBS, Monitoring
 
 ### Hardware
-| Host | IP | RAM | vCPU | NVMe pool | SAS pool |
-|------|----|-----|------|-----------|----------|
-| r420 | 10.220.1.7 | 70G | 24 | nvme-fast | sas-data (raidz1, 3x931G) |
-| r8202 | 10.220.1.8 | 51G | 32 | nvme-fast | — |
-| r720xd | 10.220.1.10 | 94G | 24 | nvme-fast | sas-data (raidz2 ×2, 11 drives) |
-| r820 | 10.220.1.11 | 377G | 64 | nvme-fast | sas-data (raidz2, 8x931G) |
+| Host | IP | Ceph IP | RAM | vCPU | Ceph Fast Disks | Ceph Bulk Disks |
+|------|----|---------|-----|------|-----------------|-----------------|
+| r420 | 10.220.1.7 | 10.220.2.7 | 70G | 24 | — | sdb-sdd (3x931G SAS) |
+| r640-1 | 10.220.1.8 | 10.220.2.8 | 125G | 72 | nvme0n1+nvme1n1+sdc-sdf (6 disks) | — |
+| r640-2 | 10.220.1.9 | 10.220.2.9 | 125G | 72 | nvme0n1+nvme1n1+sdc-sdd (4 disks) | — |
+| r720xd | 10.220.1.10 | 10.220.2.10 | 94G | 24 | — | sdb-sdl (11x SAS) |
+| r820 | 10.220.1.11 | 10.220.2.11 | 377G | 64 | — | sdb-sdd (3x RAID VDs) |
+| r640-3 | 10.220.1.12 | 10.220.2.12 | 125G | 72 | nvme0n1+sdc-sdd (3 disks) | — |
 
 ### VM Distribution
-| VMID | Agent | Host | IP |
-|------|-------|------|-----|
+| VMID | Name | Host | IP |
+|------|------|------|-----|
 | 100 | Zeus | r820 | 10.220.1.50 |
-| 101 | Athena | r820 | 10.220.1.51 |
-| 102 | Apollo | r820 | 10.220.1.52 |
+| 101 | Athena | r640-2 | 10.220.1.51 |
+| 102 | Apollo | r640-1 | 10.220.1.52 |
 | 103 | Artemis | r420 | 10.220.1.53 |
 | 104 | Hermes | r420 | 10.220.1.54 |
-| 105 | Perseus | r720xd | 10.220.1.55 |
-| 106 | Prometheus | r720xd | 10.220.1.56 |
-| 107 | Ares | r8202 | 10.220.1.57 |
+| 105 | Perseus | r640-1 | 10.220.1.55 |
+| 106 | Prometheus | r640-2 | 10.220.1.56 |
+| 107 | Ares | r720xd | 10.220.1.57 |
+| 200 | RustDesk | r820 | 10.220.1.60 |
+| 201 | Dell OME | r820 | 10.220.1.61 |
+| 202 | PBS | r720xd | 10.220.1.62 |
+| 203 | Monitoring | r640-3 | 10.220.1.63 |
 
 ### Ansible Structure
-- **Main playbook**: `ansible/proxmox_cluster.yml` — 5 phased roles
+- **Main playbook**: `ansible/proxmox_cluster.yml` — 7 phased roles
+- **Service VMs**: `ansible/service_vms.yml`
 - **Teardown**: `ansible/proxmox_cluster_reset.yml`
 - **Verification**: `ansible/proxmox_verify.yml`
 - **Inventory groups**: `proxmox_hosts`, `proxmox_master`, `proxmox_nodes`, `agent_vms`
 - **Variables**: Encrypted with Ansible Vault in `group_vars/all/all.yml`
-- **Host vars**: Per-server ZFS pool definitions in `inventory/host_vars/`
+- **Host vars**: Per-server Ceph disk and NIC definitions in `inventory/host_vars/`
 
 ### Role Pipeline
-1. `proxmox_base` — disable enterprise repo, add no-sub repo, dist-upgrade, create `ansible@pam` API user/token
-2. `proxmox_cluster` — `pvecm create olympus` on master, `pvecm add` on nodes (serial: 1)
-3. `proxmox_storage` — create ZFS pools from host_vars, register with `pvesm`
-4. `proxmox_template` — download Ubuntu 24.04 cloud image, build VM 9000, convert to template
-5. `proxmox_vm` — clone template per agent, configure resources/cloud-init, start VMs
+1. `proxmox_network` — bring up 10GbE Ceph NICs, create vmbr1 bridge, assign 10.220.2.x IPs
+2. `proxmox_disk_prep` — wipe non-boot disks (ZFS labels, GPT tables) for Ceph OSD creation
+3. `proxmox_base` — disable enterprise repo, add no-sub repo, dist-upgrade, create `ansible@pam` API user/token
+4. `proxmox_cluster` — `pvecm create olympus` on master, `pvecm add` on 5 nodes (serial: 1)
+5. `proxmox_ceph` — install Ceph Squid, init cluster, create mons/mgrs/OSDs, CRUSH rules, pools
+6. `proxmox_template` — download Ubuntu 24.04 cloud image, build VM 9000, convert to template
+7. `proxmox_vm` — clone template per agent/service VM, configure resources/cloud-init, start VMs
 
-### Agent Stack Roles (target `agent_vms`, unchanged from pre-migration)
+### Agent Stack Roles (target `agent_vms`)
 - `agent_provision` — dev environment, SSH keys, GitHub setup
 - `agent_desktop` — Neovim, tmux, shell config
 - `ollama` — local LLM inference
@@ -76,17 +87,12 @@ ansible-playbook -i inventory/hosts.yml proxmox_cluster.yml \
   --vault-password-file ~/.vault_pass.txt
 ```
 
-#### Single role via helper script (defaults: proxmox_cluster.yml, user=root)
-```bash
-./ansible/run_ansible_role.sh -r proxmox_base
-./ansible/run_ansible_role.sh -r proxmox_storage
-./ansible/run_ansible_role.sh -r proxmox_vm
-```
-
 #### Single-phase runs (using tags)
 ```bash
 ansible-playbook -i inventory/hosts.yml proxmox_cluster.yml \
-  --tags proxmox_storage --vault-password-file ~/.vault_pass.txt
+  --tags proxmox_network --vault-password-file ~/.vault_pass.txt
+ansible-playbook -i inventory/hosts.yml proxmox_cluster.yml \
+  --tags proxmox_ceph --vault-password-file ~/.vault_pass.txt
 ```
 
 #### Teardown
@@ -99,6 +105,17 @@ ansible-playbook -i inventory/hosts.yml proxmox_cluster_reset.yml \
 ```bash
 ansible-playbook -i inventory/hosts.yml proxmox_verify.yml \
   --vault-password-file ~/.vault_pass.txt
+```
+
+### Service VM Management
+```bash
+# Deploy all service VMs
+ansible-playbook -i inventory/hosts.yml service_vms.yml \
+  --vault-password-file ~/.vault_pass.txt
+
+# Single service
+ansible-playbook -i inventory/hosts.yml service_vms.yml \
+  --tags monitoring --vault-password-file ~/.vault_pass.txt
 ```
 
 ### Agent VM Management
@@ -115,9 +132,10 @@ ansible agent_vms -i inventory/hosts.yml -m ping
 ```bash
 pvecm status     # Cluster quorum status
 pvecm nodes      # List cluster nodes
-pvesm status     # Storage pool status
+pvesm status     # Storage pool status (shows ceph-fast, ceph-bulk)
+ceph status      # Ceph health
+ceph osd tree    # OSD layout with device classes
 qm list          # VMs on this host
-zpool status     # ZFS pool health
 ```
 
 ## Development Notes
@@ -131,10 +149,10 @@ zpool status     # ZFS pool health
 - Add to `proxmox_cluster.yml` in dependency order
 - Add inverse step to `proxmox_cluster_reset.yml`
 
-### ZFS Pool Definitions
+### Ceph Disk Definitions
 - Defined per-host in `inventory/host_vars/<hostname>.yml`
-- Each pool needs: `name`, `mode`, `devices[]`, `options`, `proxmox_storage_type`, `proxmox_content`
-- Multi-vdev pools use `custom_create_cmd` (see r720xd host_vars)
+- Each disk needs: `name` (e.g. `nvme0n1`), `device_class` (`ssd` or `hdd`)
+- `ceph_nic` defines the 10GbE interface for vmbr1 (e.g. `nic0`, `nic4`)
 
 ### Proxmox API Token
 - Created during `proxmox_base` run — secret printed in task output

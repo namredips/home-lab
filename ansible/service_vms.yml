@@ -54,7 +54,48 @@
   roles:
     - proxmox_backup_server
 
-# Phase 5 — Monitoring (Prometheus + Grafana)
+# Phase 5 — Install node_exporter on all scrape targets
+# Prometheus (on monitoring VM) scrapes :9100 on proxmox_hosts and agent_vms.
+# This play installs prometheus-node-exporter on every host being scraped.
+- name: Install node_exporter on Proxmox hosts
+  hosts: proxmox_hosts
+  gather_facts: true
+  tags: monitoring
+  tasks:
+    - name: Install prometheus-node-exporter
+      ansible.builtin.apt:
+        name: prometheus-node-exporter
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Enable and start node_exporter
+      ansible.builtin.systemd:
+        name: prometheus-node-exporter
+        enabled: true
+        state: started
+      become: true
+
+- name: Install node_exporter on agent VMs
+  hosts: agent_vms
+  gather_facts: true
+  tags: monitoring
+  tasks:
+    - name: Install prometheus-node-exporter
+      ansible.builtin.apt:
+        name: prometheus-node-exporter
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Enable and start node_exporter
+      ansible.builtin.systemd:
+        name: prometheus-node-exporter
+        enabled: true
+        state: started
+      become: true
+
+# Phase 6 — Monitoring (Prometheus + Grafana)
 - name: Deploy monitoring stack
   hosts: monitoring.infiquetra.com
   gather_facts: true

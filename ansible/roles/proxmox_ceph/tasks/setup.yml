@@ -91,30 +91,31 @@
   changed_when: false
 
 # ── Step 6: Create OSDs on each node ─────────────────────────────────────────
+# Note: hosts with no ceph_disks (e.g. r420 on ssd_rule) skip OSD creation but
+# still continue to Steps 7+8 so CRUSH rules and pools are created on master.
 
-- name: Skip OSD creation if no disks defined for this host
-  ansible.builtin.meta: end_host
-  when: ceph_disks is not defined or ceph_disks | length == 0
-
-- name: Check if each disk already has Ceph OSD signatures
-  ansible.builtin.shell: blkid /dev/{{ item.name }} | grep -qi ceph
-  loop: "{{ ceph_disks }}"
+- name: Check if each disk already has a Ceph OSD (via ceph-volume lvm list)
+  ansible.builtin.command: ceph-volume lvm list /dev/{{ item.name }}
+  loop: "{{ ceph_disks | default([]) }}"
   loop_control:
     label: "{{ item.name }}"
   register: osd_disk_checks
   changed_when: false
   failed_when: false
+  when: ceph_disks is defined and ceph_disks | length > 0
 
 - name: Create OSD for each unclaimed disk
   ansible.builtin.command: >
     pveceph osd create /dev/{{ item.item.name }}
     --device-class {{ item.item.device_class }}
-  loop: "{{ osd_disk_checks.results }}"
+  loop: "{{ osd_disk_checks.results | default([]) }}"
   loop_control:
     label: "{{ item.item.name }} ({{ item.item.device_class }})"
-  when: item.rc != 0
+  when:
+    - ceph_disks is defined and ceph_disks | length > 0
+    - item.rc != 0
   changed_when: true
-  # rc != 0 from blkid grep means no Ceph signature found — disk is available
+  # rc != 0 from ceph-volume lvm list means no existing OSD — disk is available
 
 # ── Step 7: Create CRUSH rules (master only) ──────────────────────────────────
 

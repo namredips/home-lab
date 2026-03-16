@@ -43,7 +43,20 @@
 # --cicustom user= replaces Proxmox's auto-generated user-data (which includes
 # package_upgrade: true).  The snippet is on local:snippets/ of every node.
 # Omit --sshkeys and --cipassword here — they're in the snippet instead.
-- name: Set cloud-init config
+- name: Set cloud-init config (static IP)
+  ansible.builtin.command: >
+    qm set {{ agent.vmid }}
+    --ciuser {{ vm_ssh_user }}
+    --ipconfig0 ip={{ agent.ip }}/24,gw=10.220.1.1
+    --nameserver 10.220.1.1
+    --searchdomain infiquetra.com
+    --cicustom user=local:snippets/{{ agent_name }}-user-data.yaml
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  when:
+    - vm_check.rc != 0
+    - agent.ip is defined
+
+- name: Set cloud-init config (DHCP — no static IP defined)
   ansible.builtin.command: >
     qm set {{ agent.vmid }}
     --ciuser {{ vm_ssh_user }}
@@ -52,7 +65,9 @@
     --searchdomain infiquetra.com
     --cicustom user=local:snippets/{{ agent_name }}-user-data.yaml
   delegate_to: "{{ groups['proxmox_master'][0] }}"
-  when: vm_check.rc != 0
+  when:
+    - vm_check.rc != 0
+    - agent.ip is not defined
 
 # With Ceph RBD (shared storage), the disk already lives in the cluster-wide pool.
 # Migration just moves VM config — no disk streaming needed, so no --with-local-disks.

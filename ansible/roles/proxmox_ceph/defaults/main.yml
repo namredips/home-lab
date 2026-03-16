@@ -1,16 +1,16 @@
 ---
 reset: false
 
-# Ceph version — matches Proxmox VE 9.x (Debian Trixie)
-ceph_version: "reef"
+# Ceph version — matches Proxmox VE 9.x (Debian Trixie ships Ceph Squid 19.x)
+ceph_version: "squid"
 
 # Cluster network — dedicated 10GbE on vmbr1
 ceph_cluster_network: "10.220.2.0/24"
 
 # Replication: size=2 → 2 copies, survives 1 OSD failure
-# min_size=1 allows reads/writes with a single copy (degraded but available)
+# min_size=2 requires both copies present for writes — no degraded writes (safety over availability)
 ceph_pool_size: 2
-ceph_pool_min_size: 1
+ceph_pool_min_size: 2
 
 # Monitor + manager nodes — must be odd count for quorum
 # r420 (master), r640-1, r720xd chosen for hardware diversity
