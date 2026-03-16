@@ -1,0 +1,11 @@
+# Forward all syslog to Promtail on the monitoring VM (RFC 5424 format over TCP)
+*.* action(type="omfwd"
+           target="10.220.1.63"
+           port="{{ promtail_syslog_port }}"
+           protocol="tcp"
+           template="RSYSLOG_SyslogProtocol23Format"
+           action.resumeRetryCount="-1"
+           queue.type="linkedList"
+           queue.size="10000"
+           queue.fileName="syslog-fwd-queue"
+           queue.saveOnShutdown="on")

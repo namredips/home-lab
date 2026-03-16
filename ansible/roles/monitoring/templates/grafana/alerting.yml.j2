@@ -1,0 +1,252 @@
+apiVersion: 1
+
+# ── Contact points ────────────────────────────────────────────────────────────
+contactPoints:
+  - orgId: 1
+    name: Discord
+    receivers:
+      - uid: discord-monitoring
+        type: discord
+        settings:
+          url: "{{ vault_discord_monitoring_webhook_url }}"
+          title: |
+            [{{ "{{" }} .Status | toUpper {{ "}}" }}{{ "{{" }} if eq .Status "firing" {{ "}}" }}:{{ "{{" }} .Alerts.Firing | len {{ "}}" }}{{ "{{" }} end {{ "}}" }}] {{ "{{" }} .CommonLabels.alertname {{ "}}" }}
+          message: |
+            {{ "{{" }} range .Alerts {{ "}}" }}
+            **{{ "{{" }} .Labels.alertname {{ "}}" }}** - {{ "{{" }} .Annotations.summary {{ "}}" }}
+            Instance: `{{ "{{" }} .Labels.instance {{ "}}" }}`
+            {{ "{{" }} end {{ "}}" }}
+
+# ── Notification policy ───────────────────────────────────────────────────────
+policies:
+  - orgId: 1
+    receiver: Discord
+    group_by: ['alertname', 'instance']
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+
+# ── Alert rule groups ─────────────────────────────────────────────────────────
+groups:
+  - orgId: 1
+    name: olympus-alerts
+    folder: Olympus
+    interval: 1m
+    rules:
+
+      - uid: host-down
+        title: "Host Down"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: prometheus
+            model:
+              expr: "up{job=~'proxmox_hosts|agent_vms'} == 0"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {type: last}
+                  type: query
+              expression: A
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "Host {{ "{{" }} $labels.instance {{ "}}" }} is unreachable"
+        labels:
+          severity: critical
+
+      - uid: ceph-health-warn
+        title: "Ceph Health Warning"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: prometheus
+            model:
+              expr: "ceph_health_status != 0"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {type: last}
+                  type: query
+              expression: A
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "Ceph cluster health is degraded (status={{ "{{" }} $value {{ "}}" }})"
+        labels:
+          severity: warning
+
+      - uid: high-cpu
+        title: "High CPU Usage"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: prometheus
+            model:
+              expr: "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode='idle'}[5m])) * 100) > 90"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {type: last}
+                  type: query
+              expression: A
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "High CPU on {{ "{{" }} $labels.instance {{ "}}" }}: {{ "{{" }} $value | printf '%.0f' {{ "}}" }}%"
+        labels:
+          severity: warning
+
+      - uid: high-memory
+        title: "High Memory Usage"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: prometheus
+            model:
+              expr: "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {type: last}
+                  type: query
+              expression: A
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "High memory on {{ "{{" }} $labels.instance {{ "}}" }}: {{ "{{" }} $value | printf '%.0f' {{ "}}" }}%"
+        labels:
+          severity: warning
+
+      - uid: disk-space-low
+        title: "Disk Space Low"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: prometheus
+            model:
+              expr: "(node_filesystem_avail_bytes{fstype!~'tmpfs|overlay|squashfs'} / node_filesystem_size_bytes) * 100 < 10"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {type: last}
+                  type: query
+              expression: A
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "Low disk on {{ "{{" }} $labels.instance {{ "}}" }} ({{ "{{" }} $labels.mountpoint {{ "}}" }}): {{ "{{" }} $value | printf '%.0f' {{ "}}" }}% free"
+        labels:
+          severity: warning
+
+      - uid: pbs-backup-stale
+        title: "PBS Backup Stale"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: prometheus
+            model:
+              expr: "(time() - pbs_snapshot_vm_last_timestamp) / 3600 > 48"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {type: last}
+                  type: query
+              expression: A
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          summary: "PBS backup stale for {{ "{{" }} $labels.vm {{ "}}" }}: {{ "{{" }} $value | printf '%.0f' {{ "}}" }}h since last backup"
+        labels:
+          severity: warning
+
+      - uid: openclaw-service-down
+        title: "OpenClaw Service Down"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: prometheus
+            model:
+              expr: "node_systemd_unit_state{name='openclaw-gateway.service',state='active'} == 0"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {type: last}
+                  type: query
+              expression: A
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "OpenClaw gateway service is not active on {{ "{{" }} $labels.instance {{ "}}" }}"
+        labels:
+          severity: warning

@@ -143,6 +143,15 @@ vault_discord_bot_token_ares: !vault |
           38313236356632636562373463393434643562623337633231656463313666346564613933643035
           38336264616231376136
 
+# ── Monitoring vault vars ─────────────────────────────────────────────────────
+# Add these with: ansible-vault edit ansible/inventory/group_vars/all/all.yml \
+#                   --vault-password-file ~/.vault_pass.txt
+#
+# vault_idrac_password: "..."              # iDRAC root password (all 6 servers share one)
+# vault_unifi_api_key: "..."               # UniFi Network API key (from UNIFI_API_KEY env)
+# vault_discord_monitoring_webhook_url: "https://discord.com/api/webhooks/..."  # #monitoring-alerts channel
+# vault_grafana_admin_password: "..."      # Replace changeme default
+
 vault_discord_bot_token_freya: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           64353163373435663537336365313933383632663066306263383566366661383963306162623166

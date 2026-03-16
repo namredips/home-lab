@@ -1,0 +1,14 @@
+modules:
+  # Remote IPMI scraping — hits iDRAC IPs over the management network.
+  # All 6 Dell servers use the same root credentials.
+  remote:
+    user: root
+    password: "{{ vault_idrac_password }}"
+    privilege: ADMINISTRATOR
+    timeout: 10000
+    collectors:
+      - bmc
+      - ipmi
+      - chassis
+      - dcmi
+      - sel

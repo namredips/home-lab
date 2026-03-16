@@ -1,0 +1,39 @@
+{
+  "__inputs": [],
+  "__elements": {},
+  "__requires": [
+    {"type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0"},
+    {"type": "panel", "id": "text", "name": "Text", "version": ""}
+  ],
+  "annotations": {"list": []},
+  "description": "PLACEHOLDER — Replace with community dashboard #10347",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
+        "content": "## Proxmox VE — Placeholder\n\nThis is a placeholder dashboard. Replace with the real community dashboard:\n\n**Download:** https://grafana.com/grafana/dashboards/10347\n\n**Steps:**\n1. Download the JSON from the URL above\n2. Replace `/opt/monitoring/grafana/dashboards/proxmox-ve.json` on the monitoring VM\n3. Or run: `bash /opt/monitoring/grafana/dashboards/download-community-dashboards.sh`\n4. Restart Grafana: `docker compose -f /opt/monitoring/docker-compose.yml restart grafana`",
+        "mode": "markdown"
+      },
+      "title": "PLACEHOLDER — Proxmox VE Dashboard #10347",
+      "type": "text"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["placeholder", "proxmox"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Proxmox VE (Placeholder)",
+  "uid": "placeholder-proxmox-ve",
+  "version": 1,
+  "weekStart": ""
+}

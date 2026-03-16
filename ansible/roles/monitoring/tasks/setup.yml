@@ -1,6 +1,6 @@
 ---
-# Deploy Prometheus + Grafana + node_exporter via Docker Compose
-# on the monitoring VM (VMID 203, 10.220.1.63).
+# Deploy full observability stack via Docker Compose on the monitoring VM (203, 10.220.1.63).
+# Stack: Prometheus, Grafana, node_exporter, PVE-exporter, IPMI-exporter, PBS-exporter, Loki, Promtail
 
 # ── Docker CE ─────────────────────────────────────────────────────────────────
 - name: Install Docker apt prerequisites
@@ -63,7 +63,7 @@
     state: started
   become: true
 
-# ── Monitoring stack ──────────────────────────────────────────────────────────
+# ── Directory layout ──────────────────────────────────────────────────────────
 - name: Create monitoring data directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -74,8 +74,17 @@
   loop:
     - "{{ monitoring_data_dir }}"
     - "{{ monitoring_data_dir }}/prometheus"
+    - "{{ monitoring_data_dir }}/grafana/provisioning/datasources"
+    - "{{ monitoring_data_dir }}/grafana/provisioning/dashboards"
+    - "{{ monitoring_data_dir }}/grafana/provisioning/alerting"
+    - "{{ monitoring_data_dir }}/grafana/dashboards"
+    - "{{ monitoring_data_dir }}/loki"
+    - "{{ monitoring_data_dir }}/promtail"
+    - "{{ monitoring_data_dir }}/pve_exporter"
+    - "{{ monitoring_data_dir }}/ipmi"
   become: true
 
+# ── Prometheus ────────────────────────────────────────────────────────────────
 - name: Deploy Prometheus configuration
   ansible.builtin.template:
     src: prometheus.yml.j2
@@ -83,6 +92,68 @@
     mode: '0644'
   become: true
 
+# ── Grafana provisioning ──────────────────────────────────────────────────────
+- name: Deploy Grafana datasources
+  ansible.builtin.template:
+    src: grafana/datasources.yml.j2
+    dest: "{{ monitoring_data_dir }}/grafana/provisioning/datasources/datasources.yml"
+    mode: '0644'
+  become: true
+
+- name: Deploy Grafana dashboard provider
+  ansible.builtin.template:
+    src: grafana/dashboards.yml.j2
+    dest: "{{ monitoring_data_dir }}/grafana/provisioning/dashboards/dashboards.yml"
+    mode: '0644'
+  become: true
+
+- name: Deploy Grafana alerting provisioning
+  ansible.builtin.template:
+    src: grafana/alerting.yml.j2
+    dest: "{{ monitoring_data_dir }}/grafana/provisioning/alerting/alerting.yml"
+    mode: '0644'
+  become: true
+
+- name: Copy dashboard JSON files
+  ansible.builtin.copy:
+    src: "dashboards/"
+    dest: "{{ monitoring_data_dir }}/grafana/dashboards/"
+    mode: '0644'
+  become: true
+
+# ── Loki ──────────────────────────────────────────────────────────────────────
+- name: Deploy Loki configuration
+  ansible.builtin.template:
+    src: loki.yml.j2
+    dest: "{{ monitoring_data_dir }}/loki/loki.yml"
+    mode: '0644'
+  become: true
+
+# ── Promtail ──────────────────────────────────────────────────────────────────
+- name: Deploy Promtail configuration
+  ansible.builtin.template:
+    src: promtail.yml.j2
+    dest: "{{ monitoring_data_dir }}/promtail/promtail.yml"
+    mode: '0644'
+  become: true
+
+# ── PVE Exporter ──────────────────────────────────────────────────────────────
+- name: Deploy PVE exporter credentials
+  ansible.builtin.template:
+    src: pve_exporter.yml.j2
+    dest: "{{ monitoring_data_dir }}/pve_exporter/pve.yml"
+    mode: '0600'
+  become: true
+
+# ── IPMI Exporter ─────────────────────────────────────────────────────────────
+- name: Deploy IPMI exporter remote config
+  ansible.builtin.template:
+    src: ipmi_remote.yml.j2
+    dest: "{{ monitoring_data_dir }}/ipmi/config.yml"
+    mode: '0600'
+  become: true
+
+# ── docker-compose ────────────────────────────────────────────────────────────
 - name: Deploy docker-compose.yml
   ansible.builtin.template:
     src: docker-compose.yml.j2
@@ -100,6 +171,9 @@
 - name: Display monitoring access info
   ansible.builtin.debug:
     msg:
-      - "Prometheus: http://{{ ansible_host }}:9090"
-      - "Grafana:    http://{{ ansible_host }}:3000  (admin / {{ grafana_admin_password }})"
-      - "Note: Change grafana_admin_password in vault before production use"
+      - "Prometheus:    http://{{ ansible_host }}:9090"
+      - "Grafana:       http://{{ ansible_host }}:3000  ({{ grafana_admin_user }} / {{ grafana_admin_password }})"
+      - "Loki:          http://{{ ansible_host }}:3100"
+      - "PVE Exporter:  http://{{ ansible_host }}:9221"
+      - "IPMI Exporter: http://{{ ansible_host }}:9290"
+      - "PBS Exporter:  http://{{ ansible_host }}:9101"

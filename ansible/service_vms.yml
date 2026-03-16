@@ -1,7 +1,7 @@
 ---
 # service_vms.yml — Create service VMs and deploy their roles
 #
-# Phase 1: Create all service VMs (proxmox_vm role; idempotent — skips existing VMs)
+# Phase 1:  Create all service VMs (proxmox_vm role; idempotent — skips existing VMs)
 # Phase 2+: Deploy role-specific software on each service VM
 #
 # Usage:
@@ -20,7 +20,7 @@
 #   200 rustdesk  → r820        10.220.1.60  RustDesk relay/rendezvous
 #   201 ome       → r820        10.220.1.61  Dell OpenManage Enterprise (OVA import — see dell_ome role)
 #   202 pbs       → r720xd      10.220.1.62  Proxmox Backup Server (ceph-bulk storage)
-#   203 monitoring → r640-3     10.220.1.63  Prometheus + Grafana
+#   203 monitoring → r640-3     10.220.1.63  Prometheus + Grafana + Loki full observability
 
 # Phase 1 — Create all service VMs via Proxmox
 - name: Provision service VMs on Proxmox hosts
@@ -119,7 +119,6 @@
 
 # Phase 5 — Install node_exporter on all scrape targets
 # Prometheus (on monitoring VM) scrapes :9100 on proxmox_hosts and agent_vms.
-# This play installs prometheus-node-exporter on every host being scraped.
 - name: Install node_exporter on Proxmox hosts
   hosts: proxmox_hosts
   gather_facts: true
@@ -158,7 +157,119 @@
         state: started
       become: true
 
-# Phase 6 — Monitoring (Prometheus + Grafana)
+    # Enable systemd collector so OpenClaw + Ollama service states are visible in Prometheus.
+    # The ARGS environment variable is read by prometheus-node-exporter's systemd unit.
+    - name: Enable node_exporter systemd collector on agent VMs
+      ansible.builtin.lineinfile:
+        path: /etc/default/prometheus-node-exporter
+        regexp: '^ARGS='
+        line: 'ARGS="--collector.systemd --collector.systemd.unit-include=openclaw-gateway.service|ollama.service"'
+        create: true
+        mode: '0644'
+      become: true
+      notify: Restart node_exporter
+
+  handlers:
+    - name: Restart node_exporter
+      ansible.builtin.systemd:
+        name: prometheus-node-exporter
+        state: restarted
+      become: true
+
+# Phase 5b — Enable Ceph mgr prometheus module (cluster-wide via proxmox_master)
+# Exposes Ceph metrics on :9283 on the active mgr node.
+- name: Enable Ceph mgr prometheus module
+  hosts: proxmox_master
+  gather_facts: false
+  tags: monitoring
+  tasks:
+    - name: Enable prometheus module in ceph-mgr
+      ansible.builtin.command: ceph mgr module enable prometheus
+      register: ceph_mgr_result
+      changed_when: "'already enabled' not in ceph_mgr_result.stderr"
+      failed_when: ceph_mgr_result.rc != 0 and 'already enabled' not in ceph_mgr_result.stderr
+
+# Phase 5c — rsyslog forwarding on PVE hosts → Promtail on monitoring VM
+- name: Configure rsyslog forwarding on Proxmox hosts
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: monitoring
+  tasks:
+    - name: Deploy rsyslog remote forwarding config
+      ansible.builtin.template:
+        src: roles/monitoring/templates/rsyslog-remote.conf.j2
+        dest: /etc/rsyslog.d/60-monitoring.conf
+        mode: '0644'
+      become: true
+      notify: Restart rsyslog
+
+  handlers:
+    - name: Restart rsyslog
+      ansible.builtin.systemd:
+        name: rsyslog
+        state: restarted
+      become: true
+
+# Phase 5d — rsyslog forwarding on agent VMs → Promtail
+- name: Configure rsyslog forwarding on agent VMs
+  hosts: agent_vms
+  gather_facts: false
+  tags: monitoring
+  tasks:
+    - name: Deploy rsyslog remote forwarding config
+      ansible.builtin.template:
+        src: roles/monitoring/templates/rsyslog-remote.conf.j2
+        dest: /etc/rsyslog.d/60-monitoring.conf
+        mode: '0644'
+      become: true
+      notify: Restart rsyslog
+
+  handlers:
+    - name: Restart rsyslog
+      ansible.builtin.systemd:
+        name: rsyslog
+        state: restarted
+      become: true
+
+# Phase 5e — Configure UniFi Dream Machine syslog forwarding via API
+- name: Configure UniFi syslog forwarding
+  hosts: localhost
+  gather_facts: false
+  tags: monitoring
+  tasks:
+    - name: Include UniFi syslog task
+      ansible.builtin.include_tasks: roles/monitoring/tasks/unifi_syslog.yml
+
+# Phase 5f — Resize monitoring VM (203) to 4 vCPU / 8 GB before deploying the stack
+- name: Resize monitoring VM resources
+  hosts: r640-3.infiquetra.com
+  gather_facts: false
+  tags: monitoring
+  tasks:
+    - name: Get current monitoring VM config
+      ansible.builtin.command: qm config 203
+      register: vm_config
+      changed_when: false
+
+    - name: Resize monitoring VM to 4 vCPU / 8 GB
+      ansible.builtin.command: qm set 203 --memory 8192 --cores 4
+      when:
+        - "'cores: 4' not in vm_config.stdout or 'memory: 8192' not in vm_config.stdout"
+      register: vm_resize
+
+    - name: Reboot monitoring VM to apply new resources
+      ansible.builtin.command: qm reboot 203
+      when: vm_resize is changed
+
+    - name: Wait for monitoring VM to come back up
+      ansible.builtin.wait_for:
+        host: "10.220.1.63"
+        port: 22
+        delay: 10
+        timeout: 120
+      when: vm_resize is changed
+
+# Phase 6 — Monitoring (Prometheus + Grafana + Loki + exporters)
 - name: Deploy monitoring stack
   hosts: monitoring.infiquetra.com
   gather_facts: true

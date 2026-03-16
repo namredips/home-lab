@@ -154,9 +154,9 @@ service_vms:
   monitoring:
     vmid: 203
     host: r640-3.infiquetra.com
-    vcpus: 2
-    memory_mb: 4096
+    vcpus: 4
+    memory_mb: 8192
     disk_gb: 50
     ip: 10.220.1.63
     mac: "52:54:00:c8:03:3f"
-    description: "Prometheus + Grafana monitoring stack"
+    description: "Prometheus + Grafana + Loki full observability stack"

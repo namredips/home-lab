@@ -1,4 +1,5 @@
 services:
+  # ── Prometheus ────────────────────────────────────────────────────────────────
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -15,6 +16,7 @@ services:
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
 
+  # ── Grafana ───────────────────────────────────────────────────────────────────
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -25,9 +27,16 @@ services:
       GF_SECURITY_ADMIN_USER: "{{ grafana_admin_user }}"
       GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
       GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ALERTING_ENABLED: "false"
+      GF_UNIFIED_ALERTING_ENABLED: "true"
     volumes:
       - grafana_data:/var/lib/grafana
+      - {{ monitoring_data_dir }}/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - {{ monitoring_data_dir }}/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - {{ monitoring_data_dir }}/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
+      - {{ monitoring_data_dir }}/grafana/dashboards:/var/lib/grafana/dashboards:ro
 
+  # ── Node Exporter (monitoring VM itself) ─────────────────────────────────────
   node_exporter:
     image: prom/node-exporter:latest
     container_name: node_exporter
@@ -43,6 +52,74 @@ services:
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
 
+  # ── PVE Exporter ──────────────────────────────────────────────────────────────
+  pve_exporter:
+    image: prompve/prometheus-pve-exporter:latest
+    container_name: pve_exporter
+    restart: unless-stopped
+    ports:
+      - "{{ pve_exporter_port }}:9221"
+    volumes:
+      - {{ monitoring_data_dir }}/pve_exporter/pve.yml:/etc/pve.yml:ro
+    command:
+      - '--config.file=/etc/pve.yml'
+
+  # ── IPMI Exporter ─────────────────────────────────────────────────────────────
+  # Scrapes iDRAC IPs remotely over IPMI LAN — no agent needed on hosts.
+  ipmi_exporter:
+    image: prometheuscommunity/ipmi-exporter:latest
+    container_name: ipmi_exporter
+    restart: unless-stopped
+    ports:
+      - "{{ ipmi_exporter_port }}:9290"
+    volumes:
+      - {{ monitoring_data_dir }}/ipmi/config.yml:/config.yml:ro
+    command:
+      - '--config.file=/config.yml'
+
+  # ── PBS Exporter ──────────────────────────────────────────────────────────────
+  pbs_exporter:
+    image: natrontech/pbs-exporter:latest
+    container_name: pbs_exporter
+    restart: unless-stopped
+    ports:
+      - "{{ pbs_exporter_port }}:9101"
+    environment:
+      PBS_ENDPOINT: "https://{{ pbs_host }}:{{ pbs_port }}"
+      PBS_USERNAME: "{{ pbs_api_user }}!{{ pbs_api_token_id }}"
+      PBS_PASSWORD: "{{ pbs_api_token_secret }}"
+      PBS_INSECURE: "true"
+
+  # ── Loki ──────────────────────────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "{{ loki_port }}:3100"
+    volumes:
+      - {{ monitoring_data_dir }}/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    command:
+      - '--config.file=/etc/loki/loki.yml'
+
+  # ── Promtail ──────────────────────────────────────────────────────────────────
+  # Syslog receiver (TCP :1514) + Docker log discovery
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    restart: unless-stopped
+    ports:
+      - "{{ promtail_syslog_port }}:{{ promtail_syslog_port }}"
+      - "{{ promtail_http_port }}:9080"
+    volumes:
+      - {{ monitoring_data_dir }}/promtail/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+    command:
+      - '--config.file=/etc/promtail/promtail.yml'
+
 volumes:
   prometheus_data:
   grafana_data:
+  loki_data:

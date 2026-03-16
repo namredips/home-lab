@@ -1,0 +1,24 @@
+---
+# Configure UniFi Dream Machine syslog forwarding via the UniFi Network API.
+# The UDM API at 10.220.1.1 accepts syslog settings at the site system settings endpoint.
+
+- name: Enable UniFi syslog forwarding to Promtail
+  ansible.builtin.uri:
+    url: "https://10.220.1.1/proxy/network/api/s/default/set/setting/syslog"
+    method: PUT
+    headers:
+      X-Api-Key: "{{ vault_unifi_api_key }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      enabled: true
+      server: "10.220.1.63"
+      port: "{{ promtail_syslog_port }}"
+    validate_certs: false
+    status_code: [200]
+  register: unifi_syslog_result
+  failed_when: unifi_syslog_result.status not in [200]
+
+- name: Show UniFi syslog config result
+  ansible.builtin.debug:
+    msg: "UniFi syslog forwarding configured: {{ unifi_syslog_result.json | default({}) }}"
