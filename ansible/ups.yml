@@ -1,0 +1,35 @@
+---
+# ups.yml — Deploy NUT (Network UPS Tools) on all Proxmox cluster hosts
+#
+# Architecture:
+#   r640-1 (10.220.1.8) — NUT server: USB-connected to UPS, runs upsd + upsmon (master)
+#   All other 5 hosts   — NUT clients: run upsmon (slave), connect to r640-1:3493
+#
+# When battery hits the low threshold:
+#   1. Master upsmon on r640-1 triggers ups-shutdown.sh → stops local VMs → shuts down host
+#   2. All slave upsmons receive FSD signal → run "shutdown -h now" → pve-guests stops local VMs
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml ups.yml \
+#     --vault-password-file ~/.vault_pass.txt
+#
+# Reset (remove NUT from all hosts):
+#   ansible-playbook -i inventory/hosts.yml ups.yml \
+#     -e reset=true --vault-password-file ~/.vault_pass.txt
+#
+# Single host (for testing):
+#   ansible-playbook -i inventory/hosts.yml ups.yml \
+#     --limit r640-1.infiquetra.com --vault-password-file ~/.vault_pass.txt
+#
+# Prerequisites:
+#   - vault_nut_monitor_password set in group_vars/all/all.yml
+#   - vault_nut_admin_password set in group_vars/all/all.yml
+#   - nut_mode: netserver set in host_vars/r640-1.infiquetra.com.yml
+#   - USB cable from UPS to r640-1
+
+- name: Deploy NUT on all Proxmox hosts
+  hosts: proxmox_hosts
+  gather_facts: true
+  tags: ups_nut
+  roles:
+    - ups_nut

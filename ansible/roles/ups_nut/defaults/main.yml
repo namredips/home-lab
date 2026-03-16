@@ -1,0 +1,33 @@
+---
+reset: false
+
+# NUT mode — override per-host in host_vars
+#   netserver  = this host has the USB connection to the UPS (runs upsd + upsmon)
+#   netclient  = this host monitors the UPS via the NUT server (runs upsmon only)
+nut_mode: netclient
+
+# UPS identifier — used in all NUT config files
+nut_ups_name: apc
+
+# NUT server connection details (used by clients to locate the server)
+nut_server_host: "10.220.1.8"  # r640-1
+nut_port: 3493
+
+# Monitor credentials — must match upsd.users on the server
+# Set vault_nut_monitor_password in ansible/inventory/group_vars/all/all.yml
+nut_monitor_user: upsmon
+nut_monitor_password: "{{ vault_nut_monitor_password }}"
+
+# Admin credentials for upsd (server only)
+# Set vault_nut_admin_password in ansible/inventory/group_vars/all/all.yml
+nut_admin_user: admin
+nut_admin_password: "{{ vault_nut_admin_password }}"
+
+# UPS driver config (server only) — APC via USB
+# usbhid-ups supports APC Smart-UPS and most other USB UPS devices
+nut_driver: usbhid-ups
+nut_device_port: auto
+
+# Shutdown thresholds — upsmon triggers SHUTDOWNCMD when either condition is met
+nut_battery_min_percent: 20    # shut down at or below 20% battery
+nut_battery_min_runtime: 300   # shut down at or below 5 minutes remaining

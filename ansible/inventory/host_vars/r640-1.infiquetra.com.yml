@@ -4,6 +4,10 @@
 # Ceph-Fast NVMe: nvme0n1, nvme1n1 (2x 932G WD Black NVMe) → ssd class
 # Ceph-Fast SATA SSD: sdc, sdd, sde, sdf (4x 932G Crucial/WD SATA SSD) → ssd class
 # Ceph NIC: nic0 (Solarflare sfc, autoneg works at 10G)
+# UPS NUT: NUT server — USB cable from UPS connects to this host
+
+# NUT — this host is the NUT server (USB-connected to UPS)
+nut_mode: netserver
 
 ceph_nic: "nic0"
 ceph_ip: "10.220.2.8"

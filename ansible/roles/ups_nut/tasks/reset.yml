@@ -1,0 +1,41 @@
+---
+- name: Stop and disable nut-monitor
+  ansible.builtin.systemd:
+    name: nut-monitor
+    enabled: false
+    state: stopped
+  become: true
+  ignore_errors: true
+
+- name: Stop and disable nut-server
+  ansible.builtin.systemd:
+    name: nut-server
+    enabled: false
+    state: stopped
+  become: true
+  ignore_errors: true
+  when: nut_mode == 'netserver'
+
+- name: Remove NUT config files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/nut/nut.conf
+    - /etc/nut/ups.conf
+    - /etc/nut/upsd.conf
+    - /etc/nut/upsd.users
+    - /etc/nut/upsmon.conf
+    - /usr/local/bin/ups-shutdown.sh
+  become: true
+  ignore_errors: true
+
+- name: Remove NUT packages
+  ansible.builtin.apt:
+    name:
+      - nut
+      - nut-server
+      - nut-client
+    state: absent
+    purge: true
+  become: true

@@ -130,3 +130,8 @@ scrape_configs:
   - job_name: 'unifi'
     static_configs:
       - targets: ['unifi_poller:{{ unifi_poller_port }}']
+
+  # ── NUT Exporter — UPS battery, load, and runtime ────────────────────────────
+  - job_name: 'ups'
+    static_configs:
+      - targets: ['nut_exporter:{{ nut_exporter_port }}']

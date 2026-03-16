@@ -1,0 +1,5 @@
+# /etc/nut/upsd.conf — NUT data server config (NUT server only)
+# Managed by Ansible — do not edit manually
+
+# Listen on all interfaces so cluster hosts can connect
+LISTEN 0.0.0.0 {{ nut_port }}
