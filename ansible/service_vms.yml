@@ -54,6 +54,70 @@
   roles:
     - proxmox_backup_server
 
+# Phase 4b — Register PBS in Proxmox and create backup job
+- name: Register PBS storage and backup job in Proxmox cluster
+  hosts: proxmox_master
+  gather_facts: false
+  tags: pbs
+  vars:
+    pbs_host: "10.220.1.62"
+    # Mirror of proxmox_backup_server defaults — needed here since role isn't loaded on proxmox_master
+    pbs_pve_storage_name: "pbs-backup"
+    pbs_datastore_name: "ceph-backup"
+    pbs_backup_schedule: "02:00"
+    pbs_backup_mode: "snapshot"
+    pbs_backup_compress: "zstd"
+    pbs_backup_exclude_vmids: [202]
+    pbs_prune_keep_daily: 7
+    pbs_prune_keep_weekly: 4
+    pbs_prune_keep_monthly: 3
+  tasks:
+    - name: Get PBS TLS fingerprint
+      ansible.builtin.shell: >
+        echo | openssl s_client -connect {{ pbs_host }}:8007 2>/dev/null
+        | openssl x509 -fingerprint -sha256 -noout
+        | sed 's/.*=//'
+        | tr 'A-F' 'a-f'
+      register: pbs_fp_raw
+      changed_when: false
+
+    - name: Set fingerprint fact
+      ansible.builtin.set_fact:
+        pbs_fingerprint: "{{ pbs_fp_raw.stdout | trim }}"
+
+    - name: Check if PBS storage is already registered
+      ansible.builtin.command: pvesm status
+      register: pvesm_status
+      changed_when: false
+
+    - name: Register PBS as Proxmox storage
+      ansible.builtin.command: >
+        pvesm add pbs {{ pbs_pve_storage_name }}
+        --server {{ pbs_host }}
+        --username {{ pbs_api_user }}
+        --token {{ pbs_api_token_id }}={{ pbs_api_token_secret }}
+        --datastore {{ pbs_datastore_name }}
+        --fingerprint {{ pbs_fingerprint }}
+      when: pbs_pve_storage_name not in pvesm_status.stdout
+
+    - name: Check existing cluster backup jobs
+      ansible.builtin.command: pvesh get /cluster/backup --output-format json
+      register: existing_backup_jobs
+      changed_when: false
+
+    - name: Create scheduled backup job for all VMs
+      ansible.builtin.command: >
+        pvesh create /cluster/backup
+        --all 1
+        --exclude {{ pbs_backup_exclude_vmids | join(',') }}
+        --storage {{ pbs_pve_storage_name }}
+        --schedule "{{ pbs_backup_schedule }}"
+        --mode {{ pbs_backup_mode }}
+        --compress {{ pbs_backup_compress }}
+        --prune-backups keep-daily={{ pbs_prune_keep_daily }},keep-weekly={{ pbs_prune_keep_weekly }},keep-monthly={{ pbs_prune_keep_monthly }}
+        --mailnotification never
+      when: pbs_pve_storage_name not in existing_backup_jobs.stdout
+
 # Phase 5 — Install node_exporter on all scrape targets
 # Prometheus (on monitoring VM) scrapes :9100 on proxmox_hosts and agent_vms.
 # This play installs prometheus-node-exporter on every host being scraped.
