@@ -174,7 +174,7 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "sum(rate(ceph_osd_op_r[5m])) + sum(rate(ceph_osd_op_w[5m]))",
+          "expr": "sum(rate(ceph_pool_rd[5m])) + sum(rate(ceph_pool_wr[5m]))",
           "legendFormat": "IOPS",
           "refId": "A"
         }
@@ -258,7 +258,7 @@
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "label_replace(max by(server_ip) (ipmi_temperature_celsius{job='ipmi',name=~'.*CPU.*|.*Inlet.*'}), 'instance', '$1', 'server_ip', '(.+)')",
+          "expr": "max by(instance) (node_ipmi_temperature_celsius{job='proxmox_hosts',sensor=~'Inlet Temp|Temp'})",
           "format": "table",
           "instant": true,
           "legendFormat": "{{instance}}",
@@ -266,7 +266,7 @@
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "label_replace(ipmi_dcmi_power_consumption_watts{job='ipmi'}, 'instance', '$1', 'server_ip', '(.+)')",
+          "expr": "node_ipmi_power_watts{job='proxmox_hosts',sensor='Pwr Consumption'}",
           "format": "table",
           "instant": true,
           "legendFormat": "{{instance}}",
@@ -502,13 +502,13 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "rate(unpoller_usg_wan_rx_bytes_total[5m])",
+          "expr": "rate(unpoller_device_wan_receive_bytes_total[5m])",
           "legendFormat": "WAN RX",
           "refId": "A"
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "rate(unpoller_usg_wan_tx_bytes_total[5m])",
+          "expr": "rate(unpoller_device_wan_transmit_bytes_total[5m])",
           "legendFormat": "WAN TX",
           "refId": "B"
         }
@@ -532,7 +532,7 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "unpoller_site_num_sta",
+          "expr": "unpoller_site_stations",
           "legendFormat": "Clients",
           "refId": "A"
         }

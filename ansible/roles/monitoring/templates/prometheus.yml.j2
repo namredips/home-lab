@@ -89,14 +89,6 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: 'ipmi_exporter:{{ ipmi_exporter_port }}'
-    # Map iDRAC IP → server IP so IPMI metrics can be joined with node_exporter metrics
-    metric_relabel_configs:
-{% for host in groups['proxmox_hosts'] %}
-      - source_labels: [instance]
-        regex: '{{ hostvars[host]['idrac_ip'] }}'
-        target_label: server_ip
-        replacement: '{{ hostvars[host]['ansible_host'] }}'
-{% endfor %}
     scrape_interval: 60s
     scrape_timeout: 30s
 

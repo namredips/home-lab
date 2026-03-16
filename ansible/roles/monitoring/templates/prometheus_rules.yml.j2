@@ -54,31 +54,32 @@ groups:
 
       - record: ceph:total_iops:rate5m
         expr: >
-          sum(rate(ceph_osd_op_r[5m]))
-          + sum(rate(ceph_osd_op_w[5m]))
+          sum(rate(ceph_pool_rd[5m]))
+          + sum(rate(ceph_pool_wr[5m]))
 
       - record: ceph:total_throughput_bytes:rate5m
         expr: >
-          sum(rate(ceph_osd_op_r_out_bytes[5m]))
-          + sum(rate(ceph_osd_op_w_in_bytes[5m]))
+          sum(rate(ceph_pool_rd_bytes[5m]))
+          + sum(rate(ceph_pool_wr_bytes[5m]))
 
       # ── IPMI Hardware ──────────────────────────────────────────────────────
-      # server_ip label added by metric_relabel_configs in prometheus.yml
+      # Uses node_exporter's built-in IPMI collector (node_ipmi_* metrics)
+      # on proxmox_hosts — more reliable than the remote ipmi_exporter.
       - record: instance:ipmi_inlet_temp_celsius
         expr: >
-          max by(server_ip) (
-            ipmi_temperature_celsius{job="ipmi", name=~".*[Ii]nlet.*"}
+          max by(instance) (
+            node_ipmi_temperature_celsius{job="proxmox_hosts", sensor="Inlet Temp"}
           )
 
       - record: instance:ipmi_cpu_temp_celsius
         expr: >
-          max by(server_ip) (
-            ipmi_temperature_celsius{job="ipmi", name=~".*CPU.*"}
+          max by(instance) (
+            node_ipmi_temperature_celsius{job="proxmox_hosts", sensor="Temp"}
           )
 
       - record: instance:ipmi_power_watts
         expr: >
-          ipmi_dcmi_power_consumption_watts{job="ipmi"}
+          node_ipmi_power_watts{job="proxmox_hosts", sensor="Pwr Consumption"}
 
       # ── Service Availability ───────────────────────────────────────────────
       - record: job:up_ratio
@@ -103,10 +104,10 @@ groups:
 
       # ── UniFi Network ──────────────────────────────────────────────────────
       - record: unifi:wan_rx_bytes:rate5m
-        expr: rate(unpoller_usg_wan_rx_bytes_total[5m])
+        expr: rate(unpoller_device_wan_receive_bytes_total[5m])
 
       - record: unifi:wan_tx_bytes:rate5m
-        expr: rate(unpoller_usg_wan_tx_bytes_total[5m])
+        expr: rate(unpoller_device_wan_transmit_bytes_total[5m])
 
       - record: unifi:client_count
-        expr: unpoller_site_num_sta
+        expr: unpoller_site_stations

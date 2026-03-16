@@ -121,8 +121,8 @@
           "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
           "targets": [
             {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "ceph:total_iops:rate5m", "legendFormat": "Total IOPS", "refId": "A"},
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "sum(rate(ceph_osd_op_r[5m]))", "legendFormat": "Read IOPS", "refId": "B"},
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "sum(rate(ceph_osd_op_w[5m]))", "legendFormat": "Write IOPS", "refId": "C"}
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "sum(rate(ceph_pool_rd[5m]))", "legendFormat": "Read IOPS", "refId": "B"},
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "sum(rate(ceph_pool_wr[5m]))", "legendFormat": "Write IOPS", "refId": "C"}
           ],
           "title": "Ceph IOPS",
           "type": "timeseries"
@@ -153,15 +153,15 @@
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "s"}, "overrides": []},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "ms"}, "overrides": []},
           "gridPos": {"h": 8, "w": 12, "x": 12, "y": 26},
           "id": 13,
           "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
           "targets": [
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "histogram_quantile(0.99, sum by(le) (rate(ceph_osd_op_r_latency_sum[5m])))", "legendFormat": "p99 read", "refId": "A"},
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "histogram_quantile(0.99, sum by(le) (rate(ceph_osd_op_w_latency_sum[5m])))", "legendFormat": "p99 write", "refId": "B"}
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "avg(ceph_osd_apply_latency_ms)", "legendFormat": "Apply latency", "refId": "A"},
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "avg(ceph_osd_commit_latency_ms)", "legendFormat": "Commit latency", "refId": "B"}
           ],
-          "title": "OSD Latency p99",
+          "title": "OSD Latency (avg)",
           "type": "timeseries"
         }
       ]
@@ -176,8 +176,8 @@
           "id": 20,
           "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right"}, "tooltip": {"mode": "multi"}},
           "targets": [
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_inlet_temp_celsius", "legendFormat": "{{server_ip}} inlet", "refId": "A"},
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_cpu_temp_celsius", "legendFormat": "{{server_ip}} CPU", "refId": "B"}
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_inlet_temp_celsius", "legendFormat": "{{instance}} inlet", "refId": "A"},
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_cpu_temp_celsius", "legendFormat": "{{instance}} CPU", "refId": "B"}
           ],
           "title": "Temperature — All Servers",
           "type": "timeseries"
@@ -189,7 +189,7 @@
           "id": 21,
           "options": {"legend": {"calcs": ["lastNotNull", "mean"], "displayMode": "table", "placement": "right"}, "tooltip": {"mode": "multi"}},
           "targets": [
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_power_watts", "legendFormat": "{{server_ip}}", "refId": "A"}
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_power_watts", "legendFormat": "{{instance}}", "refId": "A"}
           ],
           "title": "Power Consumption (stacked)",
           "type": "timeseries"
@@ -360,8 +360,8 @@
           "id": 62,
           "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right"}, "tooltip": {"mode": "multi"}},
           "targets": [
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "rate(unpoller_port_receive_bytes_total[5m])", "legendFormat": "{{name}} port {{port_num}} RX", "refId": "A"},
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "rate(unpoller_port_transmit_bytes_total[5m])", "legendFormat": "{{name}} port {{port_num}} TX", "refId": "B"}
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "rate(unpoller_device_port_receive_bytes_total[5m])", "legendFormat": "{{name}} port {{port_num}} RX", "refId": "A"},
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "rate(unpoller_device_port_transmit_bytes_total[5m])", "legendFormat": "{{name}} port {{port_num}} TX", "refId": "B"}
           ],
           "title": "Switch Port Traffic",
           "type": "timeseries"
