@@ -1,17 +1,26 @@
 ---
 reset: false
 
-# Datastore name in PBS
+# PBS datastore — on the OS disk (no second disk needed)
 pbs_datastore_name: "ceph-backup"
+pbs_datastore_path: "/var/lib/proxmox-backup/ceph-backup"
 
-# Mount point for the backup disk (second disk attached to the PBS VM)
-# PBS VM gets a 500GB disk on ceph-bulk — this is mounted here for the datastore
-pbs_datastore_path: /mnt/pbs-store
+# Name this storage shows up as inside Proxmox
+pbs_pve_storage_name: "pbs-backup"
 
-# PBS admin password (override in vault)
-pbs_admin_password: "changeme"
+# Backup schedule — daily at 2 AM, snapshot mode, zstd compression
+pbs_backup_schedule: "02:00"
+pbs_backup_mode: "snapshot"
+pbs_backup_compress: "zstd"
 
-# Prune schedule — keep 7 daily, 4 weekly, 3 monthly backups
+# VMIDs to exclude from backup (PBS itself)
+pbs_backup_exclude_vmids: [202]
+
+# Prune schedule — run after backups finish
+pbs_prune_schedule: "daily 03:00"
 pbs_prune_keep_daily: 7
 pbs_prune_keep_weekly: 4
 pbs_prune_keep_monthly: 3
+
+# Garbage collection — weekly Sunday morning
+pbs_gc_schedule: "sun 04:00"
