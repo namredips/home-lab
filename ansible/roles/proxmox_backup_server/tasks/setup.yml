@@ -4,7 +4,6 @@
 # NOTE: PBS is officially supported on Debian 12 (Bookworm). This role installs
 # it on Ubuntu 24.04 using the Proxmox no-subscription repository, which works
 # for most functionality but is not an officially supported configuration.
-# If stability is critical, consider running PBS from the official PBS ISO instead.
 
 # ── Install PBS packages ───────────────────────────────────────────────────────
 - name: Disable PBS enterprise repo (no subscription)
@@ -37,8 +36,8 @@
     update_cache: true
   become: true
 
-# ── Prepare backup storage ────────────────────────────────────────────────────
-- name: Create PBS datastore mount point
+# ── Create datastore directory ─────────────────────────────────────────────────
+- name: Create PBS datastore directory
   ansible.builtin.file:
     path: "{{ pbs_datastore_path }}"
     state: directory
@@ -47,38 +46,7 @@
     group: backup
   become: true
 
-- name: Find the backup data disk (second non-root disk)
-  ansible.builtin.shell: |
-    lsblk -d -o NAME,SIZE,TYPE | grep disk | awk 'NR==2 {print "/dev/"$1}'
-  register: backup_disk
-  changed_when: false
-
-- name: Format backup disk as ext4 if not already formatted
-  ansible.builtin.shell: |
-    blkid {{ backup_disk.stdout }} | grep -q ext4 || mkfs.ext4 {{ backup_disk.stdout }}
-  become: true
-  changed_when: true
-  when: backup_disk.stdout != ""
-
-- name: Mount backup disk
-  ansible.posix.mount:
-    path: "{{ pbs_datastore_path }}"
-    src: "{{ backup_disk.stdout }}"
-    fstype: ext4
-    opts: defaults
-    state: mounted
-  become: true
-  when: backup_disk.stdout != ""
-
-- name: Set backup disk ownership
-  ansible.builtin.file:
-    path: "{{ pbs_datastore_path }}"
-    owner: backup
-    group: backup
-    recurse: false
-  become: true
-
-# ── Enable PBS service ────────────────────────────────────────────────────────
+# ── Enable PBS service ─────────────────────────────────────────────────────────
 - name: Enable and start proxmox-backup service
   ansible.builtin.systemd:
     name: proxmox-backup
@@ -86,12 +54,106 @@
     state: started
   become: true
 
-- name: Display PBS access info
+# ── Create datastore (idempotent) ──────────────────────────────────────────────
+- name: Check if datastore already exists
+  ansible.builtin.command: proxmox-backup-manager datastore list --output-format json
+  register: pbs_datastore_list
+  changed_when: false
+  become: true
+
+- name: Create PBS datastore
+  ansible.builtin.command: >
+    proxmox-backup-manager datastore create {{ pbs_datastore_name }}
+    {{ pbs_datastore_path }}
+    --gc-schedule "{{ pbs_gc_schedule }}"
+  become: true
+  when: pbs_datastore_name not in pbs_datastore_list.stdout
+
+# ── Create ansible@pbs user (idempotent) ──────────────────────────────────────
+- name: Check if ansible@pbs user exists
+  ansible.builtin.command: proxmox-backup-manager user list --output-format json
+  register: pbs_user_list
+  changed_when: false
+  become: true
+
+- name: Create ansible@pbs user
+  ansible.builtin.command: >
+    proxmox-backup-manager user create ansible@pbs
+    --comment "Ansible automation user"
+  become: true
+  when: '"ansible@pbs" not in pbs_user_list.stdout'
+
+- name: Grant DatastoreAdmin ACL to ansible@pbs
+  ansible.builtin.command: >
+    proxmox-backup-manager acl update /datastore/{{ pbs_datastore_name }}
+    DatastoreAdmin --auth-id ansible@pbs
+  become: true
+  when: '"ansible@pbs" not in pbs_user_list.stdout'
+
+# ── Create API token (idempotent) ──────────────────────────────────────────────
+- name: Check if ansible-token exists for ansible@pbs
+  ansible.builtin.command: proxmox-backup-manager user token list ansible@pbs --output-format json
+  register: pbs_token_list
+  changed_when: false
+  become: true
+  ignore_errors: true
+
+- name: Create ansible-token for ansible@pbs
+  ansible.builtin.command: >
+    proxmox-backup-manager user token create ansible@pbs ansible-token
+    --comment "Ansible API token"
+  register: pbs_token_create
+  become: true
+  when: '"ansible-token" not in pbs_token_list.stdout'
+
+- name: Display API token secret (save to vault as pbs_api_token_secret)
   ansible.builtin.debug:
     msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "PBS API token created — save this secret to vault immediately!"
+      - "ansible-vault edit inventory/group_vars/all/all.yml"
+      - "  pbs_api_token_secret: {{ pbs_token_create.stdout }}"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  when: pbs_token_create is changed
+
+# ── Create prune job (idempotent) ──────────────────────────────────────────────
+- name: Check existing prune jobs
+  ansible.builtin.command: proxmox-backup-manager prune-job list --output-format json
+  register: pbs_prune_jobs
+  changed_when: false
+  become: true
+
+- name: Create prune job for ceph-backup datastore
+  ansible.builtin.command: >
+    proxmox-backup-manager prune-job create
+    --store {{ pbs_datastore_name }}
+    --schedule "{{ pbs_prune_schedule }}"
+    --keep-daily {{ pbs_prune_keep_daily }}
+    --keep-weekly {{ pbs_prune_keep_weekly }}
+    --keep-monthly {{ pbs_prune_keep_monthly }}
+  become: true
+  when: pbs_datastore_name not in pbs_prune_jobs.stdout
+
+# ── Capture fingerprint ────────────────────────────────────────────────────────
+- name: Get PBS TLS certificate fingerprint
+  ansible.builtin.command: proxmox-backup-manager cert info --output-format json
+  register: pbs_cert_info
+  changed_when: false
+  become: true
+
+- name: Parse fingerprint from cert info
+  ansible.builtin.set_fact:
+    pbs_fingerprint: "{{ (pbs_cert_info.stdout | from_json).fingerprint }}"
+
+# ── Display summary ────────────────────────────────────────────────────────────
+- name: Display PBS configuration summary
+  ansible.builtin.debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       - "Proxmox Backup Server: https://{{ ansible_host }}:8007"
-      - "Login: root@pam / (Linux root password — set via: sudo passwd root on the PBS VM)"
-      - "Next steps:"
-      - "  1. Log in and create datastore at {{ pbs_datastore_path }}"
-      - "  2. Add PBS storage to Proxmox cluster: Datacenter → Storage → Add → Proxmox Backup Server"
-      - "  3. Configure backup jobs for each VM"
+      - "Datastore: {{ pbs_datastore_name }} → {{ pbs_datastore_path }}"
+      - "Fingerprint: {{ pbs_fingerprint }}"
+      - "Retention: {{ pbs_prune_keep_daily }}d / {{ pbs_prune_keep_weekly }}w / {{ pbs_prune_keep_monthly }}m"
+      - "Prune schedule: {{ pbs_prune_schedule }}"
+      - "GC schedule: {{ pbs_gc_schedule }}"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
