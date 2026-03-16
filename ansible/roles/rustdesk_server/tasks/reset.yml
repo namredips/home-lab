@@ -1,0 +1,13 @@
+---
+- name: Stop and remove RustDesk containers and volumes
+  ansible.builtin.command:
+    cmd: docker compose down -v
+    chdir: "{{ rustdesk_data_dir }}"
+  become: true
+  ignore_errors: true
+
+- name: Remove RustDesk data directory
+  ansible.builtin.file:
+    path: "{{ rustdesk_data_dir }}"
+    state: absent
+  become: true

@@ -1,0 +1,8 @@
+---
+- name: Setup RustDesk server
+  ansible.builtin.import_tasks: setup.yml
+  when: not (reset | default(false) | bool)
+
+- name: Reset RustDesk server
+  ansible.builtin.import_tasks: reset.yml
+  when: reset | default(false) | bool

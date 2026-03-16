@@ -13,16 +13,54 @@
 
 # ── Step 1: Install Ceph packages ────────────────────────────────────────────
 
-- name: Check if Ceph binaries already installed
-  ansible.builtin.command: which ceph
+# pveceph install always uses the enterprise Ceph repo (requires subscription).
+# Instead, configure the no-subscription Ceph repo and install via apt directly.
+# This also avoids version conflicts when ceph-common is pre-installed at a
+# different pveX revision than what the enterprise repo provides.
+#
+# Disable the enterprise Ceph repo here too — a failed pveceph install attempt
+# may have restored it to the enabled state, overwriting the proxmox_base task.
+- name: Ensure Ceph enterprise repo is disabled
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/ceph.sources
+    content: |
+      # Ceph enterprise repo disabled — no subscription
+      Enabled: no
+      Types: deb
+      URIs: https://enterprise.proxmox.com/debian/ceph-squid
+      Suites: trixie
+      Components: enterprise
+      Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+    mode: '0644'
+
+- name: Add Ceph no-subscription apt repo
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/ceph-no-subscription.sources
+    content: |
+      Types: deb
+      URIs: http://download.proxmox.com/debian/ceph-{{ ceph_version }}
+      Suites: trixie
+      Components: no-subscription
+      Signed-By: /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg
+    mode: '0644'
+
+- name: Check if Ceph daemon packages already installed
+  ansible.builtin.command: which ceph-mon
   register: ceph_binary
   changed_when: false
   failed_when: false
 
-- name: Install Ceph packages via pveceph
-  ansible.builtin.command: pveceph install --version {{ ceph_version }}
+- name: Install Ceph daemon packages via apt
+  ansible.builtin.apt:
+    name:
+      - ceph
+      - ceph-mgr
+      - ceph-mon
+      - ceph-osd
+      - ceph-mds
+    state: present
+    update_cache: true
   when: ceph_binary.rc != 0
-  changed_when: true
 
 # ── Step 2: Initialize Ceph cluster (master only) ─────────────────────────────
 
@@ -45,6 +83,43 @@
   changed_when: true
 
 # ── Step 3: Create Ceph monitors ─────────────────────────────────────────────
+# Monitor creation is order-dependent: master monitor must be up and in quorum
+# before other nodes join. Ansible runs tasks on all hosts in parallel by default,
+# so we split into three explicit phases:
+#   3a. Master only — creates the initial 1-monitor cluster
+#   3b. Wait for master monitor to form quorum with just itself
+#   3c. Non-master monitor nodes — join sequentially (throttle: 1)
+#
+# Idempotency guard: pveceph reads its cluster KV store (pmxcfs) to decide if
+# a monitor "already exists". If a previous aborted run left stale KV entries,
+# pveceph mon create will refuse to bootstrap and fail with:
+#   "Could not connect to ceph cluster despite configured monitors"
+# Clear those stale entries unconditionally before creating monitors so that
+# the real monitor status (systemctl is-active) governs idempotency.
+
+# Ceph package installation creates /var/lib/ceph/ with subdirs, but aggressive
+# cleanup (rm -rf /var/lib/ceph/*) or ceph-volume zap may leave some absent.
+# pveceph mon create chowns these dirs and fails if they don't exist.
+- name: Ensure required ceph working directories exist on all nodes
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: ceph
+    group: ceph
+    mode: '0750'
+  loop:
+    - /var/lib/ceph/mon
+    - /var/lib/ceph/mgr
+    - /var/lib/ceph/bootstrap-osd
+    - /var/lib/ceph/osd
+
+- name: Clear stale ceph-mon/ceph-mgr entries from PVE cluster KV store
+  ansible.builtin.command: >
+    perl -e "use PVE::Cluster;
+    PVE::Cluster::broadcast_node_kv('ceph-mon', undef);
+    PVE::Cluster::broadcast_node_kv('ceph-mgr', undef);"
+  when: inventory_hostname in ceph_monitor_nodes
+  changed_when: false
 
 - name: Check if monitor daemon already running on this node
   ansible.builtin.command: systemctl is-active ceph-mon@{{ inventory_hostname_short }}
@@ -53,10 +128,31 @@
   failed_when: false
   when: inventory_hostname in ceph_monitor_nodes
 
-- name: Create Ceph monitor on designated nodes
+- name: Create Ceph monitor on master node first
   ansible.builtin.command: pveceph mon create
   when:
+    - inventory_hostname == groups['proxmox_master'][0]
     - inventory_hostname in ceph_monitor_nodes
+    - mon_status.rc is defined
+    - mon_status.rc != 0
+  changed_when: true
+
+- name: Wait for master monitor to reach quorum before adding others
+  ansible.builtin.command: ceph mon stat
+  register: mon_stat_check
+  until: mon_stat_check.rc == 0
+  retries: 24
+  delay: 5
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  changed_when: false
+
+- name: Create Ceph monitor on non-master designated nodes (sequential)
+  ansible.builtin.command: pveceph mon create
+  throttle: 1
+  when:
+    - inventory_hostname in ceph_monitor_nodes
+    - inventory_hostname != groups['proxmox_master'][0]
     - mon_status.rc is defined
     - mon_status.rc != 0
   changed_when: true
@@ -90,6 +186,27 @@
   delegate_to: "{{ groups['proxmox_master'][0] }}"
   changed_when: false
 
+# ── Step 5b: Ensure bootstrap-osd keyring exists and is synced ───────────────
+# The bootstrap-osd keyring is needed by ceph-volume on all nodes to create OSDs.
+# pveceph init does not always create it automatically — explicitly export it from
+# the cluster if absent. pmxcfs then replicates it to all nodes automatically.
+
+- name: Export bootstrap-osd keyring from cluster to pveceph priv dir (master)
+  ansible.builtin.shell: |
+    if [ ! -s /etc/pve/priv/ceph.client.bootstrap-osd.keyring ]; then
+      ceph auth get client.bootstrap-osd \
+        -o /etc/pve/priv/ceph.client.bootstrap-osd.keyring
+    fi
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  changed_when: false
+
+- name: Wait for bootstrap-osd keyring to sync to this node (via pmxcfs)
+  ansible.builtin.wait_for:
+    path: /etc/pve/priv/ceph.client.bootstrap-osd.keyring
+    state: present
+    timeout: 60
+
 # ── Step 6: Create OSDs on each node ─────────────────────────────────────────
 # Note: hosts with no ceph_disks (e.g. r420 on ssd_rule) skip OSD creation but
 # still continue to Steps 7+8 so CRUSH rules and pools are created on master.
@@ -105,9 +222,7 @@
   when: ceph_disks is defined and ceph_disks | length > 0
 
 - name: Create OSD for each unclaimed disk
-  ansible.builtin.command: >
-    pveceph osd create /dev/{{ item.item.name }}
-    --device-class {{ item.item.device_class }}
+  ansible.builtin.command: pveceph osd create /dev/{{ item.item.name }}
   loop: "{{ osd_disk_checks.results | default([]) }}"
   loop_control:
     label: "{{ item.item.name }} ({{ item.item.device_class }})"
@@ -115,7 +230,11 @@
     - ceph_disks is defined and ceph_disks | length > 0
     - item.rc != 0
   changed_when: true
+  ignore_errors: true
+  # Ceph auto-detects device class: NVMe→nvme, SATA SSD→ssd, spinning→hdd
   # rc != 0 from ceph-volume lvm list means no existing OSD — disk is available
+  # ignore_errors: pveceph rolls back failed OSDs automatically, leaving the disk
+  # clean for the next run. A single disk failure should not abort pool/rule tasks.
 
 # ── Step 7: Create CRUSH rules (master only) ──────────────────────────────────
 
@@ -151,13 +270,12 @@
   run_once: true
   delegate_to: "{{ groups['proxmox_master'][0] }}"
 
-- name: Create Ceph pools with Proxmox storage registration
+- name: Create Ceph pools (no --add-storages in PVE 9)
   ansible.builtin.command: >
     pveceph pool create {{ item.name }}
     --size {{ ceph_pool_size }}
     --min_size {{ ceph_pool_min_size }}
     --crush_rule {{ item.crush_rule }}
-    --add-storages 1
   loop: "{{ ceph_pools }}"
   loop_control:
     label: "{{ item.name }}"
@@ -166,13 +284,40 @@
   when: item.name not in existing_pools.stdout
   changed_when: true
 
-- name: Set storage content types for each pool
-  ansible.builtin.command: pvesm set {{ item.name }} --content {{ item.content }}
+- name: Check which Ceph pools are registered AND active in Proxmox storage
+  ansible.builtin.shell: |
+    pvesm status 2>/dev/null | awk '$2 == "rbd" && $3 == "active" {print $1}'
+  register: pvesm_active_rbd
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+
+- name: Remove stale Ceph pool storage entries (registered but inactive)
+  ansible.builtin.shell: |
+    if pvesm status 2>/dev/null | grep -q "^{{ item.name }}"; then
+      pvesm remove {{ item.name }}
+    fi
   loop: "{{ ceph_pools }}"
   loop_control:
     label: "{{ item.name }}"
   run_once: true
   delegate_to: "{{ groups['proxmox_master'][0] }}"
+  when: item.name not in pvesm_active_rbd.stdout
+  changed_when: true
+  ignore_errors: true
+
+- name: Register Ceph pools as Proxmox RBD storage
+  ansible.builtin.command: >
+    pvesm add rbd {{ item.name }}
+    --pool {{ item.name }}
+    --content {{ item.content }}
+    --krbd 0
+  loop: "{{ ceph_pools }}"
+  loop_control:
+    label: "{{ item.name }}"
+  run_once: true
+  delegate_to: "{{ groups['proxmox_master'][0] }}"
+  when: item.name not in pvesm_active_rbd.stdout
   changed_when: true
 
 # ── Verify: Cluster health ────────────────────────────────────────────────────

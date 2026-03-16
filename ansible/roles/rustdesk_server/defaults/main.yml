@@ -1,0 +1,8 @@
+---
+rustdesk_data_dir: /opt/rustdesk
+
+# Ports used by RustDesk server (all on host network)
+# hbbs: 21115/tcp (NAT type test), 21116/tcp+udp (ID register / heartbeat), 21118/tcp (web client)
+# hbbr: 21117/tcp (relay), 21119/tcp (web client secure)
+rustdesk_hbbs_port: 21116
+rustdesk_hbbr_port: 21117

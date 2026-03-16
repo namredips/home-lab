@@ -1,0 +1,18 @@
+services:
+  hbbs:
+    image: rustdesk/rustdesk-server:latest
+    command: hbbs
+    volumes:
+      - {{ rustdesk_data_dir }}:/root
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      - hbbr
+
+  hbbr:
+    image: rustdesk/rustdesk-server:latest
+    command: hbbr
+    volumes:
+      - {{ rustdesk_data_dir }}:/root
+    network_mode: host
+    restart: unless-stopped

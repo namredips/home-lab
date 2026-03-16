@@ -1,0 +1,67 @@
+{
+  "last_updated": "2026-03-01T22:35:00Z",
+  "current_work": {
+    "task": "Debug OpenClaw gateway crash loop",
+    "phase": "paused - needs fresh approach",
+    "progress": "80%",
+    "next_steps": [
+      "Understand why discord.js doesn't keep event loop alive in systemd context",
+      "Investigate controller's 15-second gateway lifecycle (possible startup health timeout)",
+      "Compare openclaw behavior with --verbose vs without (bonjour starts in verbose, not in plain)",
+      "Consider starting from scratch: deploy one VM with known-good config and iterate",
+      "All services stopped and disabled - need to re-enable when ready"
+    ]
+  },
+  "current_status": {
+    "all_vms": "openclaw-gateway STOPPED and DISABLED on all 8 VMs",
+    "zeus_config_state": "openclaw.json has discord token hardcoded (from bak_token_inject), groupPolicy:open set"
+  },
+  "root_cause_confirmed": {
+    "original_crash_loop": "Doctor wizard set channels.discord.enabled=false on all VMs -> no Discord WS -> event loop drained -> clean exit (code 0) -> Restart=always -> loop",
+    "fix_applied": "Set channels.discord.enabled=true on all 8 VMs - this fixed 7 VMs but Zeus still cycles",
+    "zeus_specific_issue": "Internal 15-second cycle in the openclaw controller - gateway subprocess spawns, connects Discord WS (confirmed: TCP to 162.159.136.232:443, 2777 bytes RecvQ), then controller kills/restarts gateway after ~15s",
+    "zeus_additional_issues": [
+      "streaming:off set by doctor wizard (fixed)",
+      "groupPolicy:allowlist set by doctor wizard (fixed to 'open')",
+      "Token hardcoded in JSON (matches Mac Mini pattern)",
+      "no-respawn.conf drop-in removed"
+    ]
+  },
+  "key_discoveries": {
+    "bonjour_difference": "When running 'openclaw gateway --verbose' manually, bonjour/mDNS starts and keeps event loop alive. When running via systemd (without --verbose), bonjour does NOT start in app logs. This may be the difference.",
+    "discord_connection_confirmed": "TCP connection to 162.159.136.232:443 IS established from gateway subprocess. Discord sends 2777 bytes (RecvQ). But gateway subprocess exits 5-10s after Discord responds.",
+    "controller_15s_cycle": "The openclaw controller (parent process) restarts the gateway child every ~15 seconds. systemd only counts outer restarts (NRestarts stays low). The inner cycle is openclaw's own health/startup logic.",
+    "mac_mini_reference": "jeff-mac-mini runs OpenClaw 2026.2.15 (older), VMs run 2026.2.26. Mac Mini has discord token hardcoded in JSON, groupPolicy:open, dmPolicy:pairing, historyLimit:30, allowFrom:[Jeff_user_ID]",
+    "all_vms_high_cpu": "All VMs show 128-145% CPU on openclaw-gateway process - this appears constant, may be normal for OpenClaw or may indicate tight startup loop on all VMs"
+  },
+  "hypothesis_for_next_session": {
+    "primary": "The controller kills the gateway subprocess after ~15s if Discord doesn't become 'ready' (authenticated + guild data received). Discord.js needs GUILD_MEMBERS and MESSAGE_CONTENT privileged intents enabled in Discord Developer Portal, or the bot needs to be in at least one server to receive GUILD_CREATE events and complete the 'ready' sequence.",
+    "secondary": "OpenClaw 2026.2.26 may have changed behavior where it requires Discord to fully authenticate before considering the gateway 'healthy'. Without guilds/intents the READY event never fires.",
+    "tertiary": "Something about PrivateTmp=true or the systemd environment prevents bonjour from starting, which was the only other keepalive mechanism"
+  },
+  "things_to_check_next": [
+    "Check Zeus Discord bot in Discord Developer Portal: are privileged intents (Guild Members, Message Content) enabled?",
+    "Check if any Discord bot (Zeus/Athena/etc) is invited to any Discord servers - if not, READY event never fires",
+    "Check openclaw --help or docs for 'startup timeout' or 'channel connect timeout' config option",
+    "Compare openclaw 2026.2.26 vs 2026.2.15 changelog for gateway behavior changes",
+    "Try running openclaw with DEBUG=* or NODE_DEBUG=* to see discord.js internal logs",
+    "Try: openclaw channels add --channel discord to interactively set up the channel properly",
+    "Consider rolling back to openclaw 2026.2.15 on one VM to confirm version is the issue"
+  ],
+  "ansible_fixes_still_pending": {
+    "systemd_template": "Need StartLimitBurst=5, StartLimitIntervalSec=300, change Restart=on-failure (not always), increase RestartSec=30",
+    "reset_tasks": "Service name mismatch: reset.yml uses openclaw-{{ agent_name }}, should be openclaw-gateway",
+    "config_template": "Add safeBinTrustedDirs to silence doctor warnings",
+    "setup_tasks": "Add post-deploy step to ensure discord.enabled stays true after doctor runs"
+  },
+  "vm_state": {
+    "zeus":       {"vmid": 100, "host": "r820",    "ip": "10.220.1.50", "status": "running", "openclaw": "stopped+disabled"},
+    "athena":     {"vmid": 101, "host": "r820",    "ip": "10.220.1.51", "status": "running", "openclaw": "stopped+disabled"},
+    "apollo":     {"vmid": 102, "host": "r820",    "ip": "10.220.1.52", "status": "running", "openclaw": "stopped+disabled"},
+    "artemis":    {"vmid": 103, "host": "r420",    "ip": "10.220.1.53", "status": "running", "openclaw": "stopped+disabled"},
+    "hermes":     {"vmid": 104, "host": "r420",    "ip": "10.220.1.54", "status": "running", "openclaw": "stopped+disabled"},
+    "perseus":    {"vmid": 105, "host": "r720xd",  "ip": "10.220.1.55", "status": "running", "openclaw": "stopped+disabled"},
+    "prometheus": {"vmid": 106, "host": "r720xd",  "ip": "10.220.1.56", "status": "running", "openclaw": "stopped+disabled"},
+    "ares":       {"vmid": 107, "host": "r8202",   "ip": "10.220.1.57", "status": "running", "openclaw": "stopped+disabled"}
+  }
+}
