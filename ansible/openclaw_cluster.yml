@@ -45,12 +45,6 @@
   roles:
     - { role: openclaw, tags: ['openclaw'] }
 
-- name: Configure VM backups
-  hosts: hypervisors
-  gather_facts: yes
-  roles:
-    - { role: vm_backup, tags: ['vm_backup'] }
-
 - name: Display deployment summary
   hosts: localhost
   gather_facts: no

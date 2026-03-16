@@ -1,4 +1,0 @@
----
-- name: Include setup tasks
-  include_tasks: setup.yml
-  when: backup_enabled
