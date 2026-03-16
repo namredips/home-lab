@@ -24,6 +24,14 @@
     mode: '0644'
   ignore_errors: true
 
+# Remove the default proxmox.sources if it exists — it points to the same URI as
+# pve-no-subscription.sources but with a different Signed-By path, which causes
+# apt to refuse to read sources ("Conflicting values set for option Signed-By").
+- name: Remove conflicting default proxmox.sources if present
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/proxmox.sources
+    state: absent
+
 - name: Add Proxmox no-subscription repo (DEB822 format)
   ansible.builtin.copy:
     dest: /etc/apt/sources.list.d/pve-no-subscription.sources
@@ -94,6 +102,16 @@
       TOKEN SECRET (add to vault as proxmox_api_token_secret):
       {{ (token_create.stdout | from_json).value | default('token already exists') }}
   when: token_create.changed | default(false)
+
+# Ensure /etc/hosts has the correct IP for this node's hostname.
+# After IP normalization (Mar 2026), R640s had stale IPs in /etc/hosts
+# which caused pvecm add to pick up a non-existent address.
+- name: Ensure correct hostname-to-IP in /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "{{ inventory_hostname_short }}"
+    line: "{{ ansible_host }}  {{ inventory_hostname }} {{ inventory_hostname_short }}"
+    state: present
 
 - name: Verify vmbr0 bridge exists
   ansible.builtin.command: ip link show vmbr0
