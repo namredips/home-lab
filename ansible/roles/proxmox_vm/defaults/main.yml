@@ -148,6 +148,7 @@ service_vms:
     disk_gb: 500
     ip: 10.220.1.62
     mac: "52:54:00:c8:02:3e"
+    storage: "ceph-bulk"
     description: "Proxmox Backup Server — VM backups to ceph-bulk"
 
   monitoring:

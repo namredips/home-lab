@@ -12,12 +12,14 @@
 # Clone and configure on master (template VM 9000 is local to master).
 # For non-master targets, qm clone without --target creates the VM on master.
 # We migrate it after configuration.
+# agent.storage overrides vm_storage for VMs that need a different pool
+# (e.g. PBS uses ceph-bulk for its large backup store, agents use ceph-fast)
 - name: Clone template to create VM {{ agent.vmid }} ({{ agent_name }}) on master
   ansible.builtin.command: >
     qm clone {{ template_vmid }} {{ agent.vmid }}
     --name {{ agent_name }}
     --full true
-    --storage {{ vm_storage }}
+    --storage {{ agent.storage | default(vm_storage) }}
   delegate_to: "{{ groups['proxmox_master'][0] }}"
   when: vm_check.rc != 0
 
@@ -52,12 +54,11 @@
   delegate_to: "{{ groups['proxmox_master'][0] }}"
   when: vm_check.rc != 0
 
-# Migrate to target node when it differs from master (local storage requires this).
-# --with-local-disks streams the disk over SSH to the destination node's nvme-fast.
+# With Ceph RBD (shared storage), the disk already lives in the cluster-wide pool.
+# Migration just moves VM config — no disk streaming needed, so no --with-local-disks.
 - name: Migrate VM {{ agent.vmid }} to {{ inventory_hostname_short }}
   ansible.builtin.command: >
     qm migrate {{ agent.vmid }} {{ inventory_hostname_short }}
-    --with-local-disks 1
   delegate_to: "{{ groups['proxmox_master'][0] }}"
   when:
     - vm_check.rc != 0
