@@ -7,7 +7,7 @@ reset: false
 nut_mode: netclient
 
 # UPS identifier — used in all NUT config files
-nut_ups_name: apc
+nut_ups_name: tripplite
 
 # NUT server connection details (used by clients to locate the server)
 nut_server_host: "10.220.1.8"  # r640-1
@@ -23,8 +23,8 @@ nut_monitor_password: "{{ vault_nut_monitor_password }}"
 nut_admin_user: admin
 nut_admin_password: "{{ vault_nut_admin_password }}"
 
-# UPS driver config (server only) — APC via USB
-# usbhid-ups supports APC Smart-UPS and most other USB UPS devices
+# UPS driver config (server only)
+# usbhid-ups covers Tripp Lite SMART series via USB HID (same as APC, CyberPower, etc.)
 nut_driver: usbhid-ups
 nut_device_port: auto
 

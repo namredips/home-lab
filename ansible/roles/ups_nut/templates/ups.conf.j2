@@ -5,3 +5,6 @@
     driver = {{ nut_driver }}
     port   = {{ nut_device_port }}
     desc   = "UPS ({{ nut_ups_name }})"
+    # Force low-battery thresholds — upsmon triggers SHUTDOWNCMD when either is met
+    override.battery.charge.low   = {{ nut_battery_min_percent }}
+    override.battery.runtime.low  = {{ nut_battery_min_runtime }}
