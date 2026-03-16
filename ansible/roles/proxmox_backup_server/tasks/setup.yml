@@ -7,6 +7,13 @@
 # If stability is critical, consider running PBS from the official PBS ISO instead.
 
 # ── Install PBS packages ───────────────────────────────────────────────────────
+- name: Disable PBS enterprise repo (no subscription)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/pbs-enterprise.list
+    content: "# PBS enterprise repo disabled — no subscription\n"
+    mode: '0644'
+  become: true
+
 - name: Add Proxmox repository GPG key
   ansible.builtin.shell:
     cmd: >

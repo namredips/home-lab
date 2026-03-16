@@ -79,7 +79,7 @@
 
 - name: Pull RustDesk images and start containers
   ansible.builtin.command:
-    cmd: docker compose up -d --pull always
+    cmd: docker compose up -d --pull always --force-recreate --remove-orphans
     chdir: "{{ rustdesk_data_dir }}"
   become: true
   changed_when: true
