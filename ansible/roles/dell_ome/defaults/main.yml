@@ -1,0 +1,19 @@
+---
+reset: false
+
+# Dell OME appliance details
+# OME is delivered as an OVA — cannot be provisioned via cloud-init template.
+# The proxmox_vm role creates a placeholder VM (VMID 201), but the actual
+# OME software must be imported manually via the OVA process below.
+
+ome_version: "4.x"
+ome_ip: "10.220.1.61"
+
+# iDRAC IPs managed by OME
+ome_idrac_targets:
+  - "10.220.1.17"   # r420
+  - "10.220.1.18"   # r640-1
+  - "10.220.1.19"   # r640-2
+  - "10.220.1.20"   # r720xd
+  - "10.220.1.21"   # r820
+  - "10.220.1.22"   # r640-3

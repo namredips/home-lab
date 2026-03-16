@@ -1,0 +1,8 @@
+---
+- name: Monitoring stack setup
+  ansible.builtin.include_tasks: setup.yml
+  when: not reset | bool
+
+- name: Monitoring stack teardown
+  ansible.builtin.include_tasks: reset.yml
+  when: reset | bool

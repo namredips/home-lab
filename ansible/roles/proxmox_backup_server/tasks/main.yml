@@ -1,0 +1,8 @@
+---
+- name: PBS setup
+  ansible.builtin.include_tasks: setup.yml
+  when: not reset | bool
+
+- name: PBS teardown
+  ansible.builtin.include_tasks: reset.yml
+  when: reset | bool

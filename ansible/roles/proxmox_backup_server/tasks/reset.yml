@@ -1,0 +1,23 @@
+---
+- name: Stop proxmox-backup service
+  ansible.builtin.systemd:
+    name: proxmox-backup
+    state: stopped
+    enabled: false
+  become: true
+  ignore_errors: true
+
+- name: Unmount backup datastore
+  ansible.posix.mount:
+    path: "{{ pbs_datastore_path }}"
+    state: absent
+  become: true
+  ignore_errors: true
+
+- name: Remove Proxmox Backup Server
+  ansible.builtin.apt:
+    name: proxmox-backup-server
+    state: absent
+    purge: true
+  become: true
+  ignore_errors: true

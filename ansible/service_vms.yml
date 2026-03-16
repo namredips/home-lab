@@ -1,0 +1,63 @@
+---
+# service_vms.yml — Create service VMs and deploy their roles
+#
+# Phase 1: Create all service VMs (proxmox_vm role; idempotent — skips existing VMs)
+# Phase 2+: Deploy role-specific software on each service VM
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml service_vms.yml \
+#     --vault-password-file ~/.vault_pass.txt
+#
+# Single service (example):
+#   ansible-playbook -i inventory/hosts.yml service_vms.yml \
+#     --tags monitoring --vault-password-file ~/.vault_pass.txt
+#
+# Reset (destroy VMs + remove data):
+#   ansible-playbook -i inventory/hosts.yml service_vms.yml \
+#     -e reset=true --vault-password-file ~/.vault_pass.txt
+#
+# Service VM summary:
+#   200 rustdesk  → r820        10.220.1.60  RustDesk relay/rendezvous
+#   201 ome       → r820        10.220.1.61  Dell OpenManage Enterprise (OVA import — see dell_ome role)
+#   202 pbs       → r720xd      10.220.1.62  Proxmox Backup Server (ceph-bulk storage)
+#   203 monitoring → r640-3     10.220.1.63  Prometheus + Grafana
+
+# Phase 1 — Create all service VMs via Proxmox
+- name: Provision service VMs on Proxmox hosts
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: always
+  roles:
+    - proxmox_vm
+
+# Phase 2 — RustDesk
+- name: Deploy RustDesk server
+  hosts: rustdesk.infiquetra.com
+  gather_facts: true
+  tags: rustdesk
+  roles:
+    - rustdesk_server
+
+# Phase 3 — Dell OME (displays import instructions — OVA must be imported manually)
+- name: Dell OME import instructions
+  hosts: localhost
+  gather_facts: false
+  tags: ome
+  roles:
+    - dell_ome
+
+# Phase 4 — Proxmox Backup Server
+- name: Deploy Proxmox Backup Server
+  hosts: pbs.infiquetra.com
+  gather_facts: true
+  tags: pbs
+  roles:
+    - proxmox_backup_server
+
+# Phase 5 — Monitoring (Prometheus + Grafana)
+- name: Deploy monitoring stack
+  hosts: monitoring.infiquetra.com
+  gather_facts: true
+  tags: monitoring
+  roles:
+    - monitoring

@@ -1,0 +1,38 @@
+---
+# Dell OpenManage Enterprise (OME) — manual OVA import required.
+#
+# OME is a Dell appliance delivered as an OVA. It cannot be provisioned via
+# Ubuntu cloud-init. The proxmox_vm role creates a placeholder VM (VMID 201),
+# but OME itself must be imported manually using one of these methods:
+#
+# Option A — Import OVA directly into Proxmox (recommended):
+#   1. Download Dell OME OVA from support.dell.com
+#      (search "OpenManage Enterprise" → "Virtual Appliance")
+#   2. Copy OVA to the Proxmox host:
+#      scp dell-ome-*.ova root@10.220.1.11:/var/lib/vz/template/iso/
+#   3. Import the OVA as a new VM (destroy placeholder VMID 201 first):
+#      qm destroy 201 --purge 2>/dev/null || true
+#      qm importovf 201 /var/lib/vz/template/iso/dell-ome-*.ova ceph-fast
+#   4. Configure VM resources:
+#      qm set 201 --memory 16384 --cores 4 --onboot 1
+#      qm set 201 --net0 virtio=52:54:00:c8:01:3d,bridge=vmbr0
+#   5. Start VM: qm start 201
+#   6. Wait ~5 minutes for OME to initialize, then access:
+#      https://10.220.1.61 (admin / admin — change password on first login)
+#
+# Option B — Use OME on a Windows Server VM (alternative):
+#   - Provision a Windows Server 2019/2022 VM on r820
+#   - Install OME on Windows (supported configuration)
+#
+# After OME is running:
+#   - Add all 6 iDRAC IPs: 10.220.1.17–22
+#   - Enable firmware update catalog
+#   - Set up alert policies for hardware events
+
+- name: Display Dell OME import instructions
+  ansible.builtin.debug:
+    msg:
+      - "Dell OME requires manual OVA import — cannot be automated via cloud-init"
+      - "See role tasks/setup.yml for step-by-step instructions"
+      - "Target IP: {{ ome_ip }}"
+      - "iDRAC targets to add: {{ ome_idrac_targets | join(', ') }}"

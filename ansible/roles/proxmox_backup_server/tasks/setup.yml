@@ -1,0 +1,90 @@
+---
+# Install and configure Proxmox Backup Server on a Debian-compatible VM.
+#
+# NOTE: PBS is officially supported on Debian 12 (Bookworm). This role installs
+# it on Ubuntu 24.04 using the Proxmox no-subscription repository, which works
+# for most functionality but is not an officially supported configuration.
+# If stability is critical, consider running PBS from the official PBS ISO instead.
+
+# ── Install PBS packages ───────────────────────────────────────────────────────
+- name: Add Proxmox repository GPG key
+  ansible.builtin.shell:
+    cmd: >
+      curl -fsSL https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg
+      | gpg --dearmor -o /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+    creates: /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+  become: true
+
+- name: Add Proxmox no-subscription repository
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/pbs-no-subscription.list
+    content: "deb http://download.proxmox.com/debian/pbs bookworm pbs-no-subscription\n"
+    mode: '0644'
+  become: true
+
+- name: Install Proxmox Backup Server
+  ansible.builtin.apt:
+    name:
+      - proxmox-backup-server
+    state: present
+    update_cache: true
+  become: true
+
+# ── Prepare backup storage ────────────────────────────────────────────────────
+- name: Create PBS datastore mount point
+  ansible.builtin.file:
+    path: "{{ pbs_datastore_path }}"
+    state: directory
+    mode: '0755'
+    owner: backup
+    group: backup
+  become: true
+
+- name: Find the backup data disk (second non-root disk)
+  ansible.builtin.shell: |
+    lsblk -d -o NAME,SIZE,TYPE | grep disk | awk 'NR==2 {print "/dev/"$1}'
+  register: backup_disk
+  changed_when: false
+
+- name: Format backup disk as ext4 if not already formatted
+  ansible.builtin.shell: |
+    blkid {{ backup_disk.stdout }} | grep -q ext4 || mkfs.ext4 {{ backup_disk.stdout }}
+  become: true
+  changed_when: true
+  when: backup_disk.stdout != ""
+
+- name: Mount backup disk
+  ansible.posix.mount:
+    path: "{{ pbs_datastore_path }}"
+    src: "{{ backup_disk.stdout }}"
+    fstype: ext4
+    opts: defaults
+    state: mounted
+  become: true
+  when: backup_disk.stdout != ""
+
+- name: Set backup disk ownership
+  ansible.builtin.file:
+    path: "{{ pbs_datastore_path }}"
+    owner: backup
+    group: backup
+    recurse: false
+  become: true
+
+# ── Enable PBS service ────────────────────────────────────────────────────────
+- name: Enable and start proxmox-backup service
+  ansible.builtin.systemd:
+    name: proxmox-backup
+    enabled: true
+    state: started
+  become: true
+
+- name: Display PBS access info
+  ansible.builtin.debug:
+    msg:
+      - "Proxmox Backup Server: https://{{ ansible_host }}:8007"
+      - "Login: admin@pbs / {{ pbs_admin_password }}"
+      - "Next steps:"
+      - "  1. Log in and create datastore at {{ pbs_datastore_path }}"
+      - "  2. Add PBS storage to Proxmox cluster: Datacenter → Storage → Add → Proxmox Backup Server"
+      - "  3. Configure backup jobs for each VM"

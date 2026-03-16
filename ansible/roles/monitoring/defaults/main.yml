@@ -1,0 +1,36 @@
+---
+reset: false
+
+# Prometheus scrape interval
+prometheus_scrape_interval: "30s"
+prometheus_retention: "30d"
+
+# Grafana admin credentials (override in vault for production)
+grafana_admin_user: admin
+grafana_admin_password: "changeme"
+
+# Data directory on the monitoring VM
+monitoring_data_dir: /opt/monitoring
+
+# Node exporter port
+node_exporter_port: 9100
+
+# Proxmox hosts to scrape — matches proxmox_hosts group IPs
+prometheus_proxmox_targets:
+  - "10.220.1.7:9100"    # r420
+  - "10.220.1.8:9100"    # r640-1
+  - "10.220.1.9:9100"    # r640-2
+  - "10.220.1.10:9100"   # r720xd
+  - "10.220.1.11:9100"   # r820
+  - "10.220.1.12:9100"   # r640-3
+
+# Agent VMs to scrape
+prometheus_agent_targets:
+  - "10.220.1.50:9100"   # zeus
+  - "10.220.1.51:9100"   # athena
+  - "10.220.1.52:9100"   # apollo
+  - "10.220.1.53:9100"   # artemis
+  - "10.220.1.54:9100"   # hermes
+  - "10.220.1.55:9100"   # perseus
+  - "10.220.1.56:9100"   # prometheus
+  - "10.220.1.57:9100"   # ares

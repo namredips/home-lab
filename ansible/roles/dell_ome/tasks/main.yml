@@ -1,0 +1,4 @@
+---
+- name: Dell OME manual import instructions
+  ansible.builtin.include_tasks: setup.yml
+  when: not reset | bool

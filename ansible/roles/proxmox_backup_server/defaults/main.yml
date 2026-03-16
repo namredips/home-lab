@@ -1,0 +1,17 @@
+---
+reset: false
+
+# Datastore name in PBS
+pbs_datastore_name: "ceph-backup"
+
+# Mount point for the backup disk (second disk attached to the PBS VM)
+# PBS VM gets a 500GB disk on ceph-bulk — this is mounted here for the datastore
+pbs_datastore_path: /mnt/pbs-store
+
+# PBS admin password (override in vault)
+pbs_admin_password: "changeme"
+
+# Prune schedule — keep 7 daily, 4 weekly, 3 monthly backups
+pbs_prune_keep_daily: 7
+pbs_prune_keep_weekly: 4
+pbs_prune_keep_monthly: 3
