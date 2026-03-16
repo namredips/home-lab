@@ -190,11 +190,21 @@
       failed_when: ceph_mgr_result.rc != 0 and 'already enabled' not in ceph_mgr_result.stderr
 
 # Phase 5c — rsyslog forwarding on PVE hosts → Promtail on monitoring VM
+# PVE (Debian Trixie) uses journald only — install rsyslog first.
 - name: Configure rsyslog forwarding on Proxmox hosts
   hosts: proxmox_hosts
   gather_facts: false
   tags: monitoring
+  vars:
+    promtail_syslog_port: 1514
   tasks:
+    - name: Install rsyslog on PVE hosts
+      ansible.builtin.apt:
+        name: rsyslog
+        state: present
+        update_cache: true
+      become: true
+
     - name: Deploy rsyslog remote forwarding config
       ansible.builtin.template:
         src: roles/monitoring/templates/rsyslog-remote.conf.j2
@@ -207,15 +217,26 @@
     - name: Restart rsyslog
       ansible.builtin.systemd:
         name: rsyslog
+        enabled: true
         state: restarted
       become: true
 
 # Phase 5d — rsyslog forwarding on agent VMs → Promtail
+# Ubuntu 24.04 also ships without rsyslog by default.
 - name: Configure rsyslog forwarding on agent VMs
   hosts: agent_vms
   gather_facts: false
   tags: monitoring
+  vars:
+    promtail_syslog_port: 1514
   tasks:
+    - name: Install rsyslog on agent VMs
+      ansible.builtin.apt:
+        name: rsyslog
+        state: present
+        update_cache: true
+      become: true
+
     - name: Deploy rsyslog remote forwarding config
       ansible.builtin.template:
         src: roles/monitoring/templates/rsyslog-remote.conf.j2
@@ -228,6 +249,7 @@
     - name: Restart rsyslog
       ansible.builtin.systemd:
         name: rsyslog
+        enabled: true
         state: restarted
       become: true
 
@@ -236,6 +258,8 @@
   hosts: localhost
   gather_facts: false
   tags: monitoring
+  vars:
+    promtail_syslog_port: 1514
   tasks:
     - name: Include UniFi syslog task
       ansible.builtin.include_tasks: roles/monitoring/tasks/unifi_syslog.yml

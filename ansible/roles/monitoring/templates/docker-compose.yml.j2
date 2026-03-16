@@ -79,16 +79,17 @@ services:
 
   # ── PBS Exporter ──────────────────────────────────────────────────────────────
   pbs_exporter:
-    image: natrontech/pbs-exporter:latest
+    image: dorfpinguin/pbs-exporter:latest
     container_name: pbs_exporter
     restart: unless-stopped
     ports:
-      - "{{ pbs_exporter_port }}:9101"
-    environment:
-      PBS_ENDPOINT: "https://{{ pbs_host }}:{{ pbs_port }}"
-      PBS_USERNAME: "{{ pbs_api_user }}!{{ pbs_api_token_id }}"
-      PBS_PASSWORD: "{{ pbs_api_token_secret }}"
-      PBS_INSECURE: "true"
+      - "{{ pbs_exporter_port }}:10019"
+    command:
+      - '-pbs.endpoint=https://{{ pbs_host }}:{{ pbs_port }}'
+      - '-pbs.username={{ pbs_api_user }}'
+      - '-pbs.api.token.name={{ pbs_api_token_id }}'
+      - '-pbs.api.token={{ pbs_api_token_secret }}'
+      - '-pbs.insecure=true'
 
   # ── Loki ──────────────────────────────────────────────────────────────────────
   loki:
