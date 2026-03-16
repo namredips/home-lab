@@ -2,18 +2,23 @@
 reset: false
 
 template_vmid: 9000
-vm_storage: "nvme-fast"
+vm_storage: "ceph-fast"
 vm_ssh_user: agent
 # Password: openclaw
 vm_user_password: "openclaw"
 vm_ssh_authorized_keys: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa.pub') }}"
 
 # Agent VM definitions
+# Distributed across all 6 nodes for balanced resource usage.
+# With Ceph shared storage, VMs can live-migrate freely — placement is flexible.
+#
 # VM distribution:
-#   r820  (377G RAM, 64 vCPU): Zeus(100), Athena(101), Apollo(102)
-#   r420  (70G  RAM, 24 vCPU): Artemis(103), Hermes(104)
-#   r720xd(94G  RAM, 24 vCPU): Perseus(105), Prometheus(106)
-#   r640-3 (~128G RAM, ~32 vCPU): Ares(107)
+#   r420    (70G  RAM, 24 vCPU): Artemis(103), Hermes(104)
+#   r640-1  (125G RAM, 72 vCPU): Apollo(102), Perseus(105)
+#   r640-2  (125G RAM, 72 vCPU): Athena(101), Prometheus(106)
+#   r720xd  (94G  RAM, 24 vCPU): Ares(107)
+#   r820    (377G RAM, 64 vCPU): Zeus(100)
+#   r640-3  (125G RAM, 72 vCPU): (no agent VMs — reserved for monitoring VM)
 agents:
   zeus:
     vmid: 100
@@ -29,7 +34,7 @@ agents:
 
   athena:
     vmid: 101
-    host: r820.infiquetra.com
+    host: r640-2.infiquetra.com
     vcpus: 4
     memory_mb: 16384
     disk_gb: 250
@@ -41,7 +46,7 @@ agents:
 
   apollo:
     vmid: 102
-    host: r820.infiquetra.com
+    host: r640-1.infiquetra.com
     vcpus: 4
     memory_mb: 16384
     disk_gb: 250
@@ -77,7 +82,7 @@ agents:
 
   perseus:
     vmid: 105
-    host: r720xd.infiquetra.com
+    host: r640-1.infiquetra.com
     vcpus: 4
     memory_mb: 16384
     disk_gb: 250
@@ -89,7 +94,7 @@ agents:
 
   prometheus:
     vmid: 106
-    host: r720xd.infiquetra.com
+    host: r640-2.infiquetra.com
     vcpus: 4
     memory_mb: 16384
     disk_gb: 250
@@ -101,7 +106,7 @@ agents:
 
   ares:
     vmid: 107
-    host: r640-3.infiquetra.com
+    host: r720xd.infiquetra.com
     vcpus: 4
     memory_mb: 16384
     disk_gb: 250
@@ -113,6 +118,7 @@ agents:
 
 # Service VMs — lightweight infrastructure services (not OpenClaw agents)
 # VM IDs 200+ reserved for services
+# Storage: ceph-fast for latency-sensitive VMs, ceph-bulk for backup/archive services
 service_vms:
   rustdesk:
     vmid: 200
@@ -123,3 +129,33 @@ service_vms:
     ip: 10.220.1.60
     mac: "52:54:00:c8:00:3c"
     description: "RustDesk self-hosted relay/rendezvous server (hbbs + hbbr)"
+
+  ome:
+    vmid: 201
+    host: r820.infiquetra.com
+    vcpus: 4
+    memory_mb: 16384
+    disk_gb: 200
+    ip: 10.220.1.61
+    mac: "52:54:00:c8:01:3d"
+    description: "Dell OpenManage Enterprise — centralized iDRAC/server management"
+
+  pbs:
+    vmid: 202
+    host: r720xd.infiquetra.com
+    vcpus: 2
+    memory_mb: 4096
+    disk_gb: 500
+    ip: 10.220.1.62
+    mac: "52:54:00:c8:02:3e"
+    description: "Proxmox Backup Server — VM backups to ceph-bulk"
+
+  monitoring:
+    vmid: 203
+    host: r640-3.infiquetra.com
+    vcpus: 2
+    memory_mb: 4096
+    disk_gb: 50
+    ip: 10.220.1.63
+    mac: "52:54:00:c8:03:3f"
+    description: "Prometheus + Grafana monitoring stack"

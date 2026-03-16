@@ -4,7 +4,7 @@
 #   - qm set --cicustom is run on master (for cloning), reads local:snippets/
 #   - After migration, if Proxmox regenerates the cloud-init drive, it reads
 #     local:snippets/ on the VM's current node
-# Using local:snippets/ (not sas-data:snippets/) ensures r8202 is covered too.
+# Using local:snippets/ ensures all 6 nodes have the snippet available locally.
 
 - name: Generate password hash for VM user ({{ vm_ssh_user }})
   ansible.builtin.command:
@@ -46,6 +46,24 @@
         | list
       }}
 
+- name: Deploy cloud-init user-data snippet for all service VMs
+  ansible.builtin.template:
+    src: agent-user-data.j2
+    dest: /var/lib/vz/snippets/{{ item.key }}-user-data.yaml
+    mode: '0644'
+  loop: "{{ service_vms | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  vars:
+    agent_name: "{{ item.key }}"
+    vm_user_password_hash: "{{ pw_hash.stdout | trim }}"
+    vm_ssh_keys: >-
+      {{
+        (node_auth_keys.content | b64decode).splitlines()
+        | select('match', '^ssh-')
+        | list
+      }}
+
 # ── Filter agents assigned to this Proxmox host ─────────────────────────────
 - name: Build list of agents for this host
   ansible.builtin.set_fact:
@@ -66,5 +84,28 @@
     agent_name: "{{ item.key }}"
     agent: "{{ item.value }}"
   loop: "{{ host_agents }}"
+  loop_control:
+    label: "{{ item.key }} (vmid {{ item.value.vmid }})"
+
+# ── Service VMs assigned to this Proxmox host ────────────────────────────────
+- name: Build list of service VMs for this host
+  ansible.builtin.set_fact:
+    host_service_vms: >-
+      {{
+        service_vms | dict2items
+        | selectattr('value.host', 'equalto', inventory_hostname)
+        | list
+      }}
+
+- name: Show service VMs assigned to this host
+  ansible.builtin.debug:
+    msg: "Creating service VMs on {{ inventory_hostname }}: {{ host_service_vms | map(attribute='key') | list }}"
+
+- name: Create VMs for each assigned service VM
+  ansible.builtin.include_tasks: create_vm.yml
+  vars:
+    agent_name: "{{ item.key }}"
+    agent: "{{ item.value }}"
+  loop: "{{ host_service_vms }}"
   loop_control:
     label: "{{ item.key }} (vmid {{ item.value.vmid }})"

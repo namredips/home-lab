@@ -21,3 +21,27 @@
   loop_control:
     label: "{{ item.key }} (vmid {{ item.value.vmid }})"
   ignore_errors: true
+
+# ── Service VMs ───────────────────────────────────────────────────────────────
+- name: Build list of service VMs for this host
+  ansible.builtin.set_fact:
+    host_service_vms: >-
+      {{
+        service_vms | dict2items
+        | selectattr('value.host', 'equalto', inventory_hostname)
+        | list
+      }}
+
+- name: Stop service VMs assigned to this host
+  ansible.builtin.command: qm stop {{ item.value.vmid }}
+  loop: "{{ host_service_vms }}"
+  loop_control:
+    label: "{{ item.key }} (vmid {{ item.value.vmid }})"
+  ignore_errors: true
+
+- name: Destroy service VMs assigned to this host
+  ansible.builtin.command: qm destroy {{ item.value.vmid }} --purge --destroy-unreferenced-disks 1
+  loop: "{{ host_service_vms }}"
+  loop_control:
+    label: "{{ item.key }} (vmid {{ item.value.vmid }})"
+  ignore_errors: true

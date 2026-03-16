@@ -1,18 +1,43 @@
 ---
-# Proxmox VE cluster setup playbook
-# Run phases individually with tags or all at once
+# Proxmox VE cluster setup playbook — Ceph edition
+#
+# Phases (run in order; use tags to run individual phases):
+#   proxmox_network   — 10GbE Ceph network (vmbr1 on 10.220.2.0/24)
+#   proxmox_disk_prep — wipe non-boot disks for Ceph OSD
+#   proxmox_base      — disable enterprise repo, dist-upgrade, create API user
+#   proxmox_cluster   — pvecm cluster formation (master first, then nodes)
+#   proxmox_ceph      — Ceph install, monitors, OSDs, pools (ceph-fast / ceph-bulk)
+#   proxmox_template  — Ubuntu 24.04 cloud-init template VM 9000 on ceph-fast
+#   proxmox_vm        — clone template for each agent + service VM
 #
 # Usage:
 #   Full run:
-#     ansible-playbook -i inventory/hosts.yml proxmox_cluster.yml
+#     ansible-playbook -i inventory/hosts.yml proxmox_cluster.yml \
+#       --vault-password-file ~/.vault_pass.txt
 #
-#   Single role:
-#     ./run_ansible_role.sh -r proxmox_base -p proxmox_cluster.yml
+#   Single phase (example):
+#     ./run_ansible_role.sh -r proxmox_ceph -p proxmox_cluster.yml
 #
 #   Install collection deps first:
 #     ansible-galaxy collection install -r requirements.yml
 
-# Phase 1: Base Proxmox configuration on all hosts
+# Phase 0: 10GbE Ceph network — must run before disk_prep and cluster
+- name: Configure 10GbE Ceph network on all hosts
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: proxmox_network
+  roles:
+    - proxmox_network
+
+# Phase 1: Wipe non-boot disks for Ceph OSD
+- name: Prepare disks for Ceph OSD
+  hosts: proxmox_hosts
+  gather_facts: false
+  tags: proxmox_disk_prep
+  roles:
+    - proxmox_disk_prep
+
+# Phase 2: Base Proxmox configuration on all hosts
 - name: Configure Proxmox base on all hosts
   hosts: proxmox_hosts
   gather_facts: true
@@ -20,7 +45,7 @@
   roles:
     - proxmox_base
 
-# Phase 2: Form cluster — master first, then nodes one at a time
+# Phase 3: Form cluster — master first, then nodes one at a time
 - name: Create cluster on master
   hosts: proxmox_master
   gather_facts: false
@@ -36,15 +61,15 @@
   roles:
     - proxmox_cluster
 
-# Phase 3: Configure ZFS storage pools on all hosts
-- name: Create and register ZFS storage pools
+# Phase 4: Deploy Ceph distributed storage (replaces ZFS proxmox_storage phase)
+- name: Deploy Ceph storage cluster
   hosts: proxmox_hosts
   gather_facts: false
-  tags: proxmox_storage
+  tags: proxmox_ceph
   roles:
-    - proxmox_storage
+    - proxmox_ceph
 
-# Phase 4: Create Ubuntu 24.04 template VM on master (run once)
+# Phase 5: Create Ubuntu 24.04 template VM on master (stored on ceph-fast)
 - name: Create cloud image template
   hosts: proxmox_master
   gather_facts: false
@@ -52,7 +77,7 @@
   roles:
     - proxmox_template
 
-# Phase 5: Provision agent VMs on each Proxmox host
+# Phase 6: Provision agent VMs on each Proxmox host
 - name: Provision agent VMs
   hosts: proxmox_hosts
   gather_facts: false
