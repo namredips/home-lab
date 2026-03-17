@@ -314,13 +314,13 @@
           "targets": [
             {
               "datasource": {"type": "loki", "uid": "loki"},
-              "expr": "{job=\"syslog\"} |= \"$search\"",
+              "expr": "{job=\"syslog\", severity=~\"$severity\"} |= \"$search\"",
               "legendFormat": "",
               "maxLines": 100,
               "refId": "A"
             }
           ],
-          "title": "Syslog — filter: $search",
+          "title": "Syslog — search: $search | severity: $severity",
           "type": "logs"
         }
       ]
@@ -456,6 +456,28 @@
         "options": [{"selected": true, "text": "", "value": ""}],
         "query": "",
         "type": "textbox"
+      },
+      {
+        "current": {"selected": true, "text": "All", "value": "$__all"},
+        "hide": 0,
+        "includeAll": true,
+        "allValue": ".+",
+        "label": "Severity",
+        "multi": true,
+        "name": "severity",
+        "options": [
+          {"selected": true, "text": "All", "value": "$__all"},
+          {"selected": false, "text": "emerg", "value": "emerg"},
+          {"selected": false, "text": "alert", "value": "alert"},
+          {"selected": false, "text": "crit", "value": "crit"},
+          {"selected": false, "text": "err", "value": "err"},
+          {"selected": false, "text": "warn", "value": "warn"},
+          {"selected": false, "text": "notice", "value": "notice"},
+          {"selected": false, "text": "info", "value": "info"},
+          {"selected": false, "text": "debug", "value": "debug"}
+        ],
+        "query": "emerg,alert,crit,err,warn,notice,info,debug",
+        "type": "custom"
       }
     ]
   },
