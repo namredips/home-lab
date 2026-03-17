@@ -467,16 +467,13 @@
         "name": "severity",
         "options": [
           {"selected": true, "text": "All", "value": "$__all"},
-          {"selected": false, "text": "emerg", "value": "emerg"},
-          {"selected": false, "text": "alert", "value": "alert"},
-          {"selected": false, "text": "crit", "value": "crit"},
-          {"selected": false, "text": "err", "value": "err"},
-          {"selected": false, "text": "warn", "value": "warn"},
+          {"selected": false, "text": "error", "value": "error"},
+          {"selected": false, "text": "warning", "value": "warning"},
           {"selected": false, "text": "notice", "value": "notice"},
-          {"selected": false, "text": "info", "value": "info"},
+          {"selected": false, "text": "informational", "value": "informational"},
           {"selected": false, "text": "debug", "value": "debug"}
         ],
-        "query": "emerg,alert,crit,err,warn,notice,info,debug",
+        "query": "error,warning,notice,informational,debug",
         "type": "custom"
       }
     ]
