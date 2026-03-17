@@ -33,7 +33,8 @@ pbs_host: "10.220.1.62"
 pbs_port: 8007
 
 # NUT exporter — scrapes the NUT server on r640-1 and exposes UPS metrics
-nut_exporter_port: 9995
+nut_exporter_port: 9995           # host port (for external access)
+nut_exporter_container_port: 9199 # container port (used by Prometheus inside Docker network)
 nut_server_host: "10.220.1.8"
 nut_port: 3493
 # Comma-separated list of UPS names to scrape — must match nut_devices names on r640-1
