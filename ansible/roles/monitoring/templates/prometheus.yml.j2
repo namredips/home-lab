@@ -75,6 +75,7 @@ scrape_configs:
 
   # ── IPMI Exporter — remote scrape via iDRAC IPs ──────────────────────────────
   - job_name: 'ipmi'
+    metrics_path: /ipmi
     params:
       module: [remote]
     static_configs:
