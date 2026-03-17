@@ -133,5 +133,6 @@ scrape_configs:
 
   # ── NUT Exporter — UPS battery, load, and runtime ────────────────────────────
   - job_name: 'ups'
+    metrics_path: /ups_metrics
     static_configs:
       - targets: ['nut_exporter:{{ nut_exporter_port }}']

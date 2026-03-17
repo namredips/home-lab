@@ -44,19 +44,16 @@
         "defaults": {
           "mappings": [
             { "type": "value", "options": { "1": { "text": "Online", "color": "green", "index": 0 } } },
-            { "type": "value", "options": { "2": { "text": "On Battery", "color": "orange", "index": 1 } } },
-            { "type": "value", "options": { "3": { "text": "Low Battery", "color": "red", "index": 2 } } },
-            { "type": "value", "options": { "4": { "text": "Charging", "color": "blue", "index": 3 } } },
-            { "type": "value", "options": { "8": { "text": "Offline", "color": "red", "index": 4 } } }
+            { "type": "value", "options": { "0": { "text": "On Battery", "color": "orange", "index": 1 } } }
           ],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "orange", "value": null }, { "color": "green", "value": 1 }] }
         },
         "overrides": []
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "network_ups_tools_ups_status",
+          "expr": "network_ups_tools_ups_status{flag=\"OL\"}",
           "legendFormat": "Status",
           "instant": true
         }
