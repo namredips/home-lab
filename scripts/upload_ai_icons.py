@@ -9,6 +9,7 @@ import base64
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Dict
 
@@ -18,8 +19,21 @@ import requests
 DISCORD_API_BASE = "https://discord.com/api/v10"
 GUILD_ID = "832250938571227217"
 
-# Bot list
-BOTS = ["zeus", "athena", "apollo", "artemis", "hermes", "perseus", "prometheus", "ares", "freya"]
+# Bot list (vault token key → used for avatar + app icon uploads)
+BOTS = ["zeus", "athena", "apollo", "artemis", "hephaestus", "perseus", "prometheus", "ares", "freya"]
+
+# Application IDs for Developer Portal app icon uploads
+# Maps vault token key → Discord application ID
+APP_IDS = {
+    "zeus":       "1470606502179110912",
+    "athena":     "1470607465136787621",
+    "apollo":     "1470608246669578423",
+    "artemis":    "1470608455818543135",
+    "hephaestus": "1486453051026964691",
+    "perseus":    "1470608832672829635",
+    "prometheus": "1470609038008913930",
+    "ares":       "1470609201771315220",
+}
 
 
 def get_vault_tokens() -> Dict[str, str]:
@@ -101,6 +115,30 @@ def upload_bot_avatar(bot_name: str, token: str, image_path: Path) -> bool:
         return False
 
 
+def upload_app_icon(bot_name: str, app_id: str, token: str, image_path: Path) -> bool:
+    """Upload app icon to Discord Developer Portal for a specific application."""
+    url = f"{DISCORD_API_BASE}/applications/{app_id}"
+    headers = {
+        "Authorization": f"Bot {token}",
+        "Content-Type": "application/json",
+        "User-Agent": "DiscordBot (home-lab, 1.0)"
+    }
+
+    base64_image = base64.b64encode(image_path.read_bytes()).decode('utf-8')
+    data_uri = f"data:image/png;base64,{base64_image}"
+
+    try:
+        response = requests.patch(url, headers=headers, json={"icon": data_uri})
+        response.raise_for_status()
+        print(f"✅ Uploaded app icon for {bot_name}")
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Failed to upload app icon for {bot_name}: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"   Response: {e.response.text}")
+        return False
+
+
 def upload_server_icon(token: str, image_path: Path) -> bool:
     """Upload server icon (using Freya's admin token)."""
     url = f"{DISCORD_API_BASE}/guilds/{GUILD_ID}"
@@ -168,6 +206,30 @@ def main():
         else:
             print(f"⚠️  Skipping {bot_name} - no token available")
             upload_failed += 1
+
+    # Upload Developer Portal app icons
+    print("\n📤 Uploading Developer Portal app icons...")
+    app_icons_dir = Path("assets/ai_app_icons")
+
+    for bot_name, app_id in APP_IDS.items():
+        icon_path = app_icons_dir / f"{bot_name}.png"
+
+        if not icon_path.exists():
+            print(f"⚠️  App icon not found: {icon_path}")
+            upload_failed += 1
+            continue
+
+        if bot_name not in tokens:
+            print(f"⚠️  Skipping {bot_name} app icon - no token available")
+            upload_failed += 1
+            continue
+
+        if upload_app_icon(bot_name, app_id, tokens[bot_name], icon_path):
+            upload_success += 1
+        else:
+            upload_failed += 1
+
+        time.sleep(0.5)  # gentle rate limiting
 
     # Upload server icon
     print("\n📤 Uploading server icon...")
