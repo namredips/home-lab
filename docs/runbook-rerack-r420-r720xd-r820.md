@@ -14,9 +14,9 @@
 | r420 | 10.220.1.7 | 10.220.1.17 | Artemis (103), Hermes (104) | Yes | 3 |
 | r720xd | 10.220.1.10 | 10.220.1.20 | Ares (107), PBS (202) | Yes | 11 |
 
-**Re-rack order: R820 → R420 → R720xd**
+**Re-rack order: R420 → R720xd → R820**
 
-Reason: R820 has no Ceph monitor so it's the safest to start. R720xd hosts PBS (backup server) and the most OSDs — keep it up as long as possible.
+Reason: Physical workflow preference. Each host is fully recovered before the next goes down — Ceph mon quorum is always 2/3 and Proxmox cluster quorum is always 5/6 regardless of order.
 
 ---
 
@@ -59,7 +59,7 @@ ceph -s  # Should still show HEALTH_OK
 
 ### 3. Trigger a fresh PBS backup
 
-PBS is on r720xd (last to go down). This captures a clean snapshot before any work begins.
+This captures a clean snapshot before any work begins.
 
 ```bash
 # On any PVE host — backs up all VMs except PBS itself (202):
@@ -73,113 +73,15 @@ Wait for completion before proceeding.
 
 ---
 
-## Host 1: R820 (10.220.1.11)
-
-### Step 1: Migrate VMs off R820
-
-```bash
-ssh root@10.220.1.8  # Connect to r640-1
-
-# Migrate Zeus (100) to r640-1
-qm migrate 100 r640-1 --online
-
-# Migrate RustDesk (200) to r640-2
-qm migrate 200 r640-2 --online
-
-# Migrate Dell OME (201) to r640-2 — Windows VM, may take a few minutes
-qm migrate 201 r640-2 --online
-```
-
-Verify all three are running on their new hosts:
-```bash
-ssh root@10.220.1.8 "qm list"   # Should show Zeus (100)
-ssh root@10.220.1.9 "qm list"   # Should show RustDesk (200) and OME (201)
-```
-
-### Step 2: Set Ceph noout
-
-```bash
-ceph osd set noout
-# Prevents Ceph from marking OSDs as permanently out during the short downtime.
-# Without this, Ceph starts rebalancing data away from R820's OSDs immediately.
-ceph -s  # Should show: 1 flag(s) set: noout
-```
-
-### Step 3: Shut down R820
-
-```bash
-ssh root@10.220.1.11 "shutdown -h now"
-```
-
-Verify it's off via iDRAC:
-```bash
-ipmitool -I lanplus -H 10.220.1.21 -U root -P 'ub=19711' power status
-# Should return: Chassis Power is off
-```
-
-### Step 4: Verify remaining cluster is healthy
-
-```bash
-pvecm status   # Should show 5/6 nodes (R820 absent), quorum OK — 6-node clusters maintain quorum with 4+ nodes
-ceph -s        # All 3 HDD OSDs from R820 will show "down" — that's expected with noout set
-```
-
-### Step 5: Re-rack R820
-
-Physical work: install new rails, slide server in, reconnect all cables (power, IPMI, network).
-
-### Step 6: Power on R820 and wait for rejoin
-
-```bash
-ipmitool -I lanplus -H 10.220.1.21 -U root -P 'ub=19711' power on
-
-# Wait for SSH (2-5 minutes):
-until ssh root@10.220.1.11 'echo up' 2>/dev/null; do echo "waiting..."; sleep 10; done
-
-# Verify cluster membership:
-ssh root@10.220.1.11 "pvecm status"
-pvecm nodes  # Should show r820 back
-```
-
-### Step 7: Unset noout and verify Ceph recovery
-
-```bash
-ceph osd unset noout
-
-# Watch recovery:
-watch -n 5 'ceph -s'
-# You'll see "recovery" or "degraded" briefly, then it should clear.
-
-# Wait for HEALTH_OK before proceeding to next host.
-# With min_size=1, VMs continue running during recovery — no I/O pause.
-ceph health   # Wait until this returns: HEALTH_OK
-ceph osd tree # Verify R820's 3 HDD OSDs are all "up in"
-```
-
-### Step 8: Optional — migrate VMs back to R820
-
-```bash
-qm migrate 100 r820 --online   # Zeus back to r820
-qm migrate 200 r820 --online   # RustDesk back to r820
-qm migrate 201 r820 --online   # OME back to r820
-```
-
-### Checkpoint: Before proceeding to R420
-
-- [ ] `ceph health` = HEALTH_OK
-- [ ] `pvecm nodes` shows 6/6
-- [ ] All R820 OSDs are "up in" in `ceph osd tree`
-- [ ] All VMs running (wherever they ended up)
-
----
-
-## Host 2: R420 (10.220.1.7)
+## Host 1: R420 (10.220.1.7)
 
 > **Note**: R420 is the Proxmox cluster "master" but this is not special — any node can serve API calls. Proxmox clusters are peer-to-peer. R420 also hosts a Ceph monitor. With R420 offline, quorum is held by r640-1 + r720xd (2/3 — still quorate).
 
 ### Step 1: Migrate VMs off R420
 
 ```bash
+ssh root@10.220.1.7  # Must run migration commands from r420 (the host that owns these VMs)
+
 # Artemis (103) to r640-1
 qm migrate 103 r640-1 --online
 
@@ -243,20 +145,20 @@ ceph osd tree # All R420 OSDs back up
 ### Step 8: Optional — migrate VMs back to R420
 
 ```bash
-qm migrate 103 r420 --online   # Artemis back
-qm migrate 104 r420 --online   # Hermes back
+ssh root@10.220.1.8 "qm migrate 103 r420 --online"    # Artemis back (currently on r640-1)
+ssh root@10.220.1.12 "qm migrate 104 r420 --online"   # Hermes back (currently on r640-3)
 ```
 
 ### Checkpoint: Before proceeding to R720xd
 
 - [ ] `ceph health` = HEALTH_OK
 - [ ] `pvecm nodes` shows 6/6
-- [ ] All R420 OSDs are "up in"
+- [ ] All R420 OSDs are "up in" in `ceph osd tree`
 - [ ] All VMs running
 
 ---
 
-## Host 3: R720xd (10.220.1.10)
+## Host 2: R720xd (10.220.1.10)
 
 > **Note**: R720xd has 11 HDD OSDs — the most of any host. Recovery after it comes back online will take longer. The `noout` flag prevents unnecessary rebalancing during the downtime.
 
@@ -273,6 +175,8 @@ Wait for completion.
 ### Step 2: Migrate VMs off R720xd
 
 ```bash
+ssh root@10.220.1.10  # Must run migration commands from r720xd (the host that owns these VMs)
+
 # Ares (107) to r640-3
 qm migrate 107 r640-3 --online
 
@@ -305,7 +209,7 @@ ipmitool -I lanplus -H 10.220.1.20 -U root -P 'ub=19711' power status
 ### Step 5: Verify remaining cluster
 
 ```bash
-pvecm status   # 5/6 nodes; quorum held by r420 + r640-1 (2/3 mons)
+pvecm status   # 5/6 nodes; quorum held by r420 + r640-1 (2/3 mons — r420 is back up from Host 1)
 ceph -s        # 11 HDD OSDs from r720xd down — expected
 ```
 
@@ -337,8 +241,110 @@ ceph osd tree     # All 11 r720xd OSDs back up
 ### Step 9: Migrate VMs back to R720xd
 
 ```bash
-qm migrate 107 r720xd --online   # Ares back
-qm migrate 202 r720xd --online   # PBS back
+ssh root@10.220.1.12 "qm migrate 107 r720xd --online"   # Ares back (currently on r640-3)
+ssh root@10.220.1.8 "qm migrate 202 r720xd --online"    # PBS back (currently on r640-1)
+```
+
+### Checkpoint: Before proceeding to R820
+
+- [ ] `ceph health` = HEALTH_OK
+- [ ] `pvecm nodes` shows 6/6
+- [ ] All R720xd OSDs are "up in" in `ceph osd tree`
+- [ ] All VMs running
+
+---
+
+## Host 3: R820 (10.220.1.11)
+
+> **Note**: R820 has no Ceph monitor — taking it down does not affect Ceph mon quorum (all 3 mons remain up). It is the simplest host to re-rack.
+
+### Step 1: Migrate VMs off R820
+
+```bash
+ssh root@10.220.1.11  # Must run migration commands from r820 (the host that owns these VMs)
+
+# Migrate Zeus (100) to r640-1
+qm migrate 100 r640-1 --online
+
+# Migrate RustDesk (200) to r640-2
+qm migrate 200 r640-2 --online
+
+# Migrate Dell OME (201) to r640-2 — Windows VM, may take a few minutes
+qm migrate 201 r640-2 --online
+```
+
+Verify all three are running on their new hosts:
+```bash
+ssh root@10.220.1.8 "qm list"   # Should show Zeus (100)
+ssh root@10.220.1.9 "qm list"   # Should show RustDesk (200) and OME (201)
+```
+
+### Step 2: Set Ceph noout
+
+```bash
+ceph osd set noout
+# Prevents Ceph from marking OSDs as permanently out during the short downtime.
+# Without this, Ceph starts rebalancing data away from R820's OSDs immediately.
+ceph -s  # Should show: 1 flag(s) set: noout
+```
+
+### Step 3: Shut down R820
+
+```bash
+ssh root@10.220.1.11 "shutdown -h now"
+```
+
+Verify it's off via iDRAC:
+```bash
+ipmitool -I lanplus -H 10.220.1.21 -U root -P 'ub=19711' power status
+# Should return: Chassis Power is off
+```
+
+### Step 4: Verify remaining cluster is healthy
+
+```bash
+pvecm status   # Should show 5/6 nodes (R820 absent), quorum OK — 6-node clusters maintain quorum with 4+ nodes
+ceph -s        # All 3 HDD OSDs from R820 will show "down" — expected with noout set; Ceph mon quorum unaffected (R820 has no mon)
+```
+
+### Step 5: Re-rack R820
+
+Physical work: install new rails, slide server in, reconnect all cables (power, IPMI, network).
+
+### Step 6: Power on R820 and wait for rejoin
+
+```bash
+ipmitool -I lanplus -H 10.220.1.21 -U root -P 'ub=19711' power on
+
+# Wait for SSH (2-5 minutes):
+until ssh root@10.220.1.11 'echo up' 2>/dev/null; do echo "waiting..."; sleep 10; done
+
+# Verify cluster membership:
+ssh root@10.220.1.11 "pvecm status"
+pvecm nodes  # Should show r820 back
+```
+
+### Step 7: Unset noout and verify Ceph recovery
+
+```bash
+ceph osd unset noout
+
+# Watch recovery:
+watch -n 5 'ceph -s'
+# You'll see "recovery" or "degraded" briefly, then it should clear.
+
+# Wait for HEALTH_OK before proceeding.
+# With min_size=1, VMs continue running during recovery — no I/O pause.
+ceph health   # Wait until this returns: HEALTH_OK
+ceph osd tree # Verify R820's 3 HDD OSDs are all "up in"
+```
+
+### Step 8: Optional — migrate VMs back to R820
+
+```bash
+ssh root@10.220.1.8 "qm migrate 100 r820 --online"   # Zeus back (currently on r640-1)
+ssh root@10.220.1.9 "qm migrate 200 r820 --online"   # RustDesk back (currently on r640-2)
+ssh root@10.220.1.9 "qm migrate 201 r820 --online"   # OME back (currently on r640-2)
 ```
 
 ---
