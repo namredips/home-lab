@@ -20,7 +20,7 @@ DISCORD_API_BASE = "https://discord.com/api/v10"
 GUILD_ID = "832250938571227217"
 
 # Bot list (vault token key → used for avatar + app icon uploads)
-BOTS = ["zeus", "athena", "apollo", "artemis", "hephaestus", "perseus", "prometheus", "ares", "freya"]
+BOTS = ["zeus", "athena", "apollo", "artemis", "hephaestus", "hermes", "perseus", "prometheus", "ares", "freya"]
 
 # Application IDs for Developer Portal app icon uploads
 # Maps vault token key → Discord application ID
@@ -33,6 +33,9 @@ APP_IDS = {
     "perseus":    "1470608832672829635",
     "prometheus": "1470609038008913930",
     "ares":       "1470609201771315220",
+    # Mac mini — conductor and secondary agent (token var differs from naming convention)
+    "freya":      "1466648500124123146",
+    "hermes":     "1470608660714754102",
 }
 
 
@@ -45,10 +48,15 @@ def get_vault_tokens() -> Dict[str, str]:
         print(f"❌ Vault password file not found: {vault_pass}")
         sys.exit(1)
 
+    # Hermes conductor uses a different vault key
+    TOKEN_VAR_OVERRIDES = {
+        "hermes": "vault_hermes_conductor_token",
+    }
+
     tokens = {}
 
     for bot_name in BOTS:
-        token_var = f"vault_discord_bot_token_{bot_name}"
+        token_var = TOKEN_VAR_OVERRIDES.get(bot_name, f"vault_discord_bot_token_{bot_name}")
 
         try:
             result = subprocess.run(
