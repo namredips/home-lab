@@ -148,8 +148,10 @@ def upload_app_icon(bot_name: str, app_id: str, token: str, image_path: Path) ->
 
 
 def upload_app_banner(bot_name: str, app_id: str, token: str, image_path: Path) -> bool:
-    """Upload banner (cover image) to Discord Developer Portal for a specific application."""
-    url = f"{DISCORD_API_BASE}/applications/{app_id}"
+    """Upload profile banner for a bot (visible when clicking the bot in Discord)."""
+    # PATCH /users/@me with {"banner": ...} sets the profile card banner.
+    # PATCH /applications/{app_id} with {"cover_image": ...} sets the App Directory image — not the same thing.
+    url = f"{DISCORD_API_BASE}/users/@me"
     headers = {
         "Authorization": f"Bot {token}",
         "Content-Type": "application/json",
@@ -160,12 +162,14 @@ def upload_app_banner(bot_name: str, app_id: str, token: str, image_path: Path) 
     data_uri = f"data:image/png;base64,{base64_image}"
 
     try:
-        response = requests.patch(url, headers=headers, json={"cover_image": data_uri})
+        response = requests.patch(url, headers=headers, json={"banner": data_uri})
         response.raise_for_status()
-        print(f"✅ Uploaded banner for {bot_name}")
+        data = response.json()
+        banner_hash = data.get("banner", "")
+        print(f"✅ Uploaded profile banner for {bot_name} (hash={banner_hash})")
         return True
     except requests.exceptions.RequestException as e:
-        print(f"❌ Failed to upload banner for {bot_name}: {e}")
+        print(f"❌ Failed to upload profile banner for {bot_name}: {e}")
         if hasattr(e, 'response') and e.response is not None:
             print(f"   Response: {e.response.text}")
         return False
