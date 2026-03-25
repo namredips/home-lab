@@ -69,7 +69,7 @@ Home lab infrastructure repository using Ansible to automate a **Proxmox VE 9.1.
 - `hermes` — Hermes Agent framework + systemd service (replaced OpenClaw)
 
 ### Control Node (mac mini)
-- **Host**: mac-mini.infiquetra.com (10.220.1.2)
+- **Host**: jeffs-mac-mini.infiquetra.com (10.220.1.2)
 - **Role**: Conductor/orchestration node — runs Hermes natively, manages Ansible deployments
 - **Group**: `control_nodes` in inventory
 - **Agent playbook**: `ansible/hermes_cluster.yml` — deploys Hermes to all `agent_vms`
