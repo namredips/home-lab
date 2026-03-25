@@ -68,7 +68,7 @@ agents:
     role: "Developer (Testing & Precision)"
     trait: "Precision, focus"
 
-  hermes:
+  hephaestus:
     vmid: 104
     host: r420.infiquetra.com
     vcpus: 4
@@ -76,9 +76,9 @@ agents:
     disk_gb: 250
     ip: 10.220.1.54
     mac: "52:54:00:05:26:d8"
-    email: hermes@infiquetra.com
-    role: "Developer (Integrations)"
-    trait: "Speed, communication"
+    email: hephaestus@infiquetra.com
+    role: "Developer (Infrastructure & Tooling)"
+    trait: "Craft, precision, creation"
 
   perseus:
     vmid: 105

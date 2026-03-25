@@ -35,7 +35,7 @@ Home lab infrastructure repository using Ansible to automate a **Proxmox VE 9.1.
 | 101 | Athena | r640-2 | 10.220.1.51 |
 | 102 | Apollo | r640-1 | 10.220.1.52 |
 | 103 | Artemis | r420 | 10.220.1.53 |
-| 104 | Hermes | r420 | 10.220.1.54 |
+| 104 | Hephaestus | r420 | 10.220.1.54 |
 | 105 | Perseus | r640-1 | 10.220.1.55 |
 | 106 | Prometheus | r640-2 | 10.220.1.56 |
 | 107 | Ares | r720xd | 10.220.1.57 |
@@ -49,7 +49,7 @@ Home lab infrastructure repository using Ansible to automate a **Proxmox VE 9.1.
 - **Service VMs**: `ansible/service_vms.yml`
 - **Teardown**: `ansible/proxmox_cluster_reset.yml`
 - **Verification**: `ansible/proxmox_verify.yml`
-- **Inventory groups**: `proxmox_hosts`, `proxmox_master`, `proxmox_nodes`, `agent_vms`
+- **Inventory groups**: `proxmox_hosts`, `proxmox_master`, `proxmox_nodes`, `agent_vms`, `control_nodes`
 - **Variables**: Encrypted with Ansible Vault in `group_vars/all/all.yml`
 - **Host vars**: Per-server Ceph disk and NIC definitions in `inventory/host_vars/`
 
@@ -66,7 +66,26 @@ Home lab infrastructure repository using Ansible to automate a **Proxmox VE 9.1.
 - `agent_provision` — dev environment, SSH keys, GitHub setup
 - `agent_desktop` — Neovim, tmux, shell config
 - `ollama` — local LLM inference
-- `openclaw` — OpenClaw agent framework + systemd service
+- `hermes` — Hermes Agent framework + systemd service (replaced OpenClaw)
+
+### Control Node (mac mini)
+- **Host**: mac-mini.infiquetra.com (10.220.1.2)
+- **Role**: Conductor/orchestration node — runs Hermes natively, manages Ansible deployments
+- **Group**: `control_nodes` in inventory
+- **Agent playbook**: `ansible/hermes_cluster.yml` — deploys Hermes to all `agent_vms`
+
+### Secret Strategy
+| Identity | Vault Key | Notes |
+|----------|-----------|-------|
+| Mac mini conductor | `vault_hermes_conductor_token` | From `$HERMES_BOT_TOKEN` env var |
+| Zeus (VM 100) | `vault_discord_bot_token_zeus` | Existing |
+| Athena (VM 101) | `vault_discord_bot_token_athena` | Existing |
+| Apollo (VM 102) | `vault_discord_bot_token_apollo` | Existing |
+| Artemis (VM 103) | `vault_discord_bot_token_artemis` | Existing |
+| Hephaestus (VM 104) | `vault_discord_bot_token_hephaestus` | Renamed from `_hermes` |
+| Perseus (VM 105) | `vault_discord_bot_token_perseus` | Existing |
+| Prometheus (VM 106) | `vault_discord_bot_token_prometheus` | Existing |
+| Ares (VM 107) | `vault_discord_bot_token_ares` | Existing |
 
 ## Common Commands
 
