@@ -1,0 +1,22 @@
+[Unit]
+Description=Hermes AI Agent - {{ agent_name | title }}
+After=network.target ollama.service
+Wants=ollama.service
+
+[Service]
+Type=simple
+User={{ hermes_service_user }}
+WorkingDirectory={{ hermes_install_dir }}
+EnvironmentFile={{ hermes_install_dir }}/.env
+ExecStart=/usr/local/bin/hermes start
+Restart=on-failure
+RestartSec=10
+StartLimitBurst=5
+StartLimitIntervalSec=300
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

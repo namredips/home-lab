@@ -1,0 +1,43 @@
+---
+reset: false
+
+# Hermes Agent version (use 'latest' or pin to a specific version)
+hermes_version: latest
+
+# Install and config paths
+hermes_install_dir: "/home/{{ ansible_user }}/.hermes"
+hermes_service_name: "hermes-{{ agent_name }}"
+
+# Agent identity (derived from inventory hostname by default)
+agent_name: "{{ inventory_hostname_short }}"
+agent_email: "{{ inventory_hostname_short }}@infiquetra.com"
+
+# Discord configuration
+discord_guild_id: "832250938571227217"
+discord_bot_token: "{{ lookup('vars', 'vault_discord_bot_token_' + inventory_hostname_short) }}"
+
+# Ollama provider (running locally on each agent VM)
+hermes_ollama_base_url: "http://127.0.0.1:11434/v1"
+
+# Model configuration
+hermes_primary_model: "ollama/kimi-k2.5:cloud"
+hermes_fallback_models:
+  - "ollama/deepseek-v3.2:cloud"
+  - "ollama/gemini-3-flash-preview:cloud"
+hermes_auxiliary_conversation_model: "ollama/gemini-3-flash-preview:cloud"
+hermes_auxiliary_subagent_model: "ollama/gemini-3-flash-preview:cloud"
+
+# Memory (Hermes has native FTS5 persistent memory)
+hermes_memory_enabled: true
+hermes_memory_auto_recall: true
+hermes_memory_summarize: true
+
+# Schedule
+hermes_heartbeat_interval: "20m"
+hermes_active_hours_start: "08:00"
+hermes_active_hours_end: "01:00"
+hermes_timezone: "America/New_York"
+
+# Systemd
+hermes_enable_service: true
+hermes_service_user: "{{ ansible_user }}"

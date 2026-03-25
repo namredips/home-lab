@@ -1,6 +1,0 @@
----
-- name: restart openclaw-gateway
-  systemd:
-    name: openclaw-gateway
-    state: restarted
-  become: yes

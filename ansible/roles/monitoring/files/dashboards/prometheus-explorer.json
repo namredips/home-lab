@@ -233,7 +233,7 @@
           "id": 32,
           "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
           "targets": [
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:openclaw_active", "legendFormat": "{{instance}} openclaw", "refId": "A"},
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:hermes_active", "legendFormat": "{{instance}} hermes", "refId": "A"},
             {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ollama_active", "legendFormat": "{{instance}} ollama", "refId": "B"}
           ],
           "title": "OpenClaw + Ollama Service State",

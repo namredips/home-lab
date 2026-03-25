@@ -1,0 +1,7 @@
+---
+- name: restart hermes
+  systemd:
+    name: "{{ hermes_service_name }}"
+    state: restarted
+  become: true
+  when: hermes_enable_service

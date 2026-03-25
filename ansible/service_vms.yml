@@ -167,13 +167,13 @@
         state: started
       become: true
 
-    # Enable systemd collector so OpenClaw + Ollama service states are visible in Prometheus.
+    # Enable systemd collector so Hermes + Ollama service states are visible in Prometheus.
     # The ARGS environment variable is read by prometheus-node-exporter's systemd unit.
     - name: Enable node_exporter systemd collector on agent VMs
       ansible.builtin.lineinfile:
         path: /etc/default/prometheus-node-exporter
         regexp: '^ARGS='
-        line: 'ARGS="--collector.systemd --collector.systemd.unit-include=openclaw-gateway.service|ollama.service"'
+        line: 'ARGS="--collector.systemd --collector.systemd.unit-include=hermes-.+\\.service|ollama.service"'
         create: true
         mode: '0644'
       become: true

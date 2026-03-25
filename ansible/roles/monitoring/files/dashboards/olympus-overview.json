@@ -390,8 +390,8 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "node_systemd_unit_state{job='agent_vms',name='openclaw-gateway.service',state='active'}",
-          "legendFormat": "{{instance}} openclaw",
+          "expr": "node_systemd_unit_state{job='agent_vms',name=~'hermes-.+\\.service',state='active'}",
+          "legendFormat": "{{instance}} hermes",
           "refId": "A"
         }
       ],

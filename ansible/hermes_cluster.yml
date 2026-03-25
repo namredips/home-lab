@@ -1,0 +1,59 @@
+---
+# hermes_cluster.yml — Deploy Hermes agents on the Mount Olympus VM fleet
+#
+# Usage:
+#   cd ansible
+#   uv run ansible-playbook -i inventory/hosts.yml hermes_cluster.yml \
+#     --vault-password-file ~/.vault_pass.txt
+#
+# Single VM (e.g. pilot):
+#   uv run ansible-playbook -i inventory/hosts.yml hermes_cluster.yml \
+#     --limit hephaestus.infiquetra.com \
+#     --vault-password-file ~/.vault_pass.txt
+#
+# Specific role only:
+#   uv run ansible-playbook -i inventory/hosts.yml hermes_cluster.yml \
+#     --tags hermes --vault-password-file ~/.vault_pass.txt
+#
+# Reset (removes service, preserves memory):
+#   uv run ansible-playbook -i inventory/hosts.yml hermes_cluster.yml \
+#     -e reset=true --vault-password-file ~/.vault_pass.txt
+
+- name: Provision agent environments
+  hosts: agent_vms
+  gather_facts: true
+  roles:
+    - { role: agent_provision, tags: ['agent_provision'] }
+
+- name: Install and configure Ollama
+  hosts: agent_vms
+  gather_facts: true
+  roles:
+    - { role: ollama, tags: ['ollama'] }
+
+- name: Setup Hermes agents
+  hosts: agent_vms
+  gather_facts: true
+  roles:
+    - { role: hermes, tags: ['hermes'] }
+
+- name: Deployment summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Show deployment completion
+      debug:
+        msg:
+          - "=========================================="
+          - "  Hermes Agent Infrastructure"
+          - "  Mount Olympus — olympus cluster"
+          - "=========================================="
+          - "  Agents: Zeus, Athena, Apollo, Artemis,"
+          - "          Hephaestus, Perseus, Prometheus, Ares"
+          - "  Runtime: Hermes Agent (Python)"
+          - "  Memory:  FTS5 persistent (per-agent)"
+          - "  Discord: Guild 832250938571227217"
+          - ""
+          - "  Service: systemctl status hermes-<name>"
+          - "  Memory:  hermes memory search '<query>'"
+          - "=========================================="

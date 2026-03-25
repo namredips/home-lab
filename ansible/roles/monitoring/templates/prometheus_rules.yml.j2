@@ -85,12 +85,12 @@ groups:
       - record: job:up_ratio
         expr: avg by(job) (up)
 
-      # ── OpenClaw / Ollama service state ────────────────────────────────────
-      - record: instance:openclaw_active
+      # ── Hermes / Ollama service state ──────────────────────────────────────
+      - record: instance:hermes_active
         expr: >
           node_systemd_unit_state{
             job="agent_vms",
-            name="openclaw-gateway.service",
+            name=~"hermes-.+\\.service",
             state="active"
           }
 

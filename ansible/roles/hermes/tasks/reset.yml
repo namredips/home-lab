@@ -1,0 +1,27 @@
+---
+- name: Stop Hermes service
+  systemd:
+    name: "{{ hermes_service_name }}"
+    state: stopped
+    enabled: false
+  become: true
+  when: hermes_enable_service
+  ignore_errors: true
+
+- name: Remove Hermes systemd service file
+  file:
+    path: "/etc/systemd/system/{{ hermes_service_name }}.service"
+    state: absent
+  become: true
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+  become: true
+
+- name: Confirm data preservation
+  debug:
+    msg:
+      - "Hermes service removed for: {{ agent_name }}"
+      - "Config and memory preserved at: {{ hermes_install_dir }}"
+      - "To fully remove: rm -rf {{ hermes_install_dir }}"
