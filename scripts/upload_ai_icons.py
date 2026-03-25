@@ -147,6 +147,30 @@ def upload_app_icon(bot_name: str, app_id: str, token: str, image_path: Path) ->
         return False
 
 
+def upload_app_banner(bot_name: str, app_id: str, token: str, image_path: Path) -> bool:
+    """Upload banner (cover image) to Discord Developer Portal for a specific application."""
+    url = f"{DISCORD_API_BASE}/applications/{app_id}"
+    headers = {
+        "Authorization": f"Bot {token}",
+        "Content-Type": "application/json",
+        "User-Agent": "DiscordBot (home-lab, 1.0)"
+    }
+
+    base64_image = base64.b64encode(image_path.read_bytes()).decode('utf-8')
+    data_uri = f"data:image/png;base64,{base64_image}"
+
+    try:
+        response = requests.patch(url, headers=headers, json={"cover_image": data_uri})
+        response.raise_for_status()
+        print(f"✅ Uploaded banner for {bot_name}")
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Failed to upload banner for {bot_name}: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"   Response: {e.response.text}")
+        return False
+
+
 def upload_server_icon(token: str, image_path: Path) -> bool:
     """Upload server icon (using Freya's admin token)."""
     url = f"{DISCORD_API_BASE}/guilds/{GUILD_ID}"
@@ -238,6 +262,33 @@ def main():
             upload_failed += 1
 
         time.sleep(0.5)  # gentle rate limiting
+
+    # Upload Developer Portal banners (cover images)
+    print("\n📤 Uploading Developer Portal banners...")
+    banners_dir = Path("assets/banners")
+
+    if not banners_dir.exists():
+        print("⚠️  assets/banners/ not found — run discord_banners.py first")
+    else:
+        for bot_name, app_id in APP_IDS.items():
+            banner_path = banners_dir / f"{bot_name}.png"
+
+            if not banner_path.exists():
+                print(f"⚠️  Banner not found: {banner_path}")
+                upload_failed += 1
+                continue
+
+            if bot_name not in tokens:
+                print(f"⚠️  Skipping {bot_name} banner - no token available")
+                upload_failed += 1
+                continue
+
+            if upload_app_banner(bot_name, app_id, tokens[bot_name], banner_path):
+                upload_success += 1
+            else:
+                upload_failed += 1
+
+            time.sleep(0.5)
 
     # Upload server icon
     print("\n📤 Uploading server icon...")
