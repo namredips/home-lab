@@ -65,6 +65,11 @@ ICON_PROMPTS = {
         "prompt": "Freya Norse goddess, beautiful and powerful, falcon feather cloak, Brisingamen necklace, magical and regal, cats at her side, Norse mythology art style, warrior goddess of love, circular icon format, 4K quality, detailed, mythological, enchanting",
         "color": "gold and silver"
     },
+    "hephaestus": {
+        "name": "Hephaestus",
+        "prompt": "Hephaestus Greek god of the forge, divine blacksmith craftsman, muscular god at his anvil, hammer raised, forge fire glowing orange behind him, soot-stained armor, classical Greek art style, intense focused expression, circular icon format, 4K quality, detailed, mythological, dramatic forge firelight",
+        "color": "forge amber and iron grey"
+    },
 }
 
 SERVER_PROMPT = {
