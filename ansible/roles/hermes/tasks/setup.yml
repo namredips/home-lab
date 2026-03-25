@@ -1,15 +1,14 @@
 ---
 - name: Check if Hermes is already installed
   stat:
-    path: /usr/local/bin/hermes
+    path: "/home/{{ ansible_user }}/.local/bin/hermes"
   register: hermes_binary
 
 - name: Install Hermes Agent via curl installer
-  shell: curl -fsSL https://install.herm.es | bash
-  become: true
+  shell: curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash -s -- --skip-setup
   when: not hermes_binary.stat.exists
   args:
-    creates: /usr/local/bin/hermes
+    creates: "/home/{{ ansible_user }}/.local/bin/hermes"
 
 - name: Create Hermes config directory
   file:
