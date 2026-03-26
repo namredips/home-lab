@@ -15,6 +15,7 @@ agent_email: "{{ inventory_hostname_short }}@infiquetra.com"
 # Discord configuration
 discord_guild_id: "832250938571227217"
 discord_bot_token: "{{ lookup('vars', 'vault_discord_bot_token_' + inventory_hostname_short) }}"
+discord_allowed_user_id: "378678500737155082"
 
 # Ollama provider (running locally on each agent VM)
 hermes_ollama_base_url: "http://127.0.0.1:11434/v1"
