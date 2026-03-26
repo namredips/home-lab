@@ -22,9 +22,6 @@ hermes_ollama_base_url: "http://127.0.0.1:11434"
 
 # Model configuration
 hermes_primary_model: "gemini-3-flash-preview:cloud"
-hermes_fallback_models:
-  - "qwen3.5:cloud"
-  - "kimi-k2.5:cloud"
 hermes_auxiliary_conversation_model: "gemini-3-flash-preview:cloud"
 hermes_auxiliary_subagent_model: "gemini-3-flash-preview:cloud"
 
