@@ -120,6 +120,25 @@ Results:
 - Observability confirmed (Discord events visible)
 - Rollback procedure tested
 
+## Phase 0: Ollama Backend Configuration — COMPLETE
+
+**Executed**: 2026-03-25
+
+**Goal**: Get Hermes talking to Ollama cloud models on agent VMs.
+
+Key findings:
+1. **Ollama cloud auth uses SSH keys**, not API keys. The keypair lives at `/usr/share/ollama/.ollama/id_ed25519` (systemd service user), not `~/.ollama/`. All VMs must share the mac mini's registered key.
+
+2. **Hermes ignores `providers:` in config.yaml.** Model/provider config is exclusively via environment variables: `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `HERMES_MODEL`.
+
+3. **The OpenRouter trap**: Without `OPENAI_BASE_URL` and `HERMES_MODEL` set, Hermes defaults to OpenRouter with `claude-opus-4.6`, which fails on headless VMs with "No cookie auth credentials found".
+
+4. **Model selection**: `gemini-3-flash-preview:cloud` chosen as primary — 78% SWE-Bench Verified, optimized for agentic multi-turn tool calling, fastest response time. Fallbacks: `qwen3.5:cloud` → `kimi-k2.5:cloud`.
+
+5. **Working Ansible config**: Environment template (`hermes.env.j2`) sets `OPENAI_BASE_URL=http://127.0.0.1:11434/v1`, `OPENAI_API_KEY=ollama`, and `HERMES_MODEL=gemini-3-flash-preview:cloud`. The `config.yaml` only handles identity, auxiliary models, Discord, memory, and schedule.
+
+Operational guide: [`knowledge/hermes-ollama-config.md`](knowledge/hermes-ollama-config.md)
+
 ## Phase 6: Fleet Migration — IN PROGRESS
 
 **Started**: 2026-03-25
