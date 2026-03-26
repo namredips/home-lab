@@ -91,3 +91,10 @@ github_org: "infiquetra"
 # Run clone_repos.yml after SSH keys are registered in GitHub
 infiquetra_repos:
   - home-lab
+  - knowledge-base
+
+# Cloud credentials (deploy only when vault keys are present)
+deploy_aws_credentials: true
+deploy_gcp_credentials: true
+deploy_google_oauth: true
+aws_default_region: us-east-1

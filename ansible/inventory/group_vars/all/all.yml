@@ -236,3 +236,29 @@ vault_nut_admin_password: !vault |
           33356362653330383832643136343034333630653736333633656133373932373638626565363236
           6365353265326230370a646130633931616662643337326234323661356637666132666236343538
           3030
+
+# ── Cloud credentials ─────────────────────────────────────────────────────────
+# Populate these with: ansible-vault encrypt_string 'VALUE' --name 'KEY' --vault-password-file ~/.vault_pass.txt
+
+# AWS IAM user credentials (olympus-agent, least-privilege scoped to infiquetra org)
+# vault_aws_access_key_id: !vault | ...
+# vault_aws_secret_access_key: !vault | ...
+aws_default_region: us-east-1
+
+# GCP service account JSON (full JSON blob from console.cloud.google.com)
+# vault_gcp_service_account_json: !vault | ...
+
+# Google OAuth credentials (namredips@gmail.com personal account)
+# Scoped to: Gmail API, Drive API, Sheets API
+# One-time browser flow: gcloud auth application-default login --scopes=...
+# Then export ~/.config/gcloud/application_default_credentials.json
+# vault_google_oauth_client_id: !vault | ...
+# vault_google_oauth_client_secret: !vault | ...
+# vault_google_oauth_refresh_token: !vault | ...
+
+# GitHub PAT for automated gh CLI auth + SSH key registration
+# Fine-grained, scoped to infiquetra org (repos, issues, PRs, SSH keys)
+# vault_github_pat: !vault | ...
+
+# Redis password for olympus-bus (10.220.1.64)
+# vault_redis_password: !vault | ...

@@ -1,35 +1,33 @@
-# OpenClaw Coordination Model
+# Olympus Coordination Model
 
 ## Overview
 
-The OpenClaw team uses a hybrid coordination model combining GitHub for work tracking and Mattermost for real-time communication. Agents operate autonomously but collaborate transparently.
+The Olympus agent team uses a layered coordination model with clear separation of concerns:
+
+- **Source of truth**: GitHub Issues — all work originates here
+- **Task coordination**: Beads (`bd` CLI) backed by a shared Dolt database — agents discover and claim work
+- **Real-time events**: Redis pub/sub on olympus-bus (10.220.1.64:6379) — machine-speed coordination
+- **Human visibility**: Discord — key events bridged to dedicated channels for human awareness
+- **Code operations**: `gh` CLI — creating PRs, requesting reviews, closing issues
 
 ## Work Discovery
 
-### GitHub Monitoring
+### Beads Sync from GitHub
 
-Agents actively monitor the `infiquetra` GitHub organization for new work:
+A sync service on olympus-bus polls GitHub Issues every 5 minutes and writes them into the Dolt database. Agents don't need to poll GitHub directly.
 
 ```bash
-# Check for unassigned issues across all repos
-gh issue list --repo infiquetra/<repo> --state open --assignee ""
+# See all work ready to be claimed
+bd ready
 
-# Filter by priority labels
-gh issue list --label "priority:P0" --state open
+# Filter by label/priority
+bd ready --label "priority:P0"
 
-# View issue details
-gh issue view <number> --repo infiquetra/<repo>
+# View details of a specific bead
+bd show <id>
 ```
 
-**Monitoring Frequency:**
-- P0 (Critical): Continuous monitoring
-- P1 (High): Every 15 minutes
-- P2 (Normal): Every hour
-- P3 (Low): Twice daily
-
-### Issue Prioritization
-
-Issues are prioritized by labels:
+**Priority labels** (synced from GitHub):
 - **P0**: Production incidents, critical bugs, blocking issues
 - **P1**: Important features, significant bugs, time-sensitive work
 - **P2**: Normal features, minor bugs, improvements
@@ -39,60 +37,35 @@ Issues are prioritized by labels:
 
 ### Step 1: Find Suitable Work
 
+```bash
+bd ready
+```
+
 Agents select work based on:
 1. **Priority**: Higher priority first
 2. **Trait alignment**: Work matching their strengths
 3. **Availability**: Not blocked by dependencies
 4. **Current workload**: Balance across team
 
-### Step 2: Announce Intent
-
-Post in Mattermost `#dev` channel:
-
-```
-🔔 Claiming: infiquetra/example-repo#123
-Title: Fix authentication timeout bug
-Reason: Matches my precision trait, edge case handling
-
-Objections? Replying in 2 minutes ⏱️
-```
-
-**Required information:**
-- Issue identifier (repo + number)
-- Issue title
-- Reason (why you're suited)
-- Timing (always 2 minutes)
-
-### Step 3: Wait for Objections
-
-**2-minute window** for team to respond.
-
-**Valid objections:**
-- "I'm already working on this"
-- "This is blocked by my other work"
-- "This should wait for X to complete"
-- Zeus/Athena: "Assign to [agent] instead"
-
-**Invalid objections:**
-- "I might want this later"
-- General disagreement without reason
-- Personal preference without justification
-
-### Step 4: Self-Assign
-
-If no objections after 2 minutes:
+### Step 2: Claim the Work
 
 ```bash
-gh issue edit <number> --add-assignee @me --repo infiquetra/<repo>
+bd update <id> --claim
 ```
 
-Post confirmation:
-```
-✅ Assigned: infiquetra/example-repo#123
-Starting work now.
-```
+This atomically:
+- Assigns the bead to the claiming agent
+- Updates the corresponding GitHub Issue assignee
+- Publishes a `olympus:task:claimed` event on Redis
+- The Discord bridge posts to `#agent-updates`:
+  ```
+  Claimed: infiquetra/example-repo#123 — Fix authentication timeout bug
+  Agent: Apollo
+  ```
 
-### Step 5: Create Working Branch
+No 2-minute waiting period. Beads handles conflicts atomically — first to claim wins.
+
+### Step 3: Create Working Branch
 
 ```bash
 cd ~/repos/infiquetra/<repo>
@@ -100,19 +73,20 @@ git checkout -b feature/issue-123-fix-auth-timeout
 ```
 
 Branch naming convention:
-- `feature/<issue>-<short-description>` - New features
-- `fix/<issue>-<short-description>` - Bug fixes
-- `refactor/<issue>-<short-description>` - Refactoring
-- `docs/<issue>-<short-description>` - Documentation
+- `feature/<issue>-<short-description>` — New features
+- `fix/<issue>-<short-description>` — Bug fixes
+- `refactor/<issue>-<short-description>` — Refactoring
+- `docs/<issue>-<short-description>` — Documentation
 
 ## Development Workflow
 
 ### Progress Updates
 
-Post significant milestones in `#dev`:
+Significant milestones publish to Redis (`olympus:task:progress`), which the Discord bridge posts to `#agent-updates`:
 
 ```
-📍 Progress on #123: Identified root cause in session timeout logic
+Progress on #123: Identified root cause in session timeout logic
+Agent: Apollo
 Next: Implementing fix with tests
 ```
 
@@ -124,37 +98,36 @@ Next: Implementing fix with tests
 
 ### Handling Blockers
 
-Immediately report in `#dev`:
+Report blockers via beads:
+
+```bash
+bd update <id> --status blocked --note "Missing API documentation for auth endpoint"
+```
+
+This publishes `olympus:task:blocked` to Redis. The Discord bridge posts to `#agent-handoffs`:
 
 ```
-🚧 Blocked on #123: Missing API documentation for auth endpoint
-@hermes: Can you share the endpoint specs?
+Blocked: #123 — Missing API documentation for auth endpoint
+Agent: Apollo
+Needs: @Athena
 ```
 
 **Blocker protocol:**
-1. Describe the blocker clearly
-2. @ mention person who can help
+1. Mark the bead as blocked with a clear note
+2. Tag who can help in the note
 3. Provide context (what you've tried)
 4. Switch to other work while waiting
 
-### Asking for Help
+### Architecture Questions
 
-Architecture questions go to `#architecture`:
+Post in Discord `#architecture` for design discussions:
 
 ```
-🤔 Design question on #123: Session timeout strategy
+Design question on #123: Session timeout strategy
 Current approach: Sliding window (extends on activity)
 Alternative: Fixed timeout (hard limit)
-
-@athena: Thoughts on security vs UX tradeoffs?
+@Athena: Thoughts on security vs UX tradeoffs?
 ```
-
-**Question format:**
-- Context (what you're working on)
-- Current approach
-- Alternatives considered
-- Specific person to consult
-- What you need (decision, review, guidance)
 
 ## Code Review Process
 
@@ -188,17 +161,20 @@ EOF
 
 ### Requesting Reviews
 
-Post in `#pr-reviews`:
+Publish review request via Redis (`olympus:review:requested`). The Discord bridge posts to `#agent-sync`:
 
 ```
-🔍 Review needed: infiquetra/example-repo#456
+Review needed: infiquetra/example-repo#456
 Title: Fix: Authentication timeout edge case
-Changes: Session timeout logic, ~50 lines
-Size: Small
+Size: Small (~50 lines)
 Priority: P1
-Tests: ✅ All passing
+Tests: All passing
+```
 
-@apollo: Could use your eye on the test coverage
+You can also request specific reviewers via `gh`:
+
+```bash
+gh pr edit 456 --add-reviewer apollo
 ```
 
 **Review size classification:**
@@ -221,17 +197,7 @@ Review within time expectations:
 - P3: Within 48 hours
 
 ```bash
-# Review PR
-gh pr review 456 --approve --body "$(cat <<EOF
-LGTM! Nice test coverage of the edge cases.
-
-Suggestions:
-- Consider adding a comment explaining the sliding window logic
-- Might want to make timeout configurable via env var
-
-Approving as-is, suggestions are optional.
-EOF
-)"
+gh pr review 456 --approve --body "LGTM! Nice test coverage of the edge cases."
 ```
 
 ### Merging PRs
@@ -239,47 +205,51 @@ EOF
 After approval:
 
 ```bash
-# Merge PR (squash for clean history)
 gh pr merge 456 --squash --delete-branch
 ```
 
-Post completion:
+Update the bead:
+
+```bash
+bd close <id>
 ```
-✅ Merged: infiquetra/example-repo#456
-Closes: #123
+
+This publishes `olympus:task:completed` to Redis. The Discord bridge posts to `#agent-updates`:
+
+```
+Completed: #123 — Fix authentication timeout edge case
+Agent: Apollo
+PR: #456 merged
 ```
 
 ## Daily Routine
 
-### Morning Check-in
+### Morning
 
-1. **Check Mattermost `#dev`**
-   - Overnight activity
-   - @ mentions
-   - Team status
+1. **Check beads for ready work**
+   ```bash
+   bd ready
+   bd list --mine --status open
+   ```
 
-2. **Review GitHub notifications**
+2. **Check Discord `#agent-updates`** for overnight activity
+
+3. **Review GitHub notifications**
    ```bash
    gh api notifications
    ```
 
-3. **Check assigned work**
+4. **Check for pending reviews**
    ```bash
-   gh issue list --assignee @me --state open
-   ```
-
-4. **Look for new high-priority work**
-   ```bash
-   gh issue list --label "priority:P1" --assignee "" --state open
+   gh pr list --search "review-requested:@me"
    ```
 
 ### Throughout Day
 
-1. **Monitor `#dev` channel** for coordination
-2. **Respond to @ mentions** within 30 minutes
-3. **Post progress updates** at milestones
+1. **Work claimed beads** — update progress via `bd update`
+2. **Respond to review requests** — check `#agent-sync`
+3. **Help blocked teammates** — watch `#agent-handoffs`
 4. **Review PRs** when requested
-5. **Help teammates** when they're blocked
 
 ### End of Day
 
@@ -288,39 +258,34 @@ Closes: #123
    git push origin <branch-name>
    ```
 
-2. **Update issue with status**
+2. **Update bead status**
    ```bash
-   gh issue comment <number> --body "Status: <update>"
-   ```
-
-3. **Post summary if significant progress**
-   ```
-   📊 End of day: #123
-   Completed: Root cause analysis, test cases written
-   Tomorrow: Implement fix, validate solution
+   bd update <id> --note "Status: root cause analysis complete, implementing fix tomorrow"
    ```
 
 ## Emergency Protocols
 
 ### Critical Issues (P0)
 
-1. **@channel notification** in `#dev`
+1. **Immediate bead creation** with P0 label
+   ```bash
+   bd create --label "priority:P0" --title "Production auth system down"
    ```
-   🚨 @channel Critical: Production auth system down
+
+2. Redis publishes `olympus:task:emergency`. Discord bridge posts to `#agent-updates` with @everyone:
+   ```
+   CRITICAL: Production auth system down
    Issue: infiquetra/auth-service#789
    Impact: All users unable to log in
    ```
 
-2. **Zeus coordinates** response
-3. **Team drops current work** to assist
-4. **Status updates every 15 minutes**
+3. **Zeus coordinates** response
+4. **Team drops current work** to assist
+5. **Status updates every 15 minutes** via `bd update`
 
-### Conflicting Assignments
+### Conflicting Claims
 
-If two agents claim same issue:
-1. **First to post** in Mattermost gets priority
-2. **Zeus decides** if simultaneous
-3. **Loser finds different work** immediately
+Beads handles this atomically — first to `bd update --claim` wins. The losing agent simply finds different work.
 
 ### Disagreements
 
@@ -328,23 +293,24 @@ If two agents claim same issue:
 2. **Priority disagreement**: Zeus decides
 3. **Process disagreement**: Discuss in next retrospective
 
-## Communication Best Practices
+## Redis Pub/Sub Channels
 
-### Do:
-- ✅ Be clear and concise
-- ✅ Provide context
-- ✅ @ mention relevant people
-- ✅ Update status proactively
-- ✅ Acknowledge messages
-- ✅ Share learnings
+| Channel Pattern | Purpose |
+|----------------|---------|
+| `olympus:task:*` | Task lifecycle events (claimed, progress, blocked, completed, emergency) |
+| `olympus:review:*` | Code review events (requested, approved, changes_requested) |
+| `olympus:agent:*` | Agent status events (online, offline, capacity) |
 
-### Don't:
-- ❌ Silent work (update team on progress)
-- ❌ Work on assigned issues without claiming
-- ❌ Ignore @ mentions
-- ❌ Skip code reviews
-- ❌ Merge without approval
-- ❌ Hoard knowledge
+## Discord Channels
+
+| Channel | Purpose |
+|---------|---------|
+| `#agent-updates` | Task claims, completions, progress milestones |
+| `#agent-handoffs` | Blocked work, handoff requests |
+| `#agent-sync` | Review requests, coordination |
+| `#architecture` | Design discussions |
+| `#agent-standups` | Daily check-ins |
+| `#deployments` | Deployment notifications |
 
 ## Metrics and Improvement
 

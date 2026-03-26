@@ -7,6 +7,10 @@
   import_tasks: github_auth.yml
   when: not reset | bool
 
+- name: Deploy cloud credentials (AWS, GCP, Google OAuth)
+  import_tasks: cloud_credentials.yml
+  when: not reset | bool
+
 - name: Remove agent provisioning
   import_tasks: reset.yml
   when: reset | bool
