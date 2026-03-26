@@ -5,18 +5,7 @@ identity:
   name: "{{ agent_name | title }}"
   soul: "{{ hermes_install_dir }}/SOUL.md"
 
-providers:
-  - id: ollama
-    type: openai-compatible
-    base_url: "{{ hermes_ollama_base_url }}"
-    api_key: "ollama-local"
-
 model:
-  primary: "{{ hermes_primary_model }}"
-  fallbacks:
-{% for model in hermes_fallback_models %}
-    - "{{ model }}"
-{% endfor %}
   auxiliary:
     conversation: "{{ hermes_auxiliary_conversation_model }}"
     subagent: "{{ hermes_auxiliary_subagent_model }}"
