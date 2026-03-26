@@ -1,0 +1,23 @@
+---
+- name: Stop and disable fan control service
+  systemd:
+    name: dell-fan-control
+    enabled: false
+    state: stopped
+  ignore_errors: true
+
+- name: Remove fan control service
+  file:
+    path: /etc/systemd/system/dell-fan-control.service
+    state: absent
+  notify: Reload systemd
+
+- name: Remove fan control script
+  file:
+    path: "{{ fan_control_script }}"
+    state: absent
+
+- name: Restore automatic fan control
+  command: ipmitool raw 0x30 0x30 0x01 0x01
+  ignore_errors: true
+  changed_when: true

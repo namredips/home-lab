@@ -1,0 +1,25 @@
+---
+reset: false
+
+# Minimum fan speed floor as a percentage (20-50)
+# At 20% the R640s run ~2000 RPM — very quiet, still safe for 20-55C CPU temps
+# Increase to 25-30% if you add heavy compute workloads
+fan_min_pct: 20
+
+# Map pct → raw IPMI hex value (0x00-0x64 = 0-100%)
+_fan_pct_map:
+  20: "0x14"
+  25: "0x19"
+  30: "0x1e"
+  35: "0x23"
+  40: "0x28"
+  45: "0x2d"
+  50: "0x32"
+
+# Disable 3rd-party PCIe card fan response override
+# Only supported on Dell 14th gen servers (R640, R740, etc.) with iDRAC 9
+# Set to false for R420/R720xd/R820 (older iDRAC)
+disable_pcie_fan_override: true
+
+# Script install path on Proxmox hosts
+fan_control_script: /usr/local/bin/dell_fan_control.sh

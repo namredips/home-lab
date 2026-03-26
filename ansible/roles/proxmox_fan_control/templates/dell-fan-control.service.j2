@@ -1,0 +1,21 @@
+[Unit]
+Description=Dell PowerEdge Fan Speed Control
+Documentation=https://github.com/infiquetra/home-lab
+# Run after the IPMI service is available
+After=ipmi.service systemd-modules-load.service
+# Not a hard dependency — the script handles failures gracefully
+Wants=ipmi.service
+
+[Service]
+Type=oneshot
+# Re-apply fan settings on every start (handles reboots)
+ExecStart={{ fan_control_script }}
+RemainAfterExit=yes
+# If IPMI isn't ready yet, wait and retry once
+Restart=on-failure
+RestartSec=10s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+---
+- name: Reload systemd
+  systemd:
+    daemon_reload: true
+
+- name: Restart fan control service
+  systemd:
+    name: dell-fan-control
+    state: restarted

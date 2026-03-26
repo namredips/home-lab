@@ -1,0 +1,17 @@
+---
+# Deploy Dell fan speed control to all Proxmox hosts
+# Sets a quiet 20% minimum floor while allowing iDRAC thermal ramp-up under load
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml fan_control.yml \
+#     --vault-password-file ~/.vault_pass.txt
+#
+# Reset (restore automatic fan control):
+#   ansible-playbook -i inventory/hosts.yml fan_control.yml \
+#     --vault-password-file ~/.vault_pass.txt -e reset=true
+
+- name: Configure Dell fan speed control
+  hosts: proxmox_hosts
+  become: true
+  roles:
+    - role: proxmox_fan_control

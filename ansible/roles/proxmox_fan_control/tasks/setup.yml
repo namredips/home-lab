@@ -1,0 +1,51 @@
+---
+- name: Ensure ipmitool is installed
+  apt:
+    name: ipmitool
+    state: present
+    update_cache: false
+
+- name: Load IPMI kernel modules
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - ipmi_devintf
+    - ipmi_si
+
+- name: Persist IPMI kernel modules across reboots
+  lineinfile:
+    path: /etc/modules
+    line: "{{ item }}"
+    create: true
+    mode: "0644"
+  loop:
+    - ipmi_devintf
+    - ipmi_si
+
+- name: Deploy fan control script
+  template:
+    src: dell_fan_control.sh.j2
+    dest: "{{ fan_control_script }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart fan control service
+
+- name: Deploy fan control systemd service
+  template:
+    src: dell-fan-control.service.j2
+    dest: /etc/systemd/system/dell-fan-control.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart fan control service
+
+- name: Enable and start fan control service
+  systemd:
+    name: dell-fan-control
+    enabled: true
+    state: started
+    daemon_reload: true

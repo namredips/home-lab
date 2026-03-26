@@ -1,0 +1,31 @@
+#!/bin/bash
+# Dell PowerEdge fan speed control
+# Managed by Ansible — do not edit manually
+# Runs at boot via dell-fan-control.service
+
+set -euo pipefail
+
+IPMI="ipmitool raw"
+LOG="logger -t dell-fan-control"
+
+$LOG "Applying fan speed floor: {{ fan_min_pct }}%"
+
+# Step 1: Switch to manual fan control mode
+# This sets a minimum floor — iDRAC thermal algorithm still raises fans under real load
+$IPMI 0x30 0x30 0x01 0x00
+$LOG "Manual fan control mode enabled"
+
+# Step 2: Set minimum fan speed ({{ fan_min_pct }}% = {{ _fan_pct_map[fan_min_pct] }})
+$IPMI 0x30 0x30 0x02 0xff {{ _fan_pct_map[fan_min_pct] }}
+$LOG "Fan floor set to {{ fan_min_pct }}%"
+
+{% if disable_pcie_fan_override %}
+# Step 3: Disable 3rd-party PCIe card fan response override
+# iDRAC cranks fans to 100% when it detects non-Dell PCIe cards it can't query.
+# This command tells iDRAC to ignore unknown PCIe cards for fan control purposes.
+# Only works on 14th gen (iDRAC 9) — silently fails on older hardware.
+$IPMI 0x30 0xce 0x00 0x16 0x05 0x00 0x00 0x00 0x05 0x00 0x01 0x00 0x00 || true
+$LOG "3rd-party PCIe fan override disabled (or not supported on this hardware)"
+{% endif %}
+
+$LOG "Fan control applied successfully"
