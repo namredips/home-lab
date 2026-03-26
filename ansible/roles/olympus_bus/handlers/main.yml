@@ -1,0 +1,12 @@
+---
+- name: Restart redis
+  systemd:
+    name: redis-server
+    state: restarted
+  become: yes
+
+- name: Restart olympus-bridge
+  systemd:
+    name: olympus-bridge
+    state: restarted
+  become: yes

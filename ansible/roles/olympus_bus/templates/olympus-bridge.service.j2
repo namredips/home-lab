@@ -1,0 +1,15 @@
+[Unit]
+Description=Olympus Discord Bridge
+After=network.target redis-server.service
+
+[Service]
+Type=simple
+User={{ olympus_user }}
+ExecStart=/usr/bin/python3 /opt/olympus-bridge/bridge.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -17,8 +17,10 @@
   loop: "{{ infiquetra_repos }}"
   loop_control:
     loop_var: repo_item
-  ignore_errors: yes
   register: clone_results
+  failed_when:
+    - clone_results.failed
+    - "'already exists' not in (clone_results.msg | default(''))"
 
 - name: Report clone results
   debug:

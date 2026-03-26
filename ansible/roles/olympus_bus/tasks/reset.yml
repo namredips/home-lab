@@ -1,0 +1,27 @@
+---
+- name: Stop and disable olympus-bus services
+  systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  become: yes
+  loop:
+    - olympus-bridge
+    - dolt-server
+    - redis-server
+  ignore_errors: yes
+
+- name: Remove olympus-bus service files
+  file:
+    path: "{{ item }}"
+    state: absent
+  become: yes
+  loop:
+    - /etc/systemd/system/olympus-bridge.service
+    - /etc/systemd/system/dolt-server.service
+    - /opt/olympus-bridge
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+  become: yes

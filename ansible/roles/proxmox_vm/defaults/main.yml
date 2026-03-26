@@ -160,3 +160,13 @@ service_vms:
     ip: 10.220.1.63
     mac: "52:54:00:c8:03:3f"
     description: "Prometheus + Grafana + Loki full observability stack"
+
+  olympus-bus:
+    vmid: 204
+    host: r820.infiquetra.com
+    vcpus: 4
+    memory_mb: 8192
+    disk_gb: 50
+    ip: 10.220.1.64
+    gateway: 10.220.1.1
+    description: "Olympus Bus: Redis + Dolt server + Discord bridge for agent coordination"

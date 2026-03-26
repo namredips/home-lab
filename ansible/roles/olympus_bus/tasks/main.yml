@@ -1,0 +1,8 @@
+---
+- name: Set up olympus-bus services
+  import_tasks: setup.yml
+  when: not reset | bool
+
+- name: Reset olympus-bus services
+  import_tasks: reset.yml
+  when: reset | bool

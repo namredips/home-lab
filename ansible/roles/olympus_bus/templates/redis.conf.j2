@@ -1,0 +1,17 @@
+bind {{ redis_bind }}
+port {{ redis_port }}
+requirepass {{ vault_redis_password }}
+
+maxmemory {{ redis_maxmemory }}
+maxmemory-policy {{ redis_maxmemory_policy }}
+
+# Persistence
+appendonly yes
+appendfsync everysec
+
+{% for interval in redis_save_intervals %}
+save {{ interval }}
+{% endfor %}
+
+# Security
+protected-mode yes

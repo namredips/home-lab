@@ -1,0 +1,19 @@
+[Unit]
+Description=Dolt SQL Server
+After=network.target
+
+[Service]
+Type=simple
+User={{ olympus_user }}
+WorkingDirectory={{ dolt_data_dir }}
+ExecStart=/usr/local/bin/dolt sql-server \
+  --host=10.220.1.64 \
+  --port={{ dolt_port }} \
+  --user={{ dolt_user }} \
+  --password={{ vault_dolt_agent_password }} \
+  --loglevel=info
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

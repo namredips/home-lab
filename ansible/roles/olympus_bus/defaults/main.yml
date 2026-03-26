@@ -1,0 +1,26 @@
+---
+reset: false
+
+# Redis configuration
+redis_port: 6379
+redis_bind: "10.220.1.64 127.0.0.1"
+redis_maxmemory: "2gb"
+redis_maxmemory_policy: "allkeys-lru"
+redis_save_intervals:
+  - "3600 1"
+  - "300 100"
+  - "60 10000"
+
+# Dolt server configuration
+dolt_port: 3306
+dolt_database: "olympus"
+dolt_user: "agent"
+dolt_install_dir: "/opt/dolt"
+dolt_data_dir: "/var/lib/dolt"
+
+# Discord bridge
+bridge_redis_channel_pattern: "olympus:discord:*"
+bridge_poll_interval: 1
+
+# Service user
+olympus_user: "agent"

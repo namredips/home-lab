@@ -1,0 +1,7 @@
+---
+- name: Deploy Olympus Bus coordination infrastructure
+  hosts: olympus_bus
+  roles:
+    - role: olympus_bus
+  vars:
+    ansible_user: agent

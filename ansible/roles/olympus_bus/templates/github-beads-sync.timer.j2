@@ -1,0 +1,11 @@
+[Unit]
+Description=Run GitHub-Beads sync every 5 minutes
+After=network.target
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=github-beads-sync.service
+
+[Install]
+WantedBy=timers.target

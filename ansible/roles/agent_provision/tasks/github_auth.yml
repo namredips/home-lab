@@ -9,12 +9,36 @@
     mode: '0600'
   register: agent_ssh_key
 
-- name: Display public key for GitHub registration
+- name: Authenticate GitHub CLI with PAT
+  shell: echo "{{ vault_github_pat }}" | gh auth login --with-token
+  when: vault_github_pat is defined
+  no_log: true
+  changed_when: false
+
+- name: Register agent SSH key with GitHub
+  shell: |
+    gh ssh-key add ~/.ssh/id_ed25519.pub \
+      --title "{{ inventory_hostname_short }}-agent" \
+      --type authentication
+  register: gh_key_result
+  changed_when: "'already exists' not in (gh_key_result.stderr | default(''))"
+  failed_when:
+    - gh_key_result.rc != 0
+    - "'already exists' not in (gh_key_result.stderr | default(''))"
+  when: vault_github_pat is defined and agent_ssh_key.changed
+
+- name: Wait for SSH key propagation to GitHub
+  pause:
+    seconds: 10
+    prompt: "Waiting for SSH key to propagate to GitHub..."
+  when: vault_github_pat is defined and gh_key_result is changed
+
+- name: Display public key for manual GitHub registration (PAT not configured)
   debug:
     msg:
       - "{{ agent_name | title }} SSH public key — add to GitHub (https://github.com/settings/keys):"
       - "{{ agent_ssh_key.public_key }}"
-  when: agent_ssh_key.changed
+  when: agent_ssh_key.changed and vault_github_pat is not defined
 
 - name: Configure SSH for GitHub
   blockinfile:

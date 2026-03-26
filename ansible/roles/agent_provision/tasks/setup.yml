@@ -159,6 +159,11 @@
     create: yes
   when: install_rust
 
+# Rust additional tools
+- name: Install rust-analyzer via rustup
+  shell: bash -lc "source ~/.bash_profile && rustup component add rust-analyzer"
+  when: install_rust and install_rust_tools | default(true)
+
 # Go installation
 - name: Download Go {{ golang_version }}
   get_url:
@@ -180,6 +185,15 @@
     line: 'export PATH="$PATH:$HOME/.local/go/bin"'
     create: yes
   when: install_golang
+
+# Go development tools
+- name: Install Go development tools
+  shell: bash -lc "source ~/.bash_profile && go install {{ item }}"
+  loop:
+    - golang.org/x/tools/gopls@latest
+    - github.com/go-delve/delve/cmd/dlv@latest
+    - github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+  when: install_golang and install_go_tools | default(true)
 
 # C/C++ tools
 - name: Install C/C++ development tools
@@ -288,6 +302,23 @@
     - isort
   when: install_python
 
+# Additional Python dev tools
+- name: Install additional Python development tools
+  shell: bash -lc "uv tool install {{ item }}"
+  args:
+    creates: ~/.local/bin/{{ item }}
+  loop:
+    - mypy
+    - bandit
+    - pre-commit
+  when: install_python and install_extra_python_tools | default(true)
+
+- name: Install debugpy for Python debugging
+  shell: bash -lc "uv tool install debugpy"
+  args:
+    creates: ~/.local/bin/debugpy
+  when: install_python and install_extra_python_tools | default(true)
+
 # Node.js dev tools
 - name: Install Node.js development tools
   npm:
@@ -303,6 +334,9 @@
     - yaml-language-server
     - vscode-langservers-extracted
     - dot-language-server
+    - typescript-language-server
+    - eslint
+    - markdownlint-cli
   when: install_dev_tools and install_nodejs
 
 # Neovim configuration
@@ -519,25 +553,154 @@
 
 # AI coding tools - Note: These require manual authentication
 - name: Install Claude Code CLI
-  shell: curl -fsSL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
-  args:
-    creates: ~/.local/bin/claude-code
+  npm:
+    name: "@anthropic-ai/claude-code"
+    global: yes
+    state: present
+  become: yes
+  when: install_claude_code and install_nodejs
+
+- name: Note Claude Code auth requirement
+  debug:
+    msg: "REMINDER: Claude Code CLI requires 'claude auth' — auth tokens may be portable from Mac mini"
   when: install_claude_code
 
-- name: Create reminder for Claude Code authentication
-  debug:
-    msg: "REMINDER: Claude Code CLI installed but requires manual authentication via 'claude-code auth'"
-  when: install_claude_code
+- name: Install Codex CLI
+  npm:
+    name: "@openai/codex"
+    global: yes
+    state: present
+  become: yes
+  when: install_codex_cli and install_nodejs
 
-- name: Install OpenAI Codex CLI placeholder
+- name: Note Codex CLI auth requirement
   debug:
-    msg: "REMINDER: Codex CLI installation requires manual setup - visit https://platform.openai.com/docs/guides/code"
+    msg: "REMINDER: Codex CLI requires 'codex auth' (ChatGPT Pro OAuth) — auth tokens may be portable from Mac mini"
   when: install_codex_cli
 
-- name: Install Google Gemini CLI placeholder
+- name: Install Gemini CLI
+  npm:
+    name: "@google/gemini-cli"
+    global: yes
+    state: present
+  become: yes
+  when: install_gemini_cli and install_nodejs
+
+- name: Note Gemini CLI auth requirement
   debug:
-    msg: "REMINDER: Gemini CLI installation requires manual setup - visit https://ai.google.dev/tutorials/setup"
+    msg: "REMINDER: Gemini CLI requires 'gemini auth' (Google OAuth) — see knowledge/ai-cli-auth-research.md"
   when: install_gemini_cli
+
+# git-delta (better git diff)
+- name: Create .local/bin for git extras
+  file:
+    path: ~/.local/bin
+    state: directory
+    mode: '0755'
+  when: install_git_extras | default(true)
+
+- name: Download git-delta
+  get_url:
+    url: https://github.com/dandavison/delta/releases/latest/download/delta-x86_64-unknown-linux-musl.tar.gz
+    dest: /tmp/git-delta.tar.gz
+  when: install_git_extras | default(true)
+
+- name: Extract and install git-delta
+  shell: |
+    cd /tmp && tar xzf git-delta.tar.gz && find /tmp -name 'delta' -type f | head -1 | xargs -I{} cp {} ~/.local/bin/delta
+    chmod +x ~/.local/bin/delta
+  args:
+    creates: ~/.local/bin/delta
+  when: install_git_extras | default(true)
+
+- name: Download lazygit
+  get_url:
+    url: https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_Linux_x86_64.tar.gz
+    dest: /tmp/lazygit.tar.gz
+  when: install_git_extras | default(true)
+
+- name: Extract and install lazygit
+  shell: |
+    cd /tmp && tar xzf lazygit.tar.gz lazygit && cp lazygit ~/.local/bin/lazygit
+    chmod +x ~/.local/bin/lazygit
+  args:
+    creates: ~/.local/bin/lazygit
+  when: install_git_extras | default(true)
+
+# hadolint (Dockerfile linter)
+- name: Download hadolint
+  get_url:
+    url: https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
+    dest: ~/.local/bin/hadolint
+    mode: '0755'
+  when: install_shell_tools | default(true)
+
+# Ensure ~/.local/bin is on PATH
+- name: Add ~/.local/bin to PATH
+  lineinfile:
+    path: ~/.bashrc
+    line: 'export PATH="$HOME/.local/bin:$PATH"'
+    create: yes
+
+# Coordination tools (Redis client + env vars)
+- name: Install Redis client tools
+  apt:
+    name: redis-tools
+    state: present
+  become: yes
+
+- name: Set Olympus coordination env vars
+  blockinfile:
+    path: ~/.bash_profile
+    marker: "# {mark} ANSIBLE MANAGED - Olympus coordination"
+    block: |
+      export OLYMPUS_REDIS_HOST=10.220.1.64
+      export OLYMPUS_REDIS_PORT=6379
+      # OLYMPUS_REDIS_PASSWORD is set from ~/.olympus.env
+    create: yes
+
+- name: Deploy Olympus env file with Redis password
+  template:
+    src: olympus_env.j2
+    dest: ~/.olympus.env
+    mode: '0600'
+  when: vault_redis_password is defined
+  no_log: true
+
+- name: Source olympus env in bash_profile
+  lineinfile:
+    path: ~/.bash_profile
+    line: '[ -f ~/.olympus.env ] && source ~/.olympus.env'
+    create: yes
+
+# Beads task coordination CLI
+- name: Create .local/bin directory for beads
+  file:
+    path: ~/.local/bin
+    state: directory
+    mode: '0755'
+  when: install_beads | default(true)
+
+- name: Install beads CLI
+  shell: |
+    curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+  args:
+    creates: ~/.local/bin/bd
+  when: install_beads | default(true)
+
+- name: Create beads config directory
+  file:
+    path: ~/.beads
+    state: directory
+    mode: '0755'
+  when: install_beads | default(true)
+
+- name: Deploy beads config for shared Dolt server
+  template:
+    src: beads_config.yaml.j2
+    dest: ~/.beads/config.yaml
+    mode: '0600'
+  when: install_beads | default(true)
 
 # Cleanup dotfiles checkout
 - name: Remove dotfiles checkout from controller
@@ -568,8 +731,8 @@
       - "  - Shell utilities (pswitch, kswitch)"
       - ""
       - "NEXT STEPS:"
-      - "  1. Authenticate Claude Code: claude-code auth"
-      - "  2. Authenticate GitHub CLI: gh auth login"
-      - "  3. Configure AWS credentials: aws configure"
-      - "  4. Install Codex CLI manually"
-      - "  5. Install Gemini CLI manually"
+      - "  1. Authenticate Claude Code: claude auth"
+      - "  2. Authenticate Codex CLI: codex auth"
+      - "  3. Authenticate Gemini CLI: gemini auth"
+      - "  4. Authenticate GitHub CLI: gh auth login"
+      - "  5. Configure AWS credentials: aws configure"

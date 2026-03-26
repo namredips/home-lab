@@ -1,0 +1,151 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: yes
+
+- name: Install required packages
+  apt:
+    name:
+      - redis-server
+      - redis-tools
+      - python3
+      - python3-pip
+      - python3-venv
+      - curl
+    state: present
+  become: yes
+
+- name: Install Dolt
+  shell: curl -L https://github.com/dolthub/dolt/releases/latest/download/install.sh | bash
+  args:
+    creates: /usr/local/bin/dolt
+  become: yes
+
+- name: Create Dolt data directory
+  file:
+    path: "{{ dolt_data_dir }}"
+    state: directory
+    owner: "{{ olympus_user }}"
+    group: "{{ olympus_user }}"
+    mode: '0755'
+  become: yes
+
+- name: Initialize Dolt database
+  shell: |
+    cd {{ dolt_data_dir }} && dolt init && dolt sql -q "CREATE DATABASE IF NOT EXISTS {{ dolt_database }};"
+  args:
+    creates: "{{ dolt_data_dir }}/.dolt"
+  become: yes
+  become_user: "{{ olympus_user }}"
+
+- name: Deploy Redis configuration
+  template:
+    src: redis.conf.j2
+    dest: /etc/redis/redis.conf
+    owner: redis
+    group: redis
+    mode: '0640'
+  become: yes
+  notify: Restart redis
+
+- name: Deploy Dolt systemd service
+  template:
+    src: dolt-server.service.j2
+    dest: /etc/systemd/system/dolt-server.service
+    mode: '0644'
+  become: yes
+
+- name: Install Python redis and requests libraries
+  pip:
+    name:
+      - redis
+      - requests
+    state: present
+  become: yes
+
+- name: Create Discord bridge directory
+  file:
+    path: /opt/olympus-bridge
+    state: directory
+    owner: "{{ olympus_user }}"
+    group: "{{ olympus_user }}"
+    mode: '0755'
+  become: yes
+
+- name: Deploy Discord bridge script
+  template:
+    src: olympus-bridge.py.j2
+    dest: /opt/olympus-bridge/bridge.py
+    owner: "{{ olympus_user }}"
+    group: "{{ olympus_user }}"
+    mode: '0755'
+  become: yes
+  notify: Restart olympus-bridge
+
+- name: Deploy Discord bridge systemd service
+  template:
+    src: olympus-bridge.service.j2
+    dest: /etc/systemd/system/olympus-bridge.service
+    mode: '0644'
+  become: yes
+
+# GitHub-beads sync service
+- name: Deploy GitHub-beads sync script
+  template:
+    src: github-beads-sync.py.j2
+    dest: /opt/olympus-bridge/github-beads-sync.py
+    mode: '0755'
+  become: yes
+
+- name: Deploy GitHub-beads sync systemd service
+  template:
+    src: github-beads-sync.service.j2
+    dest: /etc/systemd/system/github-beads-sync.service
+    mode: '0644'
+  become: yes
+
+- name: Deploy GitHub-beads sync timer
+  template:
+    src: github-beads-sync.timer.j2
+    dest: /etc/systemd/system/github-beads-sync.timer
+    mode: '0644'
+  become: yes
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Enable and start services
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  become: yes
+  loop:
+    - redis-server
+    - dolt-server
+    - olympus-bridge
+
+- name: Enable and start GitHub-beads sync timer
+  systemd:
+    name: github-beads-sync.timer
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes
+
+- name: Display completion message
+  debug:
+    msg:
+      - "Olympus Bus deployed successfully!"
+      - "  Redis:   10.220.1.64:{{ redis_port }}"
+      - "  Dolt:    10.220.1.64:{{ dolt_port }}"
+      - "  Bridge:  olympus-bridge.service"
+      - ""
+      - "REQUIRED VAULT KEYS:"
+      - "  - vault_redis_password"
+      - "  - vault_dolt_agent_password"
+      - "  - vault_discord_webhook_url_olympus_bus"

@@ -1,0 +1,10 @@
+[Unit]
+Description=GitHub to Beads sync (one-shot)
+After=network.target dolt-server.service
+
+[Service]
+Type=oneshot
+User={{ olympus_user }}
+ExecStart=/usr/bin/python3 /opt/olympus-bridge/github-beads-sync.py
+StandardOutput=journal
+StandardError=journal

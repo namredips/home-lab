@@ -1,0 +1,13 @@
+# Beads configuration for {{ agent_name | title }}
+actor: "{{ agent_name }}"
+
+dolt:
+  host: 10.220.1.64
+  port: 3306
+  user: agent
+  password: "{{ vault_dolt_agent_password | default('') }}"
+  database: olympus
+
+github:
+  org: "{{ github_org }}"
+  token: "{{ vault_github_pat | default('') }}"

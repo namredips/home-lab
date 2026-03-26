@@ -23,6 +23,7 @@ base_packages:
   - ca-certificates
   - gnupg
   - lsb-release
+  - shellcheck
 
 # Language runtimes
 install_python: true
@@ -98,3 +99,13 @@ deploy_aws_credentials: true
 deploy_gcp_credentials: true
 deploy_google_oauth: true
 aws_default_region: us-east-1
+
+# Extra development tools
+install_extra_python_tools: true
+install_go_tools: true
+install_rust_tools: true
+install_git_extras: true
+install_shell_tools: true
+
+# Beads task coordination CLI
+install_beads: true
