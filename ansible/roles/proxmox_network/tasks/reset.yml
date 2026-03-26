@@ -11,6 +11,18 @@
   ignore_errors: true
   changed_when: true
 
+- name: Bring down bond interface
+  ansible.builtin.command: ip link set {{ ceph_nic }} down
+  ignore_errors: true
+  changed_when: true
+  when: ceph_bond_slaves is defined
+
+- name: Delete bond interface
+  ansible.builtin.command: ip link delete {{ ceph_nic }}
+  ignore_errors: true
+  changed_when: true
+  when: ceph_bond_slaves is defined
+
 - name: Remove Ceph network block from /etc/network/interfaces
   ansible.builtin.blockinfile:
     path: /etc/network/interfaces

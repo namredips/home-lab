@@ -1,7 +1,28 @@
+{% if ceph_bond_slaves is defined %}
+{# --- Bonded NIC setup (e.g., r720xd with onboard 1GbE NICs) --- #}
+{% for slave in ceph_bond_slaves %}
+auto {{ slave }}
+iface {{ slave }} inet manual
+        bond-master {{ ceph_nic }}
+
+{% endfor %}
+auto {{ ceph_nic }}
+iface {{ ceph_nic }} inet manual
+        bond-slaves none
+        bond-mode {{ ceph_bond_mode | default('802.3ad') }}
+        bond-miimon 100
+        bond-xmit-hash-policy {{ ceph_bond_xmit_hash | default('layer3+4') }}
+        bond-lacp-rate fast
+        bond-min-links 1
+        bond-downdelay 200
+        bond-updelay 200
+{% else %}
+{# --- Single NIC setup (all other hosts) --- #}
 auto {{ ceph_nic }}
 iface {{ ceph_nic }} inet manual
 {% if inventory_hostname in qede_hosts %}
         post-up ethtool -s {{ ceph_nic }} speed 10000 duplex full autoneg off || true
+{% endif %}
 {% endif %}
 
 auto {{ ceph_bridge_name }}

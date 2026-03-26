@@ -19,17 +19,16 @@ ceph_peers:
 # with SFP+ DAC cables without ethtool override
 qede_hosts:
   - r420.infiquetra.com
-  - r720xd.infiquetra.com
   - r820.infiquetra.com
 
 # Per-host variables (defined in host_vars):
-#   ceph_nic: "<interface>"   # physical NIC for Ceph traffic
+#   ceph_nic: "<interface>"   # physical NIC (or bond) for Ceph traffic
 #   ceph_ip: "10.220.2.X"    # static IP on Ceph network
 #
 # NIC mapping:
 #   r420:    nic2  (qede / QLogic)
 #   r640-1:  nic0  (sfc  / Solarflare)
 #   r640-2:  nic4  (sfc  / Solarflare)
-#   r720xd:  nic5  (qede / QLogic)
+#   r720xd:  bond0 (bonded nic0+nic1+nic2, onboard 1GbE, LACP — see host_vars)
 #   r820:    nic4  (qede / QLogic)
 #   r640-3:  nic4  (sfc  / Solarflare)

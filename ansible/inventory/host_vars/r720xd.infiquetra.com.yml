@@ -3,9 +3,18 @@
 # Boot: sda (2.7T SAS, PVE)
 # Ceph-Bulk 1.8T SAS: sdb, sdc, sde, sdf, sdh, sdi (6x 1.8T) → hdd class
 # Ceph-Bulk 2.7T SAS: sdd, sdg, sdj, sdk, sdl (5x 2.7T) → hdd class
-# Ceph NIC: nic5 (QLogic qede, requires forced 10G speed)
+# Ceph NIC: bond0 (bonded nic0+nic1+nic2, onboard 1GbE, LACP)
+#   Migrated from QLogic nic5 (failed PCIe card) — 2026-03-26
+#   Requires LACP LAG configured on US-48 switch for these 3 ports
+#   Management NIC (nic3 → vmbr0 → 10.220.1.10) is NOT in the bond
 
-ceph_nic: "nic5"
+ceph_nic: "bond0"
+ceph_bond_slaves:
+  - nic0
+  - nic1
+  - nic2
+ceph_bond_mode: "802.3ad"
+ceph_bond_xmit_hash: "layer3+4"
 ceph_ip: "10.220.2.10"
 
 ceph_disks:

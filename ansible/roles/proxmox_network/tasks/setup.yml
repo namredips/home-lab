@@ -12,6 +12,21 @@
   register: nic_check
   changed_when: false
   failed_when: nic_check.rc != 0
+  when: ceph_bond_slaves is not defined
+
+- name: Verify bond slave NICs exist on this host
+  ansible.builtin.command: ip link show {{ item }}
+  loop: "{{ ceph_bond_slaves }}"
+  register: slave_check
+  changed_when: false
+  failed_when: slave_check.rc != 0
+  when: ceph_bond_slaves is defined
+
+- name: Ensure bonding kernel module is loaded
+  community.general.modprobe:
+    name: bonding
+    state: present
+  when: ceph_bond_slaves is defined
 
 - name: Add Ceph NIC and vmbr1 bridge to /etc/network/interfaces
   ansible.builtin.blockinfile:
