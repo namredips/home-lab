@@ -1,0 +1,15 @@
+log_level: info
+
+behavior:
+  read_only: false
+  autocommit: true
+
+user:
+  name: "{{ dolt_user }}"
+  password: "{{ vault_dolt_agent_password }}"
+
+listener:
+  host: "10.220.1.64"
+  port: {{ dolt_port }}
+  read_timeout_millis: 28800000
+  write_timeout_millis: 28800000

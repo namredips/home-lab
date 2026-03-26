@@ -18,14 +18,14 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
 def get_github_issues() -> list[dict]:
     """Fetch all open issues from infiquetra org repos via gh CLI."""
     result = run([
-        "gh", "issue", "list",
-        "--org", GITHUB_ORG,
+        "gh", "search", "issues",
+        "--owner", GITHUB_ORG,
         "--state", "open",
         "--json", "number,title,url,labels,assignees,repository",
         "--limit", "500",
     ])
     if result.returncode != 0:
-        log.error("gh issue list failed: %s", result.stderr)
+        log.error("gh search issues failed: %s", result.stderr)
         return []
     try:
         return json.loads(result.stdout)

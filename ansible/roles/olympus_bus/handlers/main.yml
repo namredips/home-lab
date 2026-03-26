@@ -5,6 +5,12 @@
     state: restarted
   become: yes
 
+- name: Restart dolt-server
+  systemd:
+    name: dolt-server
+    state: restarted
+  become: yes
+
 - name: Restart olympus-bridge
   systemd:
     name: olympus-bridge

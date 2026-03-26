@@ -6,12 +6,14 @@
     enabled: no
   become: yes
   loop:
+    - github-beads-sync.timer
+    - github-beads-sync.service
     - olympus-bridge
     - dolt-server
     - redis-server
   ignore_errors: yes
 
-- name: Remove olympus-bus service files
+- name: Remove olympus-bus service and config files
   file:
     path: "{{ item }}"
     state: absent
@@ -19,7 +21,10 @@
   loop:
     - /etc/systemd/system/olympus-bridge.service
     - /etc/systemd/system/dolt-server.service
+    - /etc/systemd/system/github-beads-sync.service
+    - /etc/systemd/system/github-beads-sync.timer
     - /opt/olympus-bridge
+    - "{{ dolt_config_dir }}"
 
 - name: Reload systemd
   systemd:

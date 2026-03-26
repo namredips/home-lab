@@ -17,10 +17,14 @@ dolt_database: "olympus"
 dolt_user: "agent"
 dolt_install_dir: "/opt/dolt"
 dolt_data_dir: "/var/lib/dolt"
+dolt_config_dir: "/etc/dolt"
 
 # Discord bridge
 bridge_redis_channel_pattern: "olympus:discord:*"
 bridge_poll_interval: 1
+
+# GitHub-beads sync
+github_org: "infiquetra"
 
 # Service user
 olympus_user: "agent"
