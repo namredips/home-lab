@@ -1,13 +1,20 @@
 ---
 reset: false
 
-# Minimum fan speed floor as a percentage (20-50)
-# At 20% the R640s run ~2000 RPM — very quiet, still safe for 20-55C CPU temps
-# Increase to 25-30% if you add heavy compute workloads
-fan_min_pct: 20
+# Minimum fan speed floor (PWM percentage, 0-100)
+# These PWM values map to ~1680-3120 RPM depending on server model:
+#   5%  → r420: ~1800-2400 RPM, r720xd/r820: ~3000-3120 RPM
+#  10%  → r720xd: ~3960 RPM
+#  20%  → r720xd: ~4800 RPM
+# iDRAC thermal protection still overrides this floor if temps get high
+# Increase to 15-20% only if adding heavy GPU/NVMe compute workloads
+fan_min_pct: 5
 
 # Map pct → raw IPMI hex value (0x00-0x64 = 0-100%)
 _fan_pct_map:
+  5: "0x05"
+  10: "0x0a"
+  15: "0x0f"
   20: "0x14"
   25: "0x19"
   30: "0x1e"

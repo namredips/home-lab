@@ -49,3 +49,5 @@
     enabled: true
     state: started
     daemon_reload: true
+# The script exits 0 on iDRAC 9 firmware 7.x (hardware limitation — IPMI OEM blocked)
+  # so the service will always start successfully. The service logs explain what happened.

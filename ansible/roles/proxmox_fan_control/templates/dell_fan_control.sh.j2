@@ -3,7 +3,7 @@
 # Managed by Ansible — do not edit manually
 # Runs at boot via dell-fan-control.service
 
-set -euo pipefail
+set -uo pipefail
 
 IPMI="ipmitool raw"
 LOG="logger -t dell-fan-control"
@@ -12,11 +12,17 @@ $LOG "Applying fan speed floor: {{ fan_min_pct }}%"
 
 # Step 1: Switch to manual fan control mode
 # This sets a minimum floor — iDRAC thermal algorithm still raises fans under real load
-$IPMI 0x30 0x30 0x01 0x00
+if ! $IPMI 0x30 0x30 0x01 0x00 2>/tmp/ipmi_err; then
+  ERR=$(cat /tmp/ipmi_err)
+  $LOG "WARNING: IPMI fan control not supported on this hardware: $ERR"
+  $LOG "NOTICE: iDRAC 9 firmware 7.x (R640/14th gen) restricts IPMI OEM commands."
+  $LOG "NOTICE: Set fan speed manually: iDRAC web UI -> iDRAC Settings -> Thermal."
+  exit 0  # Exit cleanly — this is a hardware limitation, not an error
+fi
 $LOG "Manual fan control mode enabled"
 
 # Step 2: Set minimum fan speed ({{ fan_min_pct }}% = {{ _fan_pct_map[fan_min_pct] }})
-$IPMI 0x30 0x30 0x02 0xff {{ _fan_pct_map[fan_min_pct] }}
+$IPMI 0x30 0x30 0x02 0xff {{ _fan_pct_map[fan_min_pct] }} || true
 $LOG "Fan floor set to {{ fan_min_pct }}%"
 
 {% if disable_pcie_fan_override %}

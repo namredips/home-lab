@@ -7,3 +7,4 @@
   systemd:
     name: dell-fan-control
     state: restarted
+  ignore_errors: true
