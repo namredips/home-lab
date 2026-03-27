@@ -20,7 +20,7 @@ DISCORD_API_BASE = "https://discord.com/api/v10"
 GUILD_ID = "832250938571227217"
 
 # Bot list (vault token key → used for avatar + app icon uploads)
-BOTS = ["zeus", "athena", "apollo", "artemis", "hephaestus", "hermes", "perseus", "prometheus", "ares", "freya"]
+BOTS = ["zeus", "athena", "apollo", "artemis", "hephaestus", "hermes", "perseus", "prometheus", "ares", "freya", "mimir"]
 
 # Application IDs for Developer Portal app icon uploads
 # Maps vault token key → Discord application ID
@@ -36,6 +36,8 @@ APP_IDS = {
     # Mac mini — conductor and secondary agent (token var differs from naming convention)
     "freya":      "1466648500124123146",
     "hermes":     "1470608660714754102",
+    # Mac mini — Claude Code channels bot
+    "mimir":      "1486896133660868758",
 }
 
 

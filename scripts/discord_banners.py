@@ -61,6 +61,10 @@ BANNER_PROMPTS = {
         "name": "Hermes",
         "prompt": "Ancient crossroads at dusk where three worn stone paths meet, a caduceus staff planted upright in the center, winged sandals hovering mid-flight nearby, papyrus scrolls and messages drifting on the wind, travelers' offerings left at the roadside, golden hour light, mysterious and liminal atmosphere, cinematic wide landscape, detailed, mythological",
     },
+    "mimir": {
+        "name": "Mimir",
+        "prompt": "Mímisbrunnr the Well of Wisdom deep beneath the roots of Yggdrasil, ancient carved stone well filled with glowing blue-silver runic water, enormous gnarled World Tree roots descending from above into darkness, Norse runes carved into stone glowing with inner light, mist rising from the water surface, profound stillness and ancient power, cinematic wide Norse mythological landscape, detailed",
+    },
 }
 
 

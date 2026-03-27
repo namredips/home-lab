@@ -70,6 +70,11 @@ ICON_PROMPTS = {
         "prompt": "Hephaestus Greek god of the forge, divine blacksmith craftsman, muscular god at his anvil, hammer raised, forge fire glowing orange behind him, soot-stained armor, classical Greek art style, intense focused expression, circular icon format, 4K quality, detailed, mythological, dramatic forge firelight",
         "color": "forge amber and iron grey"
     },
+    "mimir": {
+        "name": "Mimir",
+        "prompt": "Mimir Norse god of wisdom, ancient wise face with flowing silver beard, glowing runic waters of the Well of Wisdom reflected in all-knowing eyes, Yggdrasil roots framing, deep blue and silver ethereal light, Norse mythology art style, profound and ancient, circular icon format, 4K quality, detailed, mythological, luminous runes",
+        "color": "deep blue and silver rune-glow"
+    },
 }
 
 SERVER_PROMPT = {
