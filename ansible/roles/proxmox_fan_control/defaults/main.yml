@@ -2,13 +2,14 @@
 reset: false
 
 # Minimum fan speed floor (PWM percentage, 0-100)
-# These PWM values map to ~1680-3120 RPM depending on server model:
-#   5%  → r420: ~1800-2400 RPM, r720xd/r820: ~3000-3120 RPM
-#  10%  → r720xd: ~3960 RPM
-#  20%  → r720xd: ~4800 RPM
-# iDRAC thermal protection still overrides this floor if temps get high
-# Increase to 15-20% only if adding heavy GPU/NVMe compute workloads
-fan_min_pct: 5
+# These PWM values map to ~1680-4800 RPM depending on server model:
+#   5%  → r420: ~1800-2400 RPM, r820: ~3000-3120 RPM  ← DO NOT USE: too low
+#  10%  → r820: ~3960 RPM
+#  20%  → r820: ~4800 RPM  ← reasonable quiet floor
+# WARNING: manual mode (enabled by this role) disables the iDRAC automatic thermal
+# ramp-up algorithm. Fans stay at this fixed floor until a reboot or auto mode is
+# restored. Set to at least 20% to leave thermal headroom.
+fan_min_pct: 20
 
 # Map pct → raw IPMI hex value (0x00-0x64 = 0-100%)
 _fan_pct_map:

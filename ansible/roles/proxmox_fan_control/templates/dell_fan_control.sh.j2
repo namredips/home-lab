@@ -11,7 +11,8 @@ LOG="logger -t dell-fan-control"
 $LOG "Applying fan speed floor: {{ fan_min_pct }}%"
 
 # Step 1: Switch to manual fan control mode
-# This sets a minimum floor — iDRAC thermal algorithm still raises fans under real load
+# WARNING: This disables the iDRAC automatic thermal ramping algorithm entirely.
+# Fans will stay at the static PWM floor set below. iDRAC does NOT auto-ramp in manual mode.
 if ! $IPMI 0x30 0x30 0x01 0x00 2>/tmp/ipmi_err; then
   ERR=$(cat /tmp/ipmi_err)
   $LOG "WARNING: IPMI fan control not supported on this hardware: $ERR"

@@ -1,6 +1,8 @@
 ---
 # Deploy Dell fan speed control to all Proxmox hosts
-# Sets a quiet 20% minimum floor while allowing iDRAC thermal ramp-up under load
+# Sets a static minimum fan floor (default: 20% PWM). NOTE: this disables iDRAC
+# automatic thermal ramping — fans are locked to the floor value until reset.
+# Hosts with fan_control_enabled: false in host_vars are automatically skipped (e.g. r720xd).
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml fan_control.yml \

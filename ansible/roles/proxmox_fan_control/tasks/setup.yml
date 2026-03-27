@@ -1,4 +1,8 @@
 ---
+- name: Skip fan control on hosts where it is explicitly disabled
+  meta: end_host
+  when: not (fan_control_enabled | default(true))
+
 - name: Ensure ipmitool is installed
   apt:
     name: ipmitool

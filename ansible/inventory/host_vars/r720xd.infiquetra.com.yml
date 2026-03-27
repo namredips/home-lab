@@ -8,6 +8,9 @@
 #   Requires LACP LAG configured on US-48 switch for these 3 ports
 #   Management NIC (nic3 → vmbr0 → 10.220.1.10) is NOT in the bond
 
+# Fan control must stay in iDRAC AUTO — do not run fan_control role on this host
+fan_control_enabled: false
+
 ceph_nic: "bond0"
 ceph_bond_slaves:
   - nic0
