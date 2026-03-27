@@ -171,15 +171,30 @@
       "panels": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "celsius"}, "overrides": []},
+          "fieldConfig": {
+            "defaults": {"color": {"mode": "palette-classic"}, "unit": "celsius"},
+            "overrides": [
+              {
+                "matcher": {"id": "byFrameRefID", "options": "FanRPM"},
+                "properties": [
+                  {"id": "unit", "value": "rotrpm"},
+                  {"id": "custom.axisPlacement", "value": "right"},
+                  {"id": "custom.axisLabel", "value": "Fan RPM"},
+                  {"id": "custom.lineStyle", "value": {"dash": [4, 4], "fill": "dash"}},
+                  {"id": "custom.fillOpacity", "value": 0}
+                ]
+              }
+            ]
+          },
           "gridPos": {"h": 8, "w": 12, "x": 0, "y": 35},
           "id": 20,
           "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right"}, "tooltip": {"mode": "multi"}},
           "targets": [
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_inlet_temp_celsius", "legendFormat": "{{instance}} inlet", "refId": "A"},
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_cpu_temp_celsius", "legendFormat": "{{instance}} CPU", "refId": "B"}
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_inlet_temp_celsius", "legendFormat": "{{instance_name}} inlet °C", "refId": "InletTemp"},
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_cpu_temp_celsius", "legendFormat": "{{instance_name}} CPU °C", "refId": "CpuTemp"},
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_fan_speed_avg_rpm", "legendFormat": "{{instance_name}} fans", "refId": "FanRPM"}
           ],
-          "title": "Temperature — All Servers",
+          "title": "Temperature + Fan Speed — All Servers",
           "type": "timeseries"
         },
         {
@@ -189,7 +204,7 @@
           "id": 21,
           "options": {"legend": {"calcs": ["lastNotNull", "mean"], "displayMode": "table", "placement": "right"}, "tooltip": {"mode": "multi"}},
           "targets": [
-            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_power_watts", "legendFormat": "{{instance}}", "refId": "A"}
+            {"datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "instance:ipmi_power_watts", "legendFormat": "{{instance_name}}", "refId": "A"}
           ],
           "title": "Power Consumption (stacked)",
           "type": "timeseries"

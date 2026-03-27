@@ -91,6 +91,7 @@
     dest: "{{ monitoring_data_dir }}/prometheus/prometheus.yml"
     mode: '0644'
   become: true
+  register: prometheus_config
 
 - name: Deploy Prometheus recording rules
   ansible.builtin.template:
@@ -98,6 +99,15 @@
     dest: "{{ monitoring_data_dir }}/prometheus/rules.yml"
     mode: '0644'
   become: true
+  register: prometheus_rules
+
+- name: Restart Prometheus if config changed
+  ansible.builtin.command:
+    cmd: docker compose restart prometheus
+    chdir: "{{ monitoring_data_dir }}"
+  become: true
+  when: prometheus_config.changed or prometheus_rules.changed
+  changed_when: true
 
 # ── Grafana provisioning ──────────────────────────────────────────────────────
 - name: Deploy Grafana datasources

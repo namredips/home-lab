@@ -234,10 +234,10 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{job='proxmox_hosts',mode='idle'}[5m])) * 100)",
+          "expr": "100 - (avg by(instance, instance_name) (rate(node_cpu_seconds_total{job='proxmox_hosts',mode='idle'}[5m])) * 100)",
           "format": "table",
           "instant": true,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{instance_name}}",
           "refId": "CPU"
         },
         {
@@ -245,7 +245,7 @@
           "expr": "(1 - (node_memory_MemAvailable_bytes{job='proxmox_hosts'} / node_memory_MemTotal_bytes{job='proxmox_hosts'})) * 100",
           "format": "table",
           "instant": true,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{instance_name}}",
           "refId": "RAM"
         },
         {
@@ -253,15 +253,15 @@
           "expr": "100 - (node_filesystem_avail_bytes{job='proxmox_hosts',mountpoint='/',fstype!='rootfs'} / node_filesystem_size_bytes{job='proxmox_hosts',mountpoint='/',fstype!='rootfs'} * 100)",
           "format": "table",
           "instant": true,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{instance_name}}",
           "refId": "Disk"
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "max by(instance) (node_ipmi_temperature_celsius{job='proxmox_hosts',sensor=~'Inlet Temp|Temp'})",
+          "expr": "max by(instance, instance_name) (node_ipmi_temperature_celsius{job='proxmox_hosts',sensor=~'Inlet Temp|Temp'})",
           "format": "table",
           "instant": true,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{instance_name}}",
           "refId": "Temp"
         },
         {
@@ -269,7 +269,7 @@
           "expr": "node_ipmi_power_watts{job='proxmox_hosts',sensor='Pwr Consumption'}",
           "format": "table",
           "instant": true,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{instance_name}}",
           "refId": "Power"
         }
       ],
@@ -277,13 +277,13 @@
       "transformations": [
         {
           "id": "joinByField",
-          "options": {"byField": "instance", "mode": "outer"}
+          "options": {"byField": "instance_name", "mode": "outer"}
         },
         {
           "id": "organize",
           "options": {
             "renameByName": {
-              "instance": "Host",
+              "instance_name": "Host",
               "Value #CPU": "CPU %",
               "Value #RAM": "RAM %",
               "Value #Disk": "Root Disk %",

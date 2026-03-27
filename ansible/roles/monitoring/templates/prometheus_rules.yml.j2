@@ -65,21 +65,28 @@ groups:
       # ── IPMI Hardware ──────────────────────────────────────────────────────
       # Uses node_exporter's built-in IPMI collector (node_ipmi_* metrics)
       # on proxmox_hosts — more reliable than the remote ipmi_exporter.
+      # instance_name is preserved so dashboards can show short hostnames.
       - record: instance:ipmi_inlet_temp_celsius
         expr: >
-          max by(instance) (
+          max by(instance, instance_name) (
             node_ipmi_temperature_celsius{job="proxmox_hosts", sensor="Inlet Temp"}
           )
 
       - record: instance:ipmi_cpu_temp_celsius
         expr: >
-          max by(instance) (
+          max by(instance, instance_name) (
             node_ipmi_temperature_celsius{job="proxmox_hosts", sensor="Temp"}
           )
 
       - record: instance:ipmi_power_watts
         expr: >
           node_ipmi_power_watts{job="proxmox_hosts", sensor="Pwr Consumption"}
+
+      - record: instance:ipmi_fan_speed_avg_rpm
+        expr: >
+          avg by(instance, instance_name) (
+            node_ipmi_speed_rpm{job="proxmox_hosts"}
+          )
 
       # ── Service Availability ───────────────────────────────────────────────
       - record: job:up_ratio
