@@ -109,6 +109,14 @@ install_shell_tools: true
 
 # Beads task coordination CLI
 install_beads: true
+# Olympus bus connection (shared Dolt server for beads)
+olympus_bus_host: "10.220.1.64"
+dolt_port: 3306
+dolt_database: "olympus"
+dolt_user: "agent"
+# Canonical beads project ID — must match olympus.metadata._project_id on the Dolt server.
+# Written to ~/.beads/metadata.json instead of running bd init per-agent.
+beads_project_id: "24542c48-1e8f-4b94-bb60-353973b37f5b"
 
 # Tool versions (pinned for downloads with versioned filenames)
 git_delta_version: "0.19.2"

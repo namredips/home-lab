@@ -709,22 +709,24 @@
     mode: '0600'
   when: install_beads | default(true)
 
-- name: Initialize beads database on shared Dolt server
-  shell: |
-    rm -f ~/.beads/metadata.json ~/.beads/.local_version
-    rm -rf /tmp/bd-init-scratch && mkdir -p /tmp/bd-init-scratch
-    cd /tmp/bd-init-scratch
-    timeout 30 ~/.local/bin/bd init \
-      --database olympus \
-      --server-host 10.220.1.64 \
-      --server-port 3306 \
-      --server-user agent \
-      --skip-hooks --skip-agents --quiet < /dev/null
-    cp /tmp/bd-init-scratch/.beads/metadata.json ~/.beads/
-  environment:
-    BEADS_DOLT_PASSWORD: "{{ vault_dolt_agent_password }}"
+- name: Write beads metadata.json (connect to shared Dolt server)
+  copy:
+    content: |
+      {
+        "database": "dolt",
+        "backend": "dolt",
+        "dolt_mode": "server",
+        "dolt_server_host": "{{ olympus_bus_host }}",
+        "dolt_server_port": {{ dolt_port }},
+        "dolt_server_user": "{{ dolt_user }}",
+        "dolt_database": "{{ dolt_database }}",
+        "project_id": "{{ beads_project_id }}"
+      }
+    dest: "/home/{{ ansible_user }}/.beads/metadata.json"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
   when: install_beads | default(true) and vault_dolt_agent_password is defined
-  ignore_errors: yes
 
 # Cleanup dotfiles checkout
 - name: Remove dotfiles checkout from controller

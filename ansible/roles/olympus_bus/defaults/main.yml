@@ -18,6 +18,11 @@ dolt_user: "agent"
 dolt_install_dir: "/opt/dolt"
 dolt_data_dir: "/var/lib/dolt"
 dolt_config_dir: "/etc/dolt"
+# Canonical beads project ID for the olympus Dolt database.
+# Must match the _project_id in the olympus.metadata table.
+# All agents write this to ~/.beads/metadata.json instead of running bd init.
+beads_project_id: "24542c48-1e8f-4b94-bb60-353973b37f5b"
+olympus_bus_host: "10.220.1.64"
 
 # Discord bridge
 bridge_redis_channel_pattern: "olympus:discord:*"
