@@ -189,7 +189,7 @@
 # Phase 5a — Install node_exporter on service VMs scraped by Prometheus
 # RustDesk (200) and PBS (202) — not OME (Windows), not monitoring (has its own job)
 - name: Install node_exporter on service VMs
-  hosts: rustdesk.infiquetra.com,pbs.infiquetra.com
+  hosts: rustdesk.infiquetra.com,pbs.infiquetra.com,runner_vms
   gather_facts: true
   tags: monitoring
   tasks:

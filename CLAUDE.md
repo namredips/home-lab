@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Home lab infrastructure repository using Ansible to automate a **Proxmox VE 9.1.1** cluster across 6 Dell servers. Proxmox hosts 8 Ubuntu 24.04 agent VMs (the OpenClaw AI agent stack) and 4 service VMs (RustDesk, Dell OME, PBS, Monitoring).
+Home lab infrastructure repository using Ansible to automate a **Proxmox VE 9.1.1** cluster across 6 Dell servers. Proxmox hosts 8 Ubuntu 24.04 agent VMs (the OpenClaw AI agent stack), 5 service VMs (RustDesk, Dell OME, PBS, Monitoring, Olympus-Bus), and 3 GitHub Actions runner VMs.
 
 ## Architecture
 
@@ -16,7 +16,7 @@ Home lab infrastructure repository using Ansible to automate a **Proxmox VE 9.1.
 - **Ceph network**: Dedicated 10GbE on 10.220.2.0/24 (vmbr1 bridge per host)
 - **VM template**: Ubuntu 24.04 cloud image, VM ID 9000, lives on r420
 - **Agent VMs**: 8 VMs (IDs 100–107) distributed across hosts
-- **Service VMs**: 4 VMs (IDs 200–203): RustDesk, Dell OME, PBS, Monitoring
+- **Service VMs**: 5 VMs (IDs 200–204): RustDesk, Dell OME, PBS, Monitoring, Olympus-Bus
 
 ### Hardware
 | Host | IP | Ceph IP | RAM | vCPU | Ceph Fast Disks | Ceph Bulk Disks |
@@ -43,6 +43,10 @@ Home lab infrastructure repository using Ansible to automate a **Proxmox VE 9.1.
 | 201 | Dell OME | r820 | 10.220.1.61 |
 | 202 | PBS | r720xd | 10.220.1.62 |
 | 203 | Monitoring | r640-3 | 10.220.1.63 |
+| 204 | Olympus-Bus | r820 | 10.220.1.64 |
+| 205 | Runner-1 | r640-3 | 10.220.1.65 |
+| 206 | Runner-2 | r820 | 10.220.1.66 |
+| 207 | Runner-3 | r720xd | 10.220.1.67 |
 
 ### Ansible Structure
 - **Main playbook**: `ansible/proxmox_cluster.yml` — 7 phased roles
