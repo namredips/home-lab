@@ -708,20 +708,18 @@
 
 - name: Initialize beads database on shared Dolt server
   shell: |
-    export BEADS_DOLT_PASSWORD="{{ vault_dolt_agent_password | default('') }}"
-    # Remove stale metadata to ensure clean re-init
     rm -f ~/.beads/metadata.json ~/.beads/.local_version
-    # Run in /tmp (not a git repo) so bd doesn't scan git history
     rm -rf /tmp/bd-init-scratch && mkdir -p /tmp/bd-init-scratch
     cd /tmp/bd-init-scratch
     timeout 30 ~/.local/bin/bd init \
-      --database {{ dolt_database | default('olympus') }} \
+      --database olympus \
       --server-host 10.220.1.64 \
-      --server-port {{ dolt_port | default(3306) }} \
+      --server-port 3306 \
       --server-user agent \
-      --skip-hooks --skip-agents --quiet
-    # Copy metadata back so bd finds the database when run from ~
+      --skip-hooks --skip-agents --quiet < /dev/null
     cp /tmp/bd-init-scratch/.beads/metadata.json ~/.beads/
+  environment:
+    BEADS_DOLT_PASSWORD: "{{ vault_dolt_agent_password }}"
   when: install_beads | default(true) and vault_dolt_agent_password is defined
   ignore_errors: yes
 
