@@ -39,7 +39,7 @@
   become: yes
   become_user: "{{ olympus_user }}"
 
-- name: Create Dolt agent user and olympus database
+- name: Create Dolt agent user and olympus database (embedded mode, before server starts)
   shell: |
     cd {{ dolt_data_dir }} && dolt sql -q "
     CREATE USER IF NOT EXISTS 'agent'@'%' IDENTIFIED BY '{{ vault_dolt_agent_password }}';
@@ -47,6 +47,8 @@
     GRANT ALL PRIVILEGES ON {{ dolt_database }}.* TO 'agent'@'%';
     FLUSH PRIVILEGES;
     "
+  args:
+    creates: "{{ dolt_data_dir }}/.doltcfg/privileges.db"
   become: yes
   become_user: "{{ olympus_user }}"
 

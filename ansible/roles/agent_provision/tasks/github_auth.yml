@@ -14,6 +14,8 @@
   when: vault_github_pat is defined
   no_log: true
   changed_when: false
+  ignore_errors: yes
+  register: gh_auth_result
 
 - name: Register agent SSH key with GitHub
   shell: |
@@ -25,6 +27,7 @@
   failed_when:
     - gh_key_result.rc != 0
     - "'already exists' not in (gh_key_result.stderr | default(''))"
+    - "'403' not in (gh_key_result.stderr | default(''))"
   when: vault_github_pat is defined and agent_ssh_key.changed
 
 - name: Wait for SSH key propagation to GitHub
