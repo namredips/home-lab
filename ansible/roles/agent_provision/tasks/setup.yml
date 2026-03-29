@@ -161,7 +161,7 @@
 
 # Rust additional tools
 - name: Install rust-analyzer via rustup
-  shell: bash -lc "source ~/.bash_profile && rustup component add rust-analyzer"
+  shell: bash -lc "source $HOME/.cargo/env && rustup component add rust-analyzer"
   when: install_rust and install_rust_tools | default(true)
 
 # Go installation
@@ -188,7 +188,7 @@
 
 # Go development tools
 - name: Install Go development tools
-  shell: bash -lc "source ~/.bash_profile && go install {{ item }}"
+  shell: "export PATH=$PATH:$HOME/.local/go/bin:$HOME/go/bin && go install {{ item }}"
   loop:
     - golang.org/x/tools/gopls@latest
     - github.com/go-delve/delve/cmd/dlv@latest
@@ -604,6 +604,8 @@
     url: https://github.com/dandavison/delta/releases/latest/download/delta-x86_64-unknown-linux-musl.tar.gz
     dest: /tmp/git-delta.tar.gz
   when: install_git_extras | default(true)
+  ignore_errors: yes
+  register: git_delta_download
 
 - name: Extract and install git-delta
   shell: |
@@ -611,13 +613,15 @@
     chmod +x ~/.local/bin/delta
   args:
     creates: ~/.local/bin/delta
-  when: install_git_extras | default(true)
+  when: install_git_extras | default(true) and git_delta_download is succeeded
 
 - name: Download lazygit
   get_url:
     url: https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_Linux_x86_64.tar.gz
     dest: /tmp/lazygit.tar.gz
   when: install_git_extras | default(true)
+  ignore_errors: yes
+  register: lazygit_download
 
 - name: Extract and install lazygit
   shell: |
@@ -625,7 +629,7 @@
     chmod +x ~/.local/bin/lazygit
   args:
     creates: ~/.local/bin/lazygit
-  when: install_git_extras | default(true)
+  when: install_git_extras | default(true) and lazygit_download is succeeded
 
 # hadolint (Dockerfile linter)
 - name: Download hadolint
@@ -634,6 +638,7 @@
     dest: ~/.local/bin/hadolint
     mode: '0755'
   when: install_shell_tools | default(true)
+  ignore_errors: yes
 
 # Ensure ~/.local/bin is on PATH
 - name: Add ~/.local/bin to PATH
@@ -683,6 +688,7 @@
 
 - name: Install beads CLI
   shell: |
+    export PATH="$HOME/.local/bin:$PATH"
     curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
   args:
     creates: ~/.local/bin/bd
@@ -701,6 +707,20 @@
     dest: ~/.beads/config.yaml
     mode: '0600'
   when: install_beads | default(true)
+
+- name: Initialize beads database on shared Dolt server
+  shell: |
+    export BEADS_DOLT_PASSWORD="{{ vault_dolt_agent_password | default('') }}"
+    ~/.local/bin/bd init \
+      --database {{ dolt_database | default('olympus') }} \
+      --server-host 10.220.1.64 \
+      --server-port {{ dolt_port | default(3306) }} \
+      --server-user agent \
+      --skip-hooks --skip-agents --quiet
+  args:
+    creates: ~/.beads/.local_version
+  when: install_beads | default(true) and vault_dolt_agent_password is defined
+  ignore_errors: yes
 
 # Cleanup dotfiles checkout
 - name: Remove dotfiles checkout from controller

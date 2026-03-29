@@ -5,6 +5,7 @@ After=network.target dolt-server.service
 [Service]
 Type=oneshot
 User={{ olympus_user }}
+Environment="PATH=/home/{{ olympus_user }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
 ExecStart=/usr/bin/python3 /opt/olympus-bridge/github-beads-sync.py
 StandardOutput=journal
 StandardError=journal

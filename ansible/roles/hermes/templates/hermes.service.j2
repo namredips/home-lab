@@ -8,6 +8,7 @@ Type=simple
 User={{ hermes_service_user }}
 WorkingDirectory={{ hermes_install_dir }}
 EnvironmentFile={{ hermes_install_dir }}/.env
+Environment="PATH=/home/{{ hermes_service_user }}/.local/bin:/home/{{ hermes_service_user }}/.cargo/bin:/home/{{ hermes_service_user }}/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ExecStart=/home/{{ hermes_service_user }}/.local/bin/hermes gateway
 Restart=on-failure
 RestartSec=10
