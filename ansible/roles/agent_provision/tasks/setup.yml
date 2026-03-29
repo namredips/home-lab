@@ -420,13 +420,16 @@
     url: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip
     dest: /tmp/JetBrainsMono.zip
   when: install_nerd_fonts
+  ignore_errors: yes
+  register: nerd_font_download
 
 - name: Extract Nerd Font
   unarchive:
     src: /tmp/JetBrainsMono.zip
     dest: ~/.local/share/fonts/
     remote_src: yes
-  when: install_nerd_fonts
+  when: install_nerd_fonts and (nerd_font_download is not defined or nerd_font_download is succeeded)
+  ignore_errors: yes
 
 - name: Update font cache
   shell: fc-cache -f -v
