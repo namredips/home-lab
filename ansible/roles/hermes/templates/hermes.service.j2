@@ -2,6 +2,8 @@
 Description=Hermes AI Agent - {{ agent_name | title }}
 After=network.target ollama.service
 Wants=ollama.service
+StartLimitBurst=5
+StartLimitIntervalSec=300
 
 [Service]
 Type=simple
@@ -12,8 +14,6 @@ Environment="PATH=/home/{{ hermes_service_user }}/.local/bin:/home/{{ hermes_ser
 ExecStart=/home/{{ hermes_service_user }}/.local/bin/hermes gateway
 Restart=on-failure
 RestartSec=10
-StartLimitBurst=5
-StartLimitIntervalSec=300
 
 # Security
 NoNewPrivileges=true
