@@ -109,3 +109,7 @@ install_shell_tools: true
 
 # Beads task coordination CLI
 install_beads: true
+
+# Tool versions (pinned for downloads with versioned filenames)
+git_delta_version: "0.19.2"
+lazygit_version: "0.60.0"

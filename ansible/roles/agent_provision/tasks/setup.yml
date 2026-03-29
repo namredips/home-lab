@@ -601,10 +601,9 @@
 
 - name: Download git-delta
   get_url:
-    url: https://github.com/dandavison/delta/releases/latest/download/delta-x86_64-unknown-linux-musl.tar.gz
+    url: "https://github.com/dandavison/delta/releases/download/{{ git_delta_version }}/delta-{{ git_delta_version }}-x86_64-unknown-linux-musl.tar.gz"
     dest: /tmp/git-delta.tar.gz
   when: install_git_extras | default(true)
-  ignore_errors: yes
   register: git_delta_download
 
 - name: Extract and install git-delta
@@ -617,10 +616,9 @@
 
 - name: Download lazygit
   get_url:
-    url: https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_Linux_x86_64.tar.gz
+    url: "https://github.com/jesseduffield/lazygit/releases/download/v{{ lazygit_version }}/lazygit_{{ lazygit_version }}_Linux_x86_64.tar.gz"
     dest: /tmp/lazygit.tar.gz
   when: install_git_extras | default(true)
-  ignore_errors: yes
   register: lazygit_download
 
 - name: Extract and install lazygit
