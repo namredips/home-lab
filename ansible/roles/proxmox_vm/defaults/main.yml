@@ -168,5 +168,5 @@ service_vms:
     memory_mb: 8192
     disk_gb: 50
     ip: 10.220.1.64
-    gateway: 10.220.1.1
+    mac: "52:54:00:c8:04:40"
     description: "Olympus Bus: Redis + Dolt server + Discord bridge for agent coordination"

@@ -5,6 +5,9 @@ requirepass {{ vault_redis_password }}
 maxmemory {{ redis_maxmemory }}
 maxmemory-policy {{ redis_maxmemory_policy }}
 
+# Data directory
+dir /var/lib/redis
+
 # Persistence
 appendonly yes
 appendfsync everysec
