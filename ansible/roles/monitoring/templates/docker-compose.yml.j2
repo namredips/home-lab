@@ -108,13 +108,14 @@ services:
       - '--config.file=/etc/loki/loki.yml'
 
   # ── Promtail ──────────────────────────────────────────────────────────────────
-  # Syslog receiver (TCP :1514) + Docker log discovery
+  # Syslog receiver (TCP + UDP :1514) + Docker log discovery
   promtail:
     image: grafana/promtail:latest
     container_name: promtail
     restart: unless-stopped
     ports:
-      - "{{ promtail_syslog_port }}:{{ promtail_syslog_port }}"
+      - "{{ promtail_syslog_port }}:{{ promtail_syslog_port }}/tcp"
+      - "{{ promtail_syslog_port }}:{{ promtail_syslog_port }}/udp"
       - "{{ promtail_http_port }}:9080"
     volumes:
       - {{ monitoring_data_dir }}/promtail/promtail.yml:/etc/promtail/promtail.yml:ro

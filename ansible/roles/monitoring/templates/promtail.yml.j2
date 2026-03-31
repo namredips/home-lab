@@ -10,13 +10,30 @@ clients:
 
 scrape_configs:
   # ── Syslog receiver (TCP, RFC 5424 / RFC 3164) ──────────────────────────────
-  # PVE hosts, agent VMs, and UniFi UDM forward syslog here via rsyslog.
+  # PVE hosts and agent VMs forward syslog here via rsyslog (TCP).
   - job_name: syslog
     syslog:
       listen_address: 0.0.0.0:{{ promtail_syslog_port }}
       listen_protocol: tcp
       idle_timeout: 60s
       label_structured_data: yes
+      labels:
+        job: syslog
+    relabel_configs:
+      - source_labels: [__syslog_message_hostname]
+        target_label: host
+      - source_labels: [__syslog_message_app_name]
+        target_label: app
+      - source_labels: [__syslog_message_severity]
+        target_label: severity
+
+  # ── Syslog receiver (UDP, RFC 3164 / BSD format) ────────────────────────────
+  # UniFi UDM sends syslog over UDP in BSD format (no version field).
+  - job_name: syslog_udp
+    syslog:
+      listen_address: 0.0.0.0:{{ promtail_syslog_port }}
+      listen_protocol: udp
+      syslog_format: rfc3164
       labels:
         job: syslog
     relabel_configs:

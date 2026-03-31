@@ -118,3 +118,9 @@ groups:
 
       - record: unifi:client_count
         expr: unpoller_site_stations
+
+      - record: unifi:device_memory_utilization:ratio
+        expr: unpoller_device_memory_utilization_ratio
+
+      - record: unifi:device_cpu_utilization:ratio
+        expr: unpoller_device_cpu_utilization_ratio

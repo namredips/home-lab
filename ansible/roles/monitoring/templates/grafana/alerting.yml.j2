@@ -220,6 +220,68 @@ groups:
         labels:
           severity: warning
 
+      - uid: unifi-device-high-memory
+        title: "UniFi Device High Memory"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: prometheus
+            model:
+              expr: "unpoller_device_memory_utilization_ratio > 0.85"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {type: last}
+                  type: query
+              expression: A
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "UniFi {{ "{{" }} $labels.name {{ "}}" }} memory at {{ "{{" }} $value | printf '%.0f' {{ "}}" }}% — OOM crash risk"
+        labels:
+          severity: warning
+
+      - uid: unifi-device-high-cpu
+        title: "UniFi Device High CPU"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: prometheus
+            model:
+              expr: "unpoller_device_cpu_utilization_ratio > 0.80"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {type: last}
+                  type: query
+              expression: A
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "UniFi {{ "{{" }} $labels.name {{ "}}" }} CPU at {{ "{{" }} $value | printf '%.0f' {{ "}}" }}% — sustained high load"
+        labels:
+          severity: warning
+
       - uid: hermes-service-down
         title: "Hermes Service Down"
         condition: B
