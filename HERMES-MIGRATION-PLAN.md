@@ -1,7 +1,7 @@
 # Hermes Migration Plan for Mount Olympus
 
 Date: 2026-03-25
-Status: In Progress (Phase 6)
+Status: COMPLETE
 Author: Hermes
 
 ## Goal
@@ -139,9 +139,9 @@ Key findings:
 
 Operational guide: [`knowledge/hermes-ollama-config.md`](knowledge/hermes-ollama-config.md)
 
-## Phase 6: Fleet Migration — IN PROGRESS
+## Phase 6: Fleet Migration — COMPLETE
 
-**Started**: 2026-03-25
+**Executed**: 2026-03-25 – 2026-03-28
 
 Goals:
 - Replace OpenClaw with Hermes across the named VM fleet
@@ -150,9 +150,25 @@ Goals:
 
 Batch plan:
 1. ~~Hephaestus (pilot)~~ — Done
-2. Leadership: Zeus — In progress
-3. Senior: Athena — Pending
-4. Developers: Apollo, Artemis, Perseus, Prometheus, Ares — Pending
+2. ~~Zeus~~ — Done
+3. ~~Athena~~ — Done
+4. ~~Apollo~~ — Done
+5. ~~Artemis~~ — Done
+6. ~~Perseus~~ — Done
+7. ~~Prometheus~~ — Done
+8. ~~Ares~~ — Done
+
+All 8 agents running Hermes + Ollama. OpenClaw fully replaced.
+
+## Phase 7: Coordination Infrastructure — COMPLETE
+
+**Executed**: 2026-03-28
+
+Olympus Bus (VM 204) deployed at 10.220.1.64:
+- Redis pub/sub (port 6379) — real-time agent event bus
+- Dolt server (port 3306) — Beads task management database
+- Discord bridge (olympus-bridge.service) — surfaces events to Discord
+- GitHub-beads sync timer — syncs GitHub Issues ↔ Dolt every 5 minutes
 
 ## Open Questions — Resolved
 
