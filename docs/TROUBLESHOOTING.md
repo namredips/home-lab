@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-Common issues and solutions for the OpenClaw virtual employee infrastructure.
+Common issues and solutions for the Hermes agent infrastructure on the Proxmox "olympus" cluster.
 
 ## Table of Contents
 
@@ -17,33 +17,33 @@ Common issues and solutions for the OpenClaw virtual employee infrastructure.
 
 ### VM Won't Start
 
-**Symptoms**: `virsh list` shows VM as "shut off", won't start
+**Symptoms**: `qm list` shows VM as "stopped", won't start
 
 **Diagnosis**:
 ```bash
-ssh jefcox@<hypervisor-host>
-sudo virsh start <vm-name>
+ssh root@<hypervisor-host>
+qm start <vmid>
 # Look for error messages
 
-# Check libvirt logs
-sudo journalctl -u libvirtd -n 50
+# Check Proxmox logs
+journalctl -u pvedaemon -n 50
 
 # View VM console
-sudo virsh console <vm-name>
+qm terminal <vmid>
 ```
 
 **Common causes**:
 
-1. **Storage permission issues**
+1. **Ceph storage unavailable**
    ```bash
-   sudo chown libvirt-qemu:kvm /var/lib/libvirt/images/*.qcow2
-   sudo chmod 644 /var/lib/libvirt/images/*.qcow2
+   ceph status
+   pvesm status
    ```
 
-2. **Network conflict**
+2. **Network bridge issue**
    ```bash
-   sudo virsh net-list --all
-   sudo virsh net-start default
+   ip link show vmbr0
+   ip link show vmbr1
    ```
 
 3. **Insufficient resources**
@@ -52,20 +52,18 @@ sudo virsh console <vm-name>
    free -h
 
    # Check running VMs
-   sudo virsh list --all
+   qm list
    ```
 
 **Solution**: Recreate VM if corrupted
 ```bash
-# Backup VM disk
-sudo cp /var/lib/libvirt/images/athena.qcow2 /var/lib/libvirt/images/athena.qcow2.bak
-
-# Destroy and undefine
-sudo virsh destroy athena
-sudo virsh undefine athena
+# Stop and destroy
+qm stop <vmid>
+qm destroy <vmid>
 
 # Re-run Ansible to recreate
-ansible-playbook openclaw_cluster.yml --tags agent_vm --limit r420.infiquetra.com
+ansible-playbook proxmox_cluster.yml --tags proxmox_vm --limit <host>.infiquetra.com \
+  --vault-password-file ~/.vault_pass.txt
 ```
 
 ### VM Unresponsive
@@ -75,14 +73,14 @@ ansible-playbook openclaw_cluster.yml --tags agent_vm --limit r420.infiquetra.co
 **Diagnosis**:
 ```bash
 # Check VM is actually running
-sudo virsh list
+qm list
 
-# Check VM console
-sudo virsh console <vm-name>
+# Check VM console via Proxmox web UI or:
+qm terminal <vmid>
 # Press Enter - should see login prompt
 
 # Check VM resource usage
-sudo virsh dominfo <vm-name>
+qm status <vmid> --verbose
 ```
 
 **Common causes**:
@@ -92,22 +90,21 @@ sudo virsh dominfo <vm-name>
 
 2. **Disk I/O bottleneck**
    ```bash
-   # Check disk usage
-   sudo virsh domblklist <vm-name>
-   sudo iostat -x 1
+   # Check from Proxmox host
+   iostat -x 1
    ```
 
 3. **Cloud-init not finished**
    ```bash
    # Access console
-   sudo virsh console <vm-name>
+   qm terminal <vmid>
    # Login and check
    sudo cloud-init status
    ```
 
 **Solution**: Force reset (last resort)
 ```bash
-sudo virsh reset <vm-name>
+qm reset <vmid>
 ```
 
 ### VM Disk Full
@@ -126,18 +123,13 @@ sudo du -h --max-depth=1 / | sort -h
 
 **Solution**: Expand disk
 ```bash
-# On hypervisor
-ssh jefcox@<hypervisor>
+# On Proxmox host — resize the VM disk
+qm resize <vmid> scsi0 +100G
 
-# Expand QCOW2 image
-sudo qemu-img resize /var/lib/libvirt/images/<vm>.qcow2 +100G
-
-# On VM
+# On VM — grow the partition
 ssh agent@<vm-ip>
-
-# Grow partition (assuming single partition)
-sudo growpart /dev/vda 1
-sudo resize2fs /dev/vda1
+sudo growpart /dev/sda 1
+sudo resize2fs /dev/sda1
 
 # Verify
 df -h
@@ -182,24 +174,23 @@ ping 10.220.1.1  # Gateway
    sudo systemctl restart systemd-networkd
    ```
 
-3. **Libvirt network not running**
+3. **Proxmox bridge not up**
    ```bash
    # On hypervisor
-   sudo virsh net-list --all
-   sudo virsh net-start default
-   sudo virsh net-autostart default
+   ip link show vmbr0
+   ip link show vmbr1  # Ceph network
    ```
 
 **Solution**: Recreate network config
 ```bash
-# On VM (via console)
+# On VM (via console: qm terminal <vmid>)
 sudo nano /etc/netplan/50-cloud-init.yaml
 
 # Ensure it contains:
 network:
   version: 2
   ethernets:
-    enp1s0:
+    ens18:
       dhcp4: false
       addresses:
         - 10.220.1.XX/24
@@ -302,97 +293,37 @@ chmod 600 ~/.ssh/authorized_keys
 
 ## Service Issues
 
-### Mattermost Not Accessible
+### Hermes Service Won't Start
 
-**Symptoms**: Can't access http://10.220.1.10:8065
-
-**Diagnosis**:
-```bash
-ssh jefcox@10.220.1.10
-
-# Check containers
-docker ps
-
-# Should see:
-# - mattermost-app
-# - mattermost-postgres
-
-# Check container logs
-docker logs mattermost-app
-docker logs mattermost-postgres
-```
-
-**Common causes**:
-
-1. **Containers not running**
-   ```bash
-   cd /opt/mattermost
-   docker-compose up -d
-
-   # Check status
-   docker-compose ps
-   ```
-
-2. **Database not ready**
-   ```bash
-   # Check postgres health
-   docker exec mattermost-postgres pg_isready -U mmuser
-
-   # Restart Mattermost container
-   docker-compose restart mattermost
-   ```
-
-3. **Port conflict**
-   ```bash
-   # Check if port 8065 is in use
-   sudo netstat -tlnp | grep 8065
-   ```
-
-**Solution**: Restart services
-```bash
-cd /opt/mattermost
-docker-compose down
-docker-compose up -d
-
-# Wait for startup
-sleep 30
-
-# Test
-curl http://localhost:8065/api/v4/system/ping
-```
-
-### OpenClaw Service Won't Start
-
-**Symptoms**: `systemctl status openclaw-<agent>` shows failed
+**Symptoms**: `systemctl status hermes-<agent>` shows failed
 
 **Diagnosis**:
 ```bash
 ssh agent@<vm-ip>
 
 # Check service status
-sudo systemctl status openclaw-<agent>
+sudo systemctl status hermes-<agent>
 
 # View logs
-sudo journalctl -u openclaw-<agent> -n 100
+sudo journalctl -u hermes-<agent> -n 100
 
-# Check if openclaw binary exists
-which openclaw
-openclaw --version
+# Check configuration
+cat ~/.hermes/config.yml
 ```
 
 **Common causes**:
 
-1. **Missing API keys**
+1. **Missing API keys or Discord token**
    ```bash
-   cat ~/.openclaw/.env
-   # Verify all API keys are set
+   cat ~/.hermes/.env
+   # Verify DISCORD_BOT_TOKEN and API keys are set
    ```
 
 2. **Invalid configuration**
    ```bash
-   cat ~/.openclaw/config.yml
+   cat ~/.hermes/config.yml
    # Check YAML syntax
-   yamllint ~/.openclaw/config.yml
+   yamllint ~/.hermes/config.yml
    ```
 
 3. **Node.js not installed**
@@ -404,50 +335,46 @@ openclaw --version
 **Solution**: Manual start for debugging
 ```bash
 # Stop service
-sudo systemctl stop openclaw-<agent>
+sudo systemctl stop hermes-<agent>
 
-# Run manually to see errors
-cd ~/.openclaw
-openclaw start --config config.yml --verbose
+# Check logs for specific errors
+sudo journalctl -u hermes-<agent> -n 200 --no-pager
 
 # Fix errors, then restart service
-sudo systemctl start openclaw-<agent>
+sudo systemctl start hermes-<agent>
 ```
 
-### OpenClaw Not Connecting to Mattermost
+### Agent Not Responding in Discord
 
-**Symptoms**: Agent doesn't respond in Mattermost channels
+**Symptoms**: Agent doesn't respond in Discord channels
 
 **Diagnosis**:
 ```bash
-# Check OpenClaw logs
+# Check Hermes logs
 ssh agent@<vm-ip>
-tail -f ~/.openclaw/logs/openclaw.log
+sudo journalctl -u hermes-<agent> -f
 
-# Look for Mattermost connection errors
-
-# Test Mattermost API from VM
-curl http://10.220.1.10:8065/api/v4/system/ping
+# Look for Discord connection errors
 
 # Check bot token
-cat ~/.openclaw/.env | grep MATTERMOST_BOT_TOKEN
+cat ~/.hermes/.env | grep DISCORD_BOT_TOKEN
 ```
 
 **Common causes**:
 
-1. **Invalid bot token**
-   - Regenerate token in Mattermost
-   - Update `~/.openclaw/.env`
+1. **Invalid Discord bot token**
+   - Regenerate token at https://discord.com/developers/applications
+   - Update vault: `vault_discord_bot_token_<agent>`
+   - Re-run `hermes_cluster.yml` or manually update `~/.hermes/.env`
    - Restart service
 
-2. **Agent not member of team/channel**
-   - Add agent to "Mount Olympus" team
-   - Add to relevant channels
+2. **Bot not invited to server/channels**
+   - Check bot has proper permissions in Discord server settings
 
 3. **Network connectivity**
    ```bash
-   ping 10.220.1.10
-   nc -zv 10.220.1.10 8065
+   # Test outbound HTTPS (Discord API)
+   curl -s https://discord.com/api/v10/gateway
    ```
 
 ---
@@ -483,7 +410,7 @@ claude-code auth
 
 ### OpenAI API Key Invalid
 
-**Symptoms**: OpenClaw logs show 401 errors for OpenAI
+**Symptoms**: Hermes logs show 401 errors for OpenAI
 
 **Diagnosis**:
 ```bash
@@ -497,13 +424,13 @@ curl https://api.openai.com/v1/models \
 **Solution**: Update API key
 ```bash
 # Edit environment file
-nano ~/.openclaw/.env
+nano ~/.hermes/.env
 
 # Update OPENAI_API_KEY
 OPENAI_API_KEY=sk-...
 
-# Restart OpenClaw
-sudo systemctl restart openclaw-<agent>
+# Restart Hermes
+sudo systemctl restart hermes-<agent>
 ```
 
 ### GitHub Authentication Issues
@@ -558,21 +485,19 @@ ps aux --sort=-%cpu | head -10
 
 **Common causes**:
 
-1. **OpenClaw running intensive task**
+1. **Hermes running intensive task**
    - This is expected during code generation
    - Monitor and wait for completion
 
 2. **Runaway process**
    - Kill process: `kill <pid>`
-   - Restart OpenClaw if needed
+   - Restart Hermes if needed
 
 3. **Insufficient CPU allocation**
-   - Increase VM vCPUs on hypervisor
+   - Increase VM vCPUs via Proxmox web UI or:
    ```bash
-   sudo virsh shutdown <vm-name>
-   sudo virsh setvcpus <vm-name> 8 --config --maximum
-   sudo virsh setvcpus <vm-name> 8 --config
-   sudo virsh start <vm-name>
+   qm set <vmid> --cores 8
+   qm reboot <vmid>
    ```
 
 ### High Memory Usage
@@ -592,11 +517,9 @@ ps aux --sort=-%mem | head -10
 
 **Solution**: Increase VM memory
 ```bash
-# On hypervisor
-sudo virsh shutdown <vm-name>
-sudo virsh setmaxmem <vm-name> 32G --config
-sudo virsh setmem <vm-name> 32G --config
-sudo virsh start <vm-name>
+# Via Proxmox web UI or CLI:
+qm set <vmid> --memory 32768
+qm reboot <vmid>
 ```
 
 ### Slow Disk I/O
@@ -632,62 +555,30 @@ sudo journalctl --vacuum-time=7d
 
 ### VM Disk Corruption
 
-**Backup VM disk**:
+**Restore from PBS backup**:
 ```bash
-ssh jefcox@<hypervisor>
-sudo cp /var/lib/libvirt/images/<vm>.qcow2 /var/lib/libvirt/images/<vm>.qcow2.bak
+# Stop the VM
+qm stop <vmid>
+
+# Restore from PBS (via Proxmox web UI or CLI)
+qmrestore <pbs-backup-path> <vmid> --storage ceph-fast
+
+# Start the VM
+qm start <vmid>
 ```
 
-**Attempt repair**:
-```bash
-sudo qemu-img check -r all /var/lib/libvirt/images/<vm>.qcow2
-```
-
-**Restore from backup**:
-```bash
-sudo virsh destroy <vm-name>
-sudo cp /var/lib/libvirt/images/<vm>.qcow2.bak /var/lib/libvirt/images/<vm>.qcow2
-sudo virsh start <vm-name>
-```
-
-### Mattermost Data Recovery
-
-**Backup**:
-```bash
-ssh jefcox@10.220.1.10
-
-# Backup PostgreSQL database
-docker exec mattermost-postgres pg_dump -U mmuser mattermost > /opt/mattermost/backup.sql
-
-# Backup data directory
-sudo tar czf /opt/mattermost/data-backup.tar.gz /opt/mattermost/data
-```
-
-**Restore**:
-```bash
-# Restore database
-cat /opt/mattermost/backup.sql | docker exec -i mattermost-postgres psql -U mmuser -d mattermost
-
-# Restore data
-cd /opt/mattermost
-sudo tar xzf data-backup.tar.gz
-
-# Restart
-docker-compose restart
-```
-
-### OpenClaw Configuration Recovery
+### Hermes Configuration Recovery
 
 **Backup**:
 ```bash
 ssh agent@<vm-ip>
-tar czf openclaw-backup.tar.gz ~/.openclaw/
+tar czf hermes-backup.tar.gz ~/.hermes/
 ```
 
 **Restore**:
 ```bash
-tar xzf openclaw-backup.tar.gz -C ~/
-sudo systemctl restart openclaw-<agent>
+tar xzf hermes-backup.tar.gz -C ~/
+sudo systemctl restart hermes-<agent>
 ```
 
 ---
@@ -698,19 +589,18 @@ If none of these solutions work:
 
 1. **Check logs systematically**:
    - VM: `sudo journalctl -xe`
-   - OpenClaw: `~/.openclaw/logs/openclaw.log`
-   - Mattermost: `docker logs mattermost-app`
-   - Libvirt: `sudo journalctl -u libvirtd`
+   - Hermes: `sudo journalctl -u hermes-<agent>`
+   - Proxmox: `journalctl -u pvedaemon`
+   - Ceph: `ceph status` / `ceph health detail`
 
 2. **Recreate from scratch**:
    - Destroy affected component
    - Re-run Ansible playbook for that component
 
-3. **Ask in community**:
-   - OpenClaw GitHub: https://github.com/openclaw/openclaw/issues
-   - Mattermost community: https://mattermost.com/community
+3. **Proxmox community**:
+   - Proxmox forums: https://forum.proxmox.com/
 
 ---
 
-**Last Updated**: 2026-01-30
+**Last Updated**: 2026-03-28
 **Maintainer**: jeff@infiquetra.com

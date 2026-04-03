@@ -1,8 +1,8 @@
-# OpenClaw Backup Strategy
+# Hermes Agent Backup Strategy
 
 ## Overview
 
-The backup system provides comprehensive protection for the OpenClaw virtual employee infrastructure through automated VM snapshots, OpenClaw memory exports, and off-hypervisor redundancy.
+The backup system provides comprehensive protection for the Hermes agent infrastructure through Proxmox Backup Server (PBS) snapshots, Hermes memory exports, and off-hypervisor redundancy. PBS runs on VM 202 at 10.220.1.62.
 
 ## Backup Schedule
 
@@ -12,11 +12,11 @@ Backups run daily at 2 AM with staggered start times per hypervisor:
 
 | Hypervisor | Agent VMs | Start Time | Stagger |
 |------------|-----------|------------|---------|
-| r420.infiquetra.com | Zeus | 2:00 AM | +0 min |
-| r710.infiquetra.com | Athena, Apollo | 2:10 AM | +10 min |
-| r8202.infiquetra.com | Artemis, Hermes | 2:20 AM | +20 min |
-| r720xd.infiquetra.com | Perseus | 2:30 AM | +30 min |
-| r820.infiquetra.com | Prometheus, Ares | 2:40 AM | +40 min |
+| r820.infiquetra.com | Zeus (100) | 2:00 AM | +0 min |
+| r640-2.infiquetra.com | Athena (101), Prometheus (106) | 2:10 AM | +10 min |
+| r640-1.infiquetra.com | Apollo (102), Perseus (105) | 2:20 AM | +20 min |
+| r420.infiquetra.com | Artemis (103), Hephaestus (104) | 2:30 AM | +30 min |
+| r720xd.infiquetra.com | Ares (107) | 2:40 AM | +40 min |
 
 **Stagger rationale:**
 - Reduces network congestion during rsync
@@ -27,7 +27,7 @@ Backups run daily at 2 AM with staggered start times per hypervisor:
 ### Retention Policy
 
 - **Local backups**: 7 days on each hypervisor
-- **Remote backups**: 7 days on r720xd
+- **Remote backups**: 7 days on PBS (VM 202, 10.220.1.62)
 - **Rotation**: Automatic cleanup of backups older than 7 days
 - **Archive**: Manual long-term archives can be created separately
 
@@ -35,13 +35,11 @@ Backups run daily at 2 AM with staggered start times per hypervisor:
 
 ### 1. VM Snapshots
 
-**Method**: Live snapshots with qemu-guest-agent
+**Method**: Proxmox Backup Server (PBS) vzdump snapshots
 
 ```bash
-# Create snapshot (with quiesce for filesystem consistency)
-virsh snapshot-create-as --domain <vm> \
-  --name backup-<timestamp> \
-  --disk-only --atomic --quiesce
+# Create snapshot via Proxmox
+vzdump <vmid> --storage pbs --mode snapshot --compress zstd
 ```
 
 **What's captured:**
@@ -57,8 +55,8 @@ virsh snapshot-create-as --domain <vm> \
 ### 2. VM Configuration Export
 
 ```bash
-# Export VM definition
-virsh dumpxml <vm> > /backups/<date>/<vm>.xml
+# Export VM configuration
+qm config <vmid> > /backups/<date>/<vm>.conf
 ```
 
 **What's captured:**
@@ -82,82 +80,64 @@ cp -a <disk-path> /backups/<date>/<vm>_<disk-name>
 - Preserves attributes and permissions
 - Point-in-time consistency
 
-### 4. OpenClaw Memory Export
+### 4. Hermes Memory Export
 
 **Agent VMs only** (IPs 10.220.1.50-57):
 
 ```bash
-# SSH to agent VM and export workspace
-ssh agent@<vm-ip> "tar -czf /tmp/openclaw-workspace.tar.gz \
-  -C ~/.openclaw/workspace ."
+# SSH to agent VM and export Hermes data
+ssh agent@<vm-ip> "tar -czf /tmp/hermes-data.tar.gz \
+  -C ~/.hermes ."
 
 # Copy back to hypervisor
-scp agent@<vm-ip>:/tmp/openclaw-workspace.tar.gz \
-  /backups/<date>/<vm>_openclaw.tar.gz
+scp agent@<vm-ip>:/tmp/hermes-data.tar.gz \
+  /backups/<date>/<vm>_hermes.tar.gz
 ```
 
 **What's captured:**
-- SOUL.md, IDENTITY.md, AGENTS.md (personality files)
-- BOOTSTRAP.md, USER.md (configuration)
-- Any workspace state/context files
-- Agent-specific memory and learning
+- `memory.db` — primary persistent data (agent memory and context)
+- `config.yml` — agent configuration
+- `.env` — environment variables and API keys
 
-**Use case**: Restore agent personality and learned context
+**Use case**: Restore agent memory and configuration
 
-### 5. Snapshot Merge
+### 5. Snapshot Management
 
-After backup, snapshots are merged back to base:
+PBS handles snapshot storage and pruning automatically. Proxmox snapshot cleanup:
 
 ```bash
-# Merge snapshot into base image
-virsh blockcommit <vm> --active --pivot <disk>
+# List snapshots for a VM
+qm listsnapshot <vmid>
 
-# Clean up snapshot metadata
-virsh snapshot-delete <vm> <snapshot-name> --metadata
+# Delete old snapshot
+qm delsnapshot <vmid> <snapname>
 ```
 
-**Why merge:**
-- Prevents snapshot chain growth
-- Maintains single base image per VM
-- Reduces complexity
-- Preserves performance
+**PBS prune rules:**
+- Keeps last 7 daily backups
+- Automatic garbage collection
+- Deduplication via PBS datastore
 
 ## Off-Hypervisor Backup
 
-### Remote Sync to r720xd
+### Proxmox Backup Server (PBS)
 
+All VM backups are stored on PBS (VM 202 at 10.220.1.62), running on r720xd with access to the `ceph-bulk` storage pool.
+
+**PBS Web UI**: https://10.220.1.62:8007
+
+**Backup flow:**
+- Each Proxmox host sends vzdump snapshots directly to PBS
+- PBS handles deduplication, compression, and retention
+- Backups are stored in the PBS datastore on Ceph bulk storage
+
+**Verify backups:**
 ```bash
-rsync -avz --delete-after \
-  /var/lib/libvirt/backups/ \
-  root@r720xd.infiquetra.com:/mnt/backups/vm-snapshots/<hypervisor>/
-```
+# Check PBS backup status from any Proxmox host
+pvesm list pbs
 
-**Target location**: `/mnt/backups/vm-snapshots/`
-
-**Directory structure:**
+# Or via PBS web UI for detailed datastore info
 ```
-/mnt/backups/vm-snapshots/
-├── r420.infiquetra.com/
-│   └── 2026-01-30/
-│       ├── zeus.xml
-│       ├── zeus_ubuntu-22.04.qcow2
-│       └── zeus_openclaw.tar.gz
-├── r710.infiquetra.com/
-│   └── 2026-01-30/
-│       ├── athena.xml
-│       ├── athena_ubuntu-22.04.qcow2
-│       ├── athena_openclaw.tar.gz
-│       ├── apollo.xml
-│       ├── apollo_ubuntu-22.04.qcow2
-│       └── apollo_openclaw.tar.gz
-└── ...
-```
-
-**Sync behavior:**
-- Run after local backup completes
-- `--delete-after` removes old backups post-transfer
-- Compressed transfer to save bandwidth
-- Preserves permissions and timestamps
 
 ## Backup Verification
 
@@ -180,24 +160,26 @@ grep "All backup operations completed" /var/log/vm-backup.log
 
 **Weekly verification checklist:**
 
-1. **Check backup directories exist**
+1. **Check PBS datastore status**
    ```bash
-   ls -lh /var/lib/libvirt/backups/
+   # Via PBS web UI at https://10.220.1.62:8007
+   # Or from Proxmox host:
+   pvesm status | grep pbs
    ```
 
 2. **Verify recent backups**
    ```bash
-   find /var/lib/libvirt/backups/ -type d -mtime -1
+   pvesm list pbs | tail -20
    ```
 
 3. **Check backup sizes** (should be similar day-to-day)
    ```bash
-   du -sh /var/lib/libvirt/backups/*
+   # Via PBS web UI → Datastore → Content
    ```
 
-4. **Verify remote backups**
+4. **Verify PBS disk space**
    ```bash
-   ssh root@r720xd.infiquetra.com "ls -lh /mnt/backups/vm-snapshots/"
+   ssh root@10.220.1.62 "df -h"
    ```
 
 5. **Test restore** (quarterly, in test environment)
@@ -208,82 +190,66 @@ grep "All backup operations completed" /var/log/vm-backup.log
 
 1. **Stop the VM**
    ```bash
-   virsh shutdown <vm>
-   # Or force: virsh destroy <vm>
+   qm stop <vmid>
    ```
 
-2. **Restore disk image**
+2. **Restore from PBS**
    ```bash
-   cp /var/lib/libvirt/backups/<date>/<vm>_<disk> \
-      /var/lib/libvirt/images/<vm>.qcow2
+   # Via Proxmox web UI: Datacenter → Storage → PBS → Content
+   # Select backup → Restore
+   # Or via CLI:
+   qmrestore <pbs-backup-path> <vmid> --storage ceph-fast
    ```
 
-3. **Restore configuration (if needed)**
+3. **Start the VM**
    ```bash
-   virsh define /var/lib/libvirt/backups/<date>/<vm>.xml
+   qm start <vmid>
    ```
 
-4. **Start the VM**
+4. **Restore Hermes data (agent VMs)**
    ```bash
-   virsh start <vm>
+   scp /backups/<date>/<vm>_hermes.tar.gz agent@<vm-ip>:/tmp/
+
+   ssh agent@<vm-ip> "tar -xzf /tmp/hermes-data.tar.gz -C ~/.hermes/"
+   sudo systemctl restart hermes-<agent>
    ```
 
-5. **Restore OpenClaw workspace (agent VMs)**
+### Restore from PBS
+
+PBS stores all backups centrally. To restore on any Proxmox host:
+
+1. **Browse PBS backups** via Proxmox web UI or:
    ```bash
-   scp /var/lib/libvirt/backups/<date>/<vm>_openclaw.tar.gz \
-       agent@<vm-ip>:/tmp/
-
-   ssh agent@<vm-ip> "tar -xzf /tmp/openclaw-workspace.tar.gz \
-       -C ~/.openclaw/workspace/"
+   pvesm list pbs --vmid <vmid>
    ```
 
-### Restore from Remote Backup
-
-If local backups are lost:
-
-1. **Sync from r720xd to hypervisor**
+2. **Restore to target host**
    ```bash
-   rsync -avz root@r720xd.infiquetra.com:/mnt/backups/vm-snapshots/<hypervisor>/ \
-       /var/lib/libvirt/backups/
+   qmrestore <pbs-backup-path> <vmid> --storage ceph-fast
    ```
-
-2. **Follow normal restore procedure** (above)
 
 ### Disaster Recovery (Complete Hypervisor Loss)
 
-1. **Reinstall hypervisor** (if hardware intact) or **migrate to new hardware**
+1. **Reinstall Proxmox VE** on the server (if hardware intact)
 
-2. **Run host_prepare role**
+2. **Re-join the cluster**
    ```bash
-   ansible-playbook -i inventory/hosts.yml openclaw_cluster.yml \
-     --tags host_prepare --limit <hypervisor>
+   pvecm add r420.infiquetra.com
    ```
 
-3. **Run libvirt role**
+3. **Restore VMs from PBS**
    ```bash
-   ansible-playbook -i inventory/hosts.yml openclaw_cluster.yml \
-     --tags libvirt --limit <hypervisor>
+   # List available backups
+   pvesm list pbs
+
+   # Restore each VM that was on this host
+   qmrestore <pbs-backup-path> <vmid> --storage ceph-fast
    ```
 
-4. **Restore backups from r720xd**
+4. **Start VMs**
    ```bash
-   rsync -avz root@r720xd.infiquetra.com:/mnt/backups/vm-snapshots/<hypervisor>/ \
-       /var/lib/libvirt/backups/
-   ```
-
-5. **Restore each VM** (see "Restore Single VM" above)
-
-6. **Recreate VM definitions if needed**
-   ```bash
-   for xml in /var/lib/libvirt/backups/<date>/*.xml; do
-     virsh define "$xml"
-   done
-   ```
-
-7. **Start VMs**
-   ```bash
-   for vm in zeus athena apollo artemis hermes perseus prometheus ares; do
-     virsh start "$vm"
+   for vmid in <list-of-vmids>; do
+     qm start $vmid
    done
    ```
 
@@ -306,14 +272,14 @@ grep "All backup operations completed" /var/log/vm-backup.log | tail -n 7
 
 ### Disk Space Monitoring
 
-**Check local backup space:**
+**Check local storage:**
 ```bash
-df -h /var/lib/libvirt/backups/
+pvesm status
 ```
 
-**Check remote backup space:**
+**Check PBS storage:**
 ```bash
-ssh root@r720xd.infiquetra.com "df -h /mnt/backups/"
+ssh root@10.220.1.62 "df -h"
 ```
 
 **Warning threshold**: < 20% free space
@@ -324,8 +290,8 @@ ssh root@r720xd.infiquetra.com "df -h /mnt/backups/"
 **Setup monitoring for:**
 1. Backup script failures (check exit code in cron logs)
 2. Disk space < 20% on backup volumes
-3. Missing backup directories for current day (after 3 AM)
-4. rsync failures to r720xd
+3. Missing backup entries in PBS for current day (after 3 AM)
+4. PBS datastore errors or connectivity failures
 5. Log file size (indicates verbosity/errors if growing)
 
 ## Backup Security
@@ -355,10 +321,9 @@ tar -czf - /var/lib/libvirt/backups/<date> | \
 - ✅ Create VM snapshots
 - ✅ Export configurations
 - ✅ Copy disk images
-- ✅ Export OpenClaw workspaces
-- ✅ Merge snapshots
-- ✅ Clean old backups
-- ✅ Sync to r720xd
+- ✅ Export Hermes data
+- ✅ PBS prune and garbage collection
+- ✅ Clean old local backups
 
 ### Weekly (Manual)
 - Check backup logs for errors
@@ -368,7 +333,7 @@ tar -czf - /var/lib/libvirt/backups/<date> | \
 
 ### Monthly (Manual)
 - Test restore procedure on one VM
-- Verify OpenClaw workspace restores
+- Verify Hermes memory.db restores
 - Review retention policy effectiveness
 - Check for backup script improvements
 
@@ -393,51 +358,38 @@ tail -100 /var/log/vm-backup.log
 3. **VM not running**: Verify VM state, adjust script to handle
 4. **rsync failure**: Check network, SSH keys, remote disk space
 
-### Snapshot Won't Merge
+### PBS Backup Fails
 
-**Symptoms**: "blockcommit failed" in logs
+**Symptoms**: vzdump errors in Proxmox task log
 
 **Resolution:**
 ```bash
-# Check snapshot chain
-virsh snapshot-list <vm>
+# Check PBS connectivity
+pvesm status | grep pbs
 
-# Manual merge attempt
-virsh blockcommit <vm> --domain <vm> --path <disk> --active --pivot --verbose
+# Check PBS VM is running
+ssh root@10.220.1.10 "qm status 202"
 
-# If still fails, may need to consolidate manually
+# Check PBS datastore space
+ssh root@10.220.1.62 "df -h"
+
+# Manual backup attempt
+vzdump <vmid> --storage pbs --mode snapshot --compress zstd
 ```
 
-### Remote Backup Not Syncing
+### Hermes Data Export Fails
 
-**Check SSH key:**
-```bash
-ssh root@r720xd.infiquetra.com "echo test"
-```
-
-**Check disk space:**
-```bash
-ssh root@r720xd.infiquetra.com "df -h /mnt/backups/"
-```
-
-**Manual sync:**
-```bash
-/usr/local/bin/backup_vms.sh
-```
-
-### OpenClaw Workspace Export Fails
-
-**Symptoms**: "OpenClaw export failed" in logs
+**Symptoms**: "Hermes export failed" in logs
 
 **Check:**
 1. VM network connectivity
 2. SSH access to agent@<vm-ip>
-3. Workspace directory exists: `~/.openclaw/workspace`
-4. Agent user has read permissions
+3. Hermes directory exists: `~/.hermes`
+4. memory.db is not locked
 
 **Manual export:**
 ```bash
-ssh agent@<vm-ip> "tar -czf /tmp/test.tar.gz -C ~/.openclaw/workspace . && ls -lh /tmp/test.tar.gz"
+ssh agent@<vm-ip> "tar -czf /tmp/test.tar.gz -C ~/.hermes . && ls -lh /tmp/test.tar.gz"
 ```
 
 ## Cost Considerations
@@ -447,13 +399,13 @@ ssh agent@<vm-ip> "tar -czf /tmp/test.tar.gz -C ~/.openclaw/workspace . && ls -l
 **Per agent VM (estimated):**
 - VM disk: ~20GB (after OS + tools)
 - Backup (compressed): ~8GB per snapshot
-- OpenClaw workspace: ~100MB
+- Hermes data (~/.hermes/memory.db): ~100MB
 - Total per day per VM: ~8.1GB
 
 **Total storage:**
 - 8 VMs × 8.1GB × 7 days = ~450GB for 7-day retention
-- Local: ~450GB per hypervisor
-- Remote: ~450GB × 5 hypervisors = ~2.25TB on r720xd
+- Local: Stored on Ceph
+- Remote: PBS on r720xd (VM 202) with ceph-bulk storage, ~2.25TB estimated
 
 ### Network Bandwidth
 
@@ -477,12 +429,11 @@ ssh agent@<vm-ip> "tar -czf /tmp/test.tar.gz -C ~/.openclaw/workspace . && ls -l
 ### Configuration Management
 
 All backup configuration is managed through Ansible:
-- **Role**: `vm_backup`
-- **Variables**: `roles/vm_backup/defaults/main.yml`
-- **Templates**: `roles/vm_backup/templates/backup_vms.sh.j2`
+- **Service VM playbook**: `service_vms.yml` (deploys PBS)
+- **PBS VM**: ID 202, r720xd, 10.220.1.62
 
-To modify backup behavior, update Ansible variables and re-run playbook:
+To redeploy PBS:
 
 ```bash
-ansible-playbook openclaw_cluster.yml --tags vm_backup
+ansible-playbook service_vms.yml --tags pbs --vault-password-file ~/.vault_pass.txt
 ```

@@ -1,4 +1,4 @@
-# OpenClaw Virtual Employee Deployment Runbook
+# Hermes Agent Deployment Runbook
 
 Complete step-by-step guide for deploying the "Mount Olympus" agent cluster.
 
@@ -18,7 +18,7 @@ Complete step-by-step guide for deploying the "Mount Olympus" agent cluster.
 
 ### Access Requirements
 
-- SSH access to all 5 Dell servers (r420, r710, r8202, r720xd, r820)
+- SSH access to all 6 Dell servers (r420, r640-1, r640-2, r720xd, r820, r640-3)
 - Google Workspace admin access for email configuration
 - GitHub organization admin access
 - Anthropic, OpenAI, and Google Cloud accounts with API access
@@ -27,7 +27,7 @@ Complete step-by-step guide for deploying the "Mount Olympus" agent cluster.
 
 ```bash
 # Clone the repository
-cd ~/workspace/temp/home-lab/ansible
+cd ~/workspace/infiquetra/home-lab/ansible
 
 # Install dependencies
 uv sync
@@ -43,122 +43,59 @@ ansible all -i inventory/hosts.yml -m ping
 Create Ansible vault for sensitive data:
 
 ```bash
-cd ~/workspace/temp/home-lab/ansible
+cd ~/workspace/infiquetra/home-lab/ansible
 
-# Create vault password file (keep secure!)
-echo "your-strong-vault-password" > .vault_pass
-chmod 600 .vault_pass
+# Vault password file location
+# ~/.vault_pass.txt
 
-# Add .vault_pass to .gitignore
-echo ".vault_pass" >> ../.gitignore
-
-# Create encrypted vault
-ansible-vault create passwd.yml --vault-password-file .vault_pass
+# Edit encrypted vault
+ansible-vault edit inventory/group_vars/all/all.yml --vault-password-file ~/.vault_pass.txt
 ```
 
-Add the following variables to `passwd.yml`:
-
-```yaml
----
-# Mattermost
-vault_mattermost_postgres_password: "strong-postgres-password"
-vault_mattermost_bot_token: ""  # Will be populated later
-
-# OpenClaw API keys
-vault_openclaw_anthropic_api_key: "sk-ant-..."
-vault_openclaw_openai_api_key: "sk-..."
-vault_openclaw_google_api_key: "..."
-```
+Key vault variables include Discord bot tokens per agent (e.g., `vault_discord_bot_token_zeus`) and API keys for AI services.
 
 ---
 
 ## Phase 1: Infrastructure Setup
 
-### Step 1.1: Prepare Hypervisor Hosts
+### Step 1.1: Deploy Proxmox Cluster
 
-This step updates all servers and provisions storage for VMs.
+This step provisions the 6-node Proxmox VE cluster ("olympus"), including networking, Ceph storage, and VM templates.
 
 ```bash
-cd ~/workspace/temp/home-lab/ansible
+cd ~/workspace/infiquetra/home-lab/ansible
 
-# Run host preparation (dry run)
-ansible-playbook openclaw_cluster.yml \
-  --tags host_prepare \
+# Full cluster deployment (dry run)
+ansible-playbook proxmox_cluster.yml \
   --check \
-  --vault-password-file .vault_pass
+  --vault-password-file ~/.vault_pass.txt
 
-# Execute host preparation
-ansible-playbook openclaw_cluster.yml \
-  --tags host_prepare \
-  --vault-password-file .vault_pass
+# Execute full cluster deployment
+ansible-playbook proxmox_cluster.yml \
+  --vault-password-file ~/.vault_pass.txt
 ```
 
-**Expected duration**: 15-30 minutes (depends on pending updates)
+**Expected duration**: 30-60 minutes (depends on Ceph OSD creation)
 
 **Verification**:
 ```bash
-# Check each host
-ansible hypervisors -i inventory/hosts.yml -a "df -h /var/lib/libvirt/images"
+# Check cluster status
+ssh root@10.220.1.7 "pvecm status"
 
-# Expected: Storage directory exists with adequate space
+# Check Ceph health
+ssh root@10.220.1.7 "ceph status"
+
+# Check storage pools
+ssh root@10.220.1.7 "pvesm status"
 ```
 
-### Step 1.2: Install Libvirt/KVM
+### Step 1.2: Communication Platform
 
-Install virtualization platform on all hypervisors.
+Agents communicate via **Discord**. No self-hosted chat infrastructure is needed.
 
-```bash
-# Execute libvirt installation
-ansible-playbook openclaw_cluster.yml \
-  --tags libvirt \
-  --vault-password-file .vault_pass
-```
-
-**Expected duration**: 10-15 minutes
-
-**Verification**:
-```bash
-# Verify libvirt installation
-ansible hypervisors -i inventory/hosts.yml -a "virsh version"
-
-# Check virtualization support
-ansible hypervisors -i inventory/hosts.yml -a "grep -E '(vmx|svm)' /proc/cpuinfo"
-
-# List storage pools
-ansible hypervisors -i inventory/hosts.yml -a "virsh pool-list --all" -b
-```
-
-### Step 1.3: Deploy Mattermost
-
-Deploy team communication platform on r720xd.
-
-```bash
-# Execute Mattermost deployment
-ansible-playbook openclaw_cluster.yml \
-  --tags mattermost \
-  --vault-password-file .vault_pass
-```
-
-**Expected duration**: 5-10 minutes
-
-**Verification**:
-```bash
-# Check Mattermost is running
-curl http://10.220.1.10:8065/api/v4/system/ping
-
-# Expected: {"status":"OK"}
-
-# View containers
-ssh jefcox@10.220.1.10 "docker ps"
-
-# Expected: mattermost-app and mattermost-postgres containers running
-```
-
-**Access Mattermost**:
-1. Open browser: http://10.220.1.10:8065
-2. Create admin account (first user becomes admin)
-3. Create team: "Mount Olympus"
-4. Note: Agent accounts will be created later
+- Create Discord server with channels: #general, #dev, #pm, #qa
+- Create bot applications per agent at https://discord.com/developers/applications
+- Store bot tokens in Ansible vault as `vault_discord_bot_token_<agent>`
 
 ---
 
@@ -166,43 +103,41 @@ ssh jefcox@10.220.1.10 "docker ps"
 
 ### Step 2.1: Create Agent VMs
 
-Create 8 Ubuntu VMs distributed across hypervisors.
+Create 8 Ubuntu 24.04 VMs distributed across the Proxmox cluster. VMs are cloned from template VM 9000.
 
 ```bash
-# Execute VM provisioning
-ansible-playbook openclaw_cluster.yml \
-  --tags agent_vm \
-  --vault-password-file .vault_pass
+# VM provisioning is part of the cluster playbook
+ansible-playbook proxmox_cluster.yml \
+  --tags proxmox_vm \
+  --vault-password-file ~/.vault_pass.txt
 ```
 
 **Expected duration**: 20-30 minutes
 
 **VM Distribution**:
-- r420: Athena (1 VM)
-- r710: Apollo, Artemis (2 VMs)
-- r8202: Hermes (1 VM)
-- r720xd: Perseus (1 VM)
-- r820: Prometheus, Ares, Poseidon (3 VMs)
+- r820: Zeus (100)
+- r640-2: Athena (101), Prometheus (106)
+- r640-1: Apollo (102), Perseus (105)
+- r420: Artemis (103), Hephaestus (104)
+- r720xd: Ares (107)
 
 **Verification**:
 ```bash
-# Check VMs are running
-ansible hypervisors -i inventory/hosts.yml -a "virsh list --all" -b
+# Check VMs are running on each host
+ssh root@10.220.1.7 "qm list"
 
 # Test SSH access to VMs
-ansible agent_vms -i inventory/hosts.yml -m ping -u agent
+ansible agent_vms -i inventory/hosts.yml -m ping --vault-password-file ~/.vault_pass.txt
 
 # Expected: All 8 agents respond with pong
 ```
 
 **Troubleshooting VM Access**:
 ```bash
-# If SSH fails, check VM console
-ssh jefcox@10.220.1.7  # r420
-sudo virsh console athena
-
-# Press Enter to see login prompt
-# Login: agent / (no password, use SSH keys)
+# If SSH fails, check VM console via Proxmox web UI
+# Or use qm terminal:
+ssh root@10.220.1.11  # r820 (Zeus's host)
+qm terminal 100
 
 # Check cloud-init status
 sudo cloud-init status
@@ -260,36 +195,16 @@ Follow the [Google Workspace Setup Guide](GOOGLE_WORKSPACE_SETUP.md) to configur
 3. Configure catch-all to route all @infiquetra.com emails to jeff@infiquetra.com
 4. Test by sending email to test@infiquetra.com
 
-### Step 3.2: Create Mattermost Accounts
+### Step 3.2: Configure Discord Bot Tokens
 
-Create accounts for all 8 agents:
-
-1. Open http://10.220.1.10:8065
-2. For each agent:
-   - Click "Create an account"
-   - Email: `<agent>@infiquetra.com` (e.g., athena@infiquetra.com)
-   - Username: `<agent>` (e.g., athena)
-   - Password: Generate strong password, store in password manager
-   - Check jeff@infiquetra.com for verification email
-   - Verify email
-3. Invite all agents to "Mount Olympus" team
-4. Create channels: #general, #dev, #pm, #qa
-
-**Create Bot Tokens**:
-
-For each agent, create a personal access token:
-
-1. System Console → Integrations → Bot Accounts → Create Bot Account
-2. Bot name: `<agent>-bot`
-3. Description: "OpenClaw agent for <agent>"
-4. Copy token → Update vault:
+Each agent has its own Discord bot application. Tokens are stored in Ansible vault.
 
 ```bash
-# Edit vault
-ansible-vault edit passwd.yml --vault-password-file .vault_pass
+# Edit vault to add/update Discord bot tokens
+ansible-vault edit inventory/group_vars/all/all.yml --vault-password-file ~/.vault_pass.txt
 
-# Add token (same for all agents initially, can separate later)
-vault_mattermost_bot_token: "your-bot-token-here"
+# Each agent has a dedicated token:
+# vault_discord_bot_token_zeus, vault_discord_bot_token_athena, etc.
 ```
 
 ### Step 3.3: Configure GitHub Accounts
@@ -346,8 +261,8 @@ claude-code auth
 # SSH into VM
 ssh agent@10.220.1.50
 
-# Edit OpenClaw environment file
-nano ~/.openclaw/.env
+# Edit Hermes environment file
+nano ~/.hermes/.env
 
 # Add/update:
 OPENAI_API_KEY=sk-...
@@ -359,8 +274,8 @@ OPENAI_API_KEY=sk-...
 # SSH into VM
 ssh agent@10.220.1.50
 
-# Edit OpenClaw environment file
-nano ~/.openclaw/.env
+# Edit Hermes environment file
+nano ~/.hermes/.env
 
 # Add/update:
 GOOGLE_API_KEY=...
@@ -375,72 +290,56 @@ aws configure
 # Enter credentials for agent-specific IAM user
 ```
 
-### Step 3.5: Install OpenClaw
+### Step 3.5: Deploy Hermes
 
-Deploy OpenClaw on all agent VMs.
+Deploy Hermes agent runtime on all agent VMs.
 
 ```bash
-# Execute OpenClaw installation
-ansible-playbook openclaw_cluster.yml \
-  --tags openclaw \
-  --vault-password-file .vault_pass
+# Execute Hermes deployment
+ansible-playbook hermes_cluster.yml \
+  --vault-password-file ~/.vault_pass.txt
 ```
 
 **Expected duration**: 10-15 minutes
 
 **Verification**:
 ```bash
-# Check OpenClaw installation
+# Check Hermes service on a VM
 ssh agent@10.220.1.50
-openclaw --version
-
-# Check systemd service
-sudo systemctl status openclaw-athena
+sudo systemctl status hermes-zeus
 
 # View configuration
-cat ~/.openclaw/config.yml
+cat ~/.hermes/config.yml
 ```
 
-### Step 3.6: Start OpenClaw Services
+### Step 3.6: Start Hermes Services
 
-Start OpenClaw on all agents:
+Hermes services are started automatically by the playbook. To manually manage:
 
 ```bash
-# Start all OpenClaw services
-ansible agent_vms -i inventory/hosts.yml \
-  -m systemd \
-  -a "name=openclaw-{{ inventory_hostname_short }} state=started enabled=yes" \
-  -u agent \
-  --become
-
-# Check service status
+# Check service status across all agents
 ansible agent_vms -i inventory/hosts.yml \
   -m shell \
-  -a "systemctl status openclaw-{{ inventory_hostname_short }}" \
+  -a "systemctl status hermes-{{ inventory_hostname_short }}" \
   -u agent \
-  --become
+  --become \
+  --vault-password-file ~/.vault_pass.txt
 ```
-
-**Access Web Dashboards**:
-- Athena: http://10.220.1.50:18789
-- Apollo: http://10.220.1.51:18789
-- (etc for all 8 agents)
 
 ---
 
 ## Phase 4: Integration & Testing
 
-### Step 4.1: Test Mattermost Integration
+### Step 4.1: Test Discord Integration
 
-1. Open Mattermost: http://10.220.1.10:8065
-2. Login as one of the agent accounts
-3. Send a message in #general
-4. Verify other agents can see the message
-5. Check OpenClaw logs to see if agents respond:
+1. Open Discord server
+2. Send a message in #general mentioning an agent
+3. Verify agents respond via their Discord bot connections
+4. Check Hermes logs:
 
 ```bash
 ssh agent@10.220.1.50
-tail -f ~/.openclaw/logs/openclaw.log
+sudo journalctl -u hermes-zeus -f
 ```
 
 ### Step 4.2: Test GitHub Integration
@@ -474,7 +373,7 @@ Verify in GitHub web UI that PR was created.
 
 Create a test workflow:
 
-1. **Human (Jeff)** posts in Mattermost #pm channel:
+1. **Human (Jeff)** posts in Discord #pm channel:
    ```
    @athena Please create a GitHub issue for building a simple TODO app
    ```
@@ -497,29 +396,27 @@ Create a test workflow:
 
 ### Step 4.4: Monitor Agent Activity
 
-**Mattermost**:
-- Watch #general channel for agent messages
+**Discord**:
+- Watch channels for agent messages
 - Check agent status and activity
 
 **GitHub**:
 - Monitor issues and PRs
 - Review commit history
 
-**OpenClaw Dashboards**:
-- View web dashboard for each agent: http://10.220.1.XX:18789
-- Check memory, task queue, and conversation history
+**Monitoring VM** (10.220.1.63):
+- Grafana dashboards for cluster health
+- VM resource usage and Hermes service status
 
 **System Monitoring**:
 ```bash
-# Check VM resource usage
-ansible agent_vms -i inventory/hosts.yml -a "htop -C" -u agent
-
-# Check OpenClaw service status
+# Check Hermes service status
 ansible agent_vms -i inventory/hosts.yml \
   -m shell \
-  -a "systemctl status openclaw-{{ inventory_hostname_short }}" \
+  -a "systemctl status hermes-{{ inventory_hostname_short }}" \
   -u agent \
-  --become
+  --become \
+  --vault-password-file ~/.vault_pass.txt
 ```
 
 ---
@@ -529,21 +426,18 @@ ansible agent_vms -i inventory/hosts.yml \
 ### VM Won't Start
 
 ```bash
-# Check VM status
-ssh jefcox@<hypervisor-host>
-sudo virsh list --all
+# Check VM status on Proxmox host
+ssh root@<hypervisor-host>
+qm list
 
-# If VM is shut off
-sudo virsh start <agent-name>
+# Start VM
+qm start <vmid>
 
-# Check console for errors
-sudo virsh console <agent-name>
+# Check console via Proxmox web UI or:
+qm terminal <vmid>
 
-# View VM XML definition
-sudo virsh dumpxml <agent-name>
-
-# Check libvirt logs
-sudo journalctl -u libvirtd -n 100
+# Check Proxmox logs
+journalctl -u pvedaemon -n 100
 ```
 
 ### SSH Access Fails
@@ -552,58 +446,33 @@ sudo journalctl -u libvirtd -n 100
 # Check network connectivity
 ping 10.220.1.50
 
-# Verify cloud-init completed
-ssh jefcox@<hypervisor-host>
-sudo virsh console athena
+# Verify cloud-init completed via Proxmox console
+ssh root@<hypervisor-host>
+qm terminal <vmid>
 # Check /var/log/cloud-init-output.log
 
 # Verify SSH key is authorized
 ssh agent@10.220.1.50 -v
 # Look for key authentication attempts
-
-# Manually add SSH key if needed
-sudo virsh console athena
-# Login and add key to ~/.ssh/authorized_keys
 ```
 
-### Mattermost Not Accessible
-
-```bash
-# Check Docker containers
-ssh jefcox@10.220.1.10
-docker ps
-
-# If containers aren't running
-cd /opt/mattermost
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Check database
-docker exec -it mattermost-postgres psql -U mmuser -d mattermost
-```
-
-### OpenClaw Service Fails
+### Hermes Service Fails
 
 ```bash
 # SSH into agent VM
 ssh agent@10.220.1.50
 
 # Check service status
-sudo systemctl status openclaw-athena
+sudo systemctl status hermes-zeus
 
 # View logs
-sudo journalctl -u openclaw-athena -n 100
+sudo journalctl -u hermes-zeus -n 100
 
 # Check configuration
-cat ~/.openclaw/config.yml
-
-# Manually run OpenClaw (debugging)
-openclaw start --config ~/.openclaw/config.yml --verbose
+cat ~/.hermes/config.yml
 
 # Check environment variables
-cat ~/.openclaw/.env
+cat ~/.hermes/.env
 ```
 
 ### API Authentication Issues
@@ -621,22 +490,21 @@ claude-code auth status
 **OpenAI/Google**:
 ```bash
 # Verify API keys are set
-cat ~/.openclaw/.env | grep API_KEY
+cat ~/.hermes/.env | grep API_KEY
 
 # Test API key
 curl https://api.openai.com/v1/models \
   -H "Authorization: Bearer $OPENAI_API_KEY"
 ```
 
-### Agent Not Responding in Mattermost
+### Agent Not Responding in Discord
 
-1. Check OpenClaw service is running
-2. Check Mattermost bot token is correct
-3. Verify agent account is member of team/channels
-4. Check OpenClaw logs for connection errors
-5. Restart OpenClaw service:
+1. Check Hermes service is running: `sudo systemctl status hermes-<agent>`
+2. Check Discord bot token is correct in `~/.hermes/.env`
+3. Check Hermes logs for connection errors: `sudo journalctl -u hermes-<agent> -f`
+4. Restart Hermes service:
    ```bash
-   sudo systemctl restart openclaw-athena
+   sudo systemctl restart hermes-<agent>
    ```
 
 ---
@@ -646,16 +514,12 @@ curl https://api.openai.com/v1/models \
 ### Complete Infrastructure Teardown
 
 ```bash
-cd ~/workspace/temp/home-lab/ansible
+cd ~/workspace/infiquetra/home-lab/ansible
 
 # Stop all services and remove VMs
-ansible-playbook openclaw_cluster_reset.yml \
-  --vault-password-file .vault_pass
-
-# Optional: Also remove libvirt
-ansible-playbook openclaw_cluster_reset.yml \
-  -e remove_libvirt=true \
-  --vault-password-file .vault_pass
+ansible-playbook proxmox_cluster_reset.yml \
+  -e reset=true \
+  --vault-password-file ~/.vault_pass.txt
 ```
 
 ### Rollback Single Agent
@@ -663,17 +527,16 @@ ansible-playbook openclaw_cluster_reset.yml \
 ```bash
 # Stop agent service
 ssh agent@10.220.1.50
-sudo systemctl stop openclaw-athena
-sudo systemctl disable openclaw-athena
+sudo systemctl stop hermes-zeus
+sudo systemctl disable hermes-zeus
 
 # Remove configuration
-rm -rf ~/.openclaw
+rm -rf ~/.hermes
 
-# Destroy VM from hypervisor
-ssh jefcox@10.220.1.7
-sudo virsh destroy athena
-sudo virsh undefine athena
-sudo rm /var/lib/libvirt/images/athena.qcow2
+# Destroy VM from Proxmox host
+ssh root@10.220.1.11  # r820 (Zeus's host)
+qm stop 100
+qm destroy 100
 ```
 
 ### Recreate Single Agent
@@ -681,12 +544,16 @@ sudo rm /var/lib/libvirt/images/athena.qcow2
 After fixing issues, recreate a single agent:
 
 ```bash
-# On hypervisor, manually recreate VM
-# Then re-run provisioning for just that host
-ansible-playbook openclaw_cluster.yml \
-  --limit athena.infiquetra.com \
-  --tags agent_provision,openclaw \
-  --vault-password-file .vault_pass
+# Re-run VM provisioning for just that host
+ansible-playbook proxmox_cluster.yml \
+  --tags proxmox_vm \
+  --limit r820.infiquetra.com \
+  --vault-password-file ~/.vault_pass.txt
+
+# Re-run Hermes deployment for that agent
+ansible-playbook hermes_cluster.yml \
+  --limit zeus.infiquetra.com \
+  --vault-password-file ~/.vault_pass.txt
 ```
 
 ---
@@ -703,8 +570,8 @@ After successful deployment:
    - PR review and approval process
    - Deployment gates
 4. **Monitor and optimize**:
-   - Agent performance and resource usage
-   - Mattermost message patterns
+   - Agent performance and resource usage (Monitoring VM at 10.220.1.63)
+   - Discord interaction patterns
    - Code quality and collaboration effectiveness
 5. **Scale up** (optional):
    - Add more developer agents as needed
@@ -713,5 +580,5 @@ After successful deployment:
 
 ---
 
-**Last Updated**: 2026-01-30
+**Last Updated**: 2026-03-28
 **Maintainer**: jeff@infiquetra.com
