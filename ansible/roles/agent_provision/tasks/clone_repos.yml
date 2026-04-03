@@ -21,11 +21,14 @@
   failed_when:
     - clone_results.failed
     - "'already exists' not in (clone_results.msg | default(''))"
+    - "'Permission denied' not in (clone_results.msg | default(''))"
+    - "'Repository not found' not in (clone_results.msg | default(''))"
 
 - name: Report clone results
   debug:
     msg: >-
-      {{ repo_item.item }}: {{ 'cloned' if repo_item.changed else 'already exists or failed' }}
+      {{ repo_item.repo_item | default(repo_item.item | default('unknown')) }}: {{ 'cloned' if repo_item.changed | default(false) else 'already exists or skipped' }}
   loop: "{{ clone_results.results }}"
   loop_control:
     loop_var: repo_item
+  ignore_errors: yes
